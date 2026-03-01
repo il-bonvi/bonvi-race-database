@@ -34,6 +34,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Copy gares to public
+        run: |
+          mkdir -p public/gare-sorgenti
+          cp gare-sorgenti/*.json public/gare-sorgenti/ 2>/dev/null || true
+
       - name: Build (reports + Astro)
         run: npm run build
 
