@@ -58,24 +58,54 @@ GitHub Actions builda e deploya in automatico. Il sito è aggiornato in ~1 minut
 archivio-prototipo/
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml        ← GitHub Actions (build + deploy)
-├── gare-sorgenti/            ← un JSON per gara (metadati)
-├── public/gare/              ← un HTML per gara (report)
+│       └── deploy.yml           ← GitHub Actions (build + deploy)
+├── gare-sorgenti/               ← JSON source per ogni gara (metadati + GPX)
+├── public/
+│   ├── gara.html                ← Unico visualizzatore web (tutte le gare)
+│   └── gare-sorgenti/           ← JSON serviti al browser da gara.html
 ├── generator/
-│   ├── index.html            ← template report
-│   ├── genera_report.py      ← genera singola gara da GPX
-│   ├── build_all_reports.py  ← rigenera tutti gli HTML
-│   └── gestisci_gare_gui.py  ← GUI gestione gare
+│   ├── index.html               ← Template base per gara.html
+│   └── genera_report.py         ← Script che aggiunge nuove gare da GPX
 ├── src/
 │   ├── pages/
-│   │   ├── index.astro
-│   │   └── gare/[slug].astro
-│   ├── components/GaraCard.astro
+│   │   ├── index.astro          ← Homepage con lista gare
+│   │   └── gare/[slug].astro    ← Pagina race (top-bar Astro + iframe gara.html)
+│   ├── components/GaraCard.astro← Card per lista homepage
 │   ├── layouts/Base.astro
 │   └── lib/gare.js
 ├── astro.config.mjs
-└── package.json
+├── package.json
+└── MIGRATION_COMPLETE.md        ← Descrizione architettura
 ```
+
+**Come funziona:**
+- `/gare/[slug]/` → pagina Astro che mostra top-bar + iframe su `/gara.html?gara=slug`
+- `/gara.html` → viewer unico (carica race in JSON da `?gara=` parameter)
+- Nuovo race → `python genera_report.py` crea JSON in entrambe `gare-sorgenti/` e `public/gare-sorgenti/`
+
+---
+
+## Gestione Gare
+
+### Aggiungere una gara
+```bash
+python generator/genera_report.py                  # Seleziona GPX con dialog
+python generator/genera_report.py /path/to/race.gpx # Specifica il file
+```
+- Estrae automaticamente distanza, dislivello, punti GPS
+- Chiede metadati: titolo, slug, data, categoria, genere, disciplina, luogo
+- Crea JSON in `gare-sorgenti/` e `public/gare-sorgenti/`
+
+### Visualizzare, modificare, eliminare gare
+```bash
+python generator/gestisci_gare.py
+```
+Apre **UI grafica completa**:
+- 📋 Elenco di tutte le gare nel database
+- 👁️ Visualizza dettagli (metadati + numero punti GPX)
+- ✏️ Modifica metadati (titolo, data, categoria, etc)
+- 🗑️ Elimina una gara
+- ➕ Aggiungi nuova gara (richiama `genera_report.py`)
 
 ---
 

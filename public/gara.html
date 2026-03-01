@@ -7,7 +7,7 @@
     
     
     
-    <title>Schijndel</title>
+    <title>gpx-report</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -188,7 +188,7 @@
         }
         
         #data-content {
-            display: block;
+            display: none;
         }
 
         /* Climb Detection Styles */
@@ -642,6 +642,72 @@
         footer a:hover {
             color: #fc5200;
         }
+        
+        #series-nav {
+            text-align: center;
+            padding: 1.5rem 1rem;
+            border-top: 1px solid #e5e7eb;
+            background: #fafafa;
+            margin-top: 2rem;
+            display: none;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        #series-nav.active {
+            display: block;
+        }
+        
+        #series-nav-text {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-bottom: 0.75rem;
+        }
+        
+        #series-nav-links {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .series-link {
+            padding: 0.5rem 1rem;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #3b82f6;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .series-link:hover {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .series-link.current {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+            cursor: default;
+        }
+        
+        .series-link.current:hover {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .series-link.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -649,19 +715,7 @@
     <div id="app-layout">
     <div id="main-content">
     <div class="container">
-<div id="report-title-bar" style="
-    text-align:center;
-    padding: 18px 24px 10px;
-    font-family: 'Inter', sans-serif;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #111827;
-    letter-spacing: -0.02em;
-    border-bottom: 2px solid #fc5200;
-    margin-bottom: 0;
-">Schijndel</div>
-
-        <div id="upload-section" class="upload-section" style="display:none!important">
+        <div id="upload-section" class="upload-section">
             <div class="upload-zone" id="uploadZone">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
                 <div style="font-size: 1.1rem; font-weight: 500; margin-bottom: 0.5rem;">Carica file GPX</div>
@@ -671,10 +725,26 @@
         </div>
         
         <div id="data-content">
+            <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+                <p class="sv-hint" style="flex: 1; margin: 0;">👆 Premi il tasto destro sulla mappa o sull'altimetria per esplorare il punto in Street View. Attenzione, l'orientamento potrebbe essere errato.</p>
+                <div style="display: flex; align-items: center; gap: 0.5rem; white-space: nowrap;">
+                    <label for="vel-input" style="font-size: 0.85rem; color: #6b7280;">avg speed:</label>
+                    <input type="number" id="vel-input" min="5" max="100" step="0.5" value="38" style="width: 70px; padding: 4px 6px; font-size: 0.9rem; border: 1px solid #d1d5db; border-radius: 4px;">
+                    <span style="font-size: 0.85rem; color: #6b7280;">km/h</span>
+                </div>
+            </div>
             <div class="stats-row">
+                <div class="stat-card" id="stat-laps-card" style="display:none;">
+                    <div class="stat-label">Laps</div>
+                    <div class="stat-value" id="stat-laps">--</div>
+                </div>
                 <div class="stat-card">
-                    <div class="stat-label">Total Length</div>
+                    <div class="stat-label" id="stat-distance-label">Total Length</div>
                     <div class="stat-value" id="stat-distance">--</div>
+                </div>
+                <div class="stat-card" id="stat-laptime-card" style="display:none;">
+                    <div class="stat-label">Lap Time</div>
+                    <div class="stat-value" id="stat-laptime">--</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Total Time</div>
@@ -693,7 +763,7 @@
                     <div class="stat-value" id="stat-avg-alt">--</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Elevation Gain</div>
+                    <div class="stat-label" id="stat-gain-label">Elevation Gain</div>
                     <div class="stat-value" id="stat-gain">--</div>
                 </div>
             </div>
@@ -738,41 +808,19 @@
                     <div class="climbs-title">⛰️ Salite Rilevate <span id="climbs-count" style="color: #6b7280; font-weight: 400; font-size: 0.9rem;"></span></div>
                 </div>
                 <div id="climbs-list" class="climbs-list"></div>
-                <div class="difficulty-legend">
-                    <strong>Scala Difficoltà:</strong>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #9aca3c;"></div>
-                        <span>20-75 (Facile)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #ffa500;"></div>
-                        <span>75-150 (Moderata)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #ff8c00;"></div>
-                        <span>150-300 (Impegnativa)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #ff4500;"></div>
-                        <span>300-600 (Difficile)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #b22222;"></div>
-                        <span>600-900 (Estrema)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #800000;"></div>
-                        <span>900-1200 (HC)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #000000;"></div>
-                        <span>1200+ (Leggendaria)</span>
-                    </div>
+                <div class="difficulty-legend" style="display: block;">
+                    <strong>Scala Diff:</strong><br>
+                    <span style="font-size: 0.9rem; color: #4b5563; display: inline-block; margin-top: 4px;">Formula: Diff = (Pendenza Media %)² × (Distanza in km)</span>
                 </div>
             </div>
         </div>
         
-        <p class="sv-hint" style="display:none">👆 Premi il tasto destro sulla mappa o sull'altimetria per esplorare il punto in Street View. Attenzione, l'orientamento potrebbe essere errato.</p>
+        <!-- Navigazione tra versioni della stessa serie di gare -->
+        <div id="series-nav">
+            <div id="series-nav-text"></div>
+            <div id="series-nav-links"></div>
+        </div>
+        
         <footer>
             <a href="https://linktr.ee/bonvicin.coaching" target="_blank">
                 &copy; 2026 Andrea Bonvicin &mdash; gpx-visualizer &mdash; Licenza MIT
@@ -1027,7 +1075,7 @@ let map;
             uploadSection.style.display = 'none';
             dataContent.style.display = 'block';
             const rb = document.getElementById('reset-bar');
-            // report: reset-bar rimosso
+            if (rb) rb.style.display = 'flex';
             
             setTimeout(() => {
                 initMap(gpxText);
@@ -1035,16 +1083,19 @@ let map;
         }
         
         function updateStats() {
-            const AVG_SPEED_KMH = 38;
-            const totalTimeHours = routeData.distance / AVG_SPEED_KMH;
+            // Usa il valore dall'input field
+            const velInput = document.getElementById('vel-input');
+            const avgSpeed = velInput ? parseFloat(velInput.value) || 38 : 38;
+            const numLaps = window._laps || 1;
+            
+            // Total time sulla distanza totale (routeData.distance è per singolo giro)
+            const totalTimeHours = (routeData.distance * numLaps) / avgSpeed;
             const hours = Math.floor(totalTimeHours);
             const minutes = Math.floor((totalTimeHours - hours) * 60);
             const seconds = Math.floor(((totalTimeHours - hours) * 60 - minutes) * 60);
             const timeString = `${hours}:${minutes.toString().padStart(2, '0')}'${seconds.toString().padStart(2, '0')}"`;
             
-            // Top stats
-            document.getElementById('stat-distance').innerHTML = 
-                `${routeData.distance.toFixed(2)}<span class="stat-unit">km</span>`;
+            // Aggiorna elementi comuni
             document.getElementById('stat-time').innerHTML = 
                 `${timeString}`;
             document.getElementById('stat-max-alt').innerHTML = 
@@ -1053,9 +1104,60 @@ let map;
                 `${Math.round(routeData.minElevation)}<span class="stat-unit">m</span>`;
             document.getElementById('stat-avg-alt').innerHTML = 
                 `${Math.round(routeData.avgElevation)}<span class="stat-unit">m</span>`;
-            document.getElementById('stat-gain').innerHTML = 
-                `${Math.round(routeData.elevationGain)}<span class="stat-unit">m</span>`;
+            
+            // Se >= 2 laps, mostra le card e i valori dei lap
+            if (numLaps >= 2) {
+                document.getElementById('stat-laps-card').style.display = 'block';
+                document.getElementById('stat-laptime-card').style.display = 'block';
+                
+                // Label per lap length e lap elevation
+                document.getElementById('stat-distance-label').textContent = 'Lap Length';
+                document.getElementById('stat-gain-label').textContent = 'Lap Elevation';
+                
+                // Lap length e elevation (distance e elevationGain sono già per singolo giro)
+                document.getElementById('stat-distance').innerHTML = 
+                    `${routeData.distance.toFixed(2)}<span class="stat-unit">km</span>`;
+                document.getElementById('stat-gain').innerHTML = 
+                    `${Math.round(routeData.elevationGain)}<span class="stat-unit">m</span>`;
+                
+                // Lap time
+                const lapTimeHours = routeData.distance / avgSpeed;
+                const lapHours = Math.floor(lapTimeHours);
+                const lapMinutes = Math.floor((lapTimeHours - lapHours) * 60);
+                const lapSeconds = Math.floor(((lapTimeHours - lapHours) * 60 - lapMinutes) * 60);
+                const lapTimeString = `${lapHours}:${lapMinutes.toString().padStart(2, '0')}'${lapSeconds.toString().padStart(2, '0')}"`;
+                document.getElementById('stat-laptime').innerHTML = lapTimeString;
+                
+                // Laps
+                document.getElementById('stat-laps').innerHTML = numLaps;
+            } else {
+                // Nascondi le card di laps
+                document.getElementById('stat-laps-card').style.display = 'none';
+                document.getElementById('stat-laptime-card').style.display = 'none';
+                
+                // Ripristina i label originali
+                document.getElementById('stat-distance-label').textContent = 'Total Length';
+                document.getElementById('stat-gain-label').textContent = 'Elevation Gain';
+                
+                // Mostra valori totali
+                document.getElementById('stat-distance').innerHTML = 
+                    `${routeData.distance.toFixed(2)}<span class="stat-unit">km</span>`;
+                document.getElementById('stat-gain').innerHTML = 
+                    `${Math.round(routeData.elevationGain)}<span class="stat-unit">m</span>`;
+            }
         }
+        
+        // Event listener per aggiornare il tempo quando cambia la velocità media
+        document.addEventListener('DOMContentLoaded', () => {
+            const velInput = document.getElementById('vel-input');
+            if (velInput) {
+                velInput.addEventListener('input', () => {
+                    if (routeData) {
+                        updateStats();
+                    }
+                });
+            }
+        });
         
         function initMap(gpxText) {
             map = L.map('map');
@@ -1946,7 +2048,7 @@ let map;
                 card.innerHTML = `
                     <div class="climb-number">${index + 1}</div>
                     <div class="climb-difficulty" style="background-color: ${color}">
-                        Difficoltà: ${climb.difficulty.toFixed(0)}
+                        Diff: ${climb.difficulty.toFixed(0)}
                     </div>
                     <div class="climb-stats">
                         <div class="climb-stat">
@@ -2507,25 +2609,125 @@ let map;
             // Reset UI
             document.getElementById('data-content').style.display = 'none';
             document.getElementById('upload-section').style.display = 'block';
-            // report: reset-bar rimosso
             document.getElementById('sv-panel').classList.remove('open');
             document.getElementById('elevation-chart').innerHTML = '';
             document.getElementById('climbs-section').style.display = 'none';
             document.getElementById('climb-detail-chart').classList.remove('active');
             document.getElementById('fileInput').value = '';
         }
+
+        // ── AUTO-LOAD DA PARAMETRO URL (?gara=slug) ───────────────────────
+        (async function () {
+            const slug = new URLSearchParams(location.search).get('gara');
+            if (!slug) return;
+
+            // Nascondi sezione upload
+            const us = document.getElementById('upload-section');
+            if (us) us.style.display = 'none';
+
+            try {
+                const res = await fetch('/gare-sorgenti/' + slug + '.json');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const gara = await res.json();
+
+                // Imposta titolo pagina
+                if (gara.titolo) {
+                    document.title = gara.titolo + ' — gpx-report';
+                    const h1 = document.querySelector('h1');
+                    if (h1) h1.textContent = gara.titolo;
+                }
+
+                // Salva la velocità media della gara
+                window._velocitaMedia = gara.velocita_media_kmh || null;
+                
+                // Salva il numero di giri
+                window._laps = gara.giri || 1;
+                
+                // Imposta il valore dell'input con la velocità della gara
+                const velInput = document.getElementById('vel-input');
+                if (velInput && gara.velocita_media_kmh) {
+                    velInput.value = gara.velocita_media_kmh;
+                }
+                
+                // Carica navigazione tra versioni della stessa serie
+                if (gara.race_series) {
+                    try {
+                        const indexRes = await fetch('/gare-index.json');
+                        if (indexRes.ok) {
+                            const allRaces = await indexRes.json();
+                            const seriesRaces = allRaces
+                                .filter(r => r.race_series === gara.race_series)
+                                .sort((a, b) => a.data.localeCompare(b.data));
+                            
+                            if (seriesRaces.length > 1) {
+                                const currentRaceIdx = seriesRaces.findIndex(r => r.slug === slug);
+                                const seriesNavDiv = document.getElementById('series-nav');
+                                const seriesNavText = document.getElementById('series-nav-text');
+                                const seriesNavLinks = document.getElementById('series-nav-links');
+                                
+                                // Estrai anno dalla data della gara attuale
+                                const currentYear = gara.data.split('-')[0];
+                                seriesNavText.innerHTML = `<strong>${gara.race_series}</strong> &mdash; ${currentYear}`;
+                                
+                                seriesNavLinks.innerHTML = '';
+                                
+                                // Link alla versione precedente
+                                if (currentRaceIdx > 0) {
+                                    const prevRace = seriesRaces[currentRaceIdx - 1];
+                                    const prevYear = prevRace.data.split('-')[0];
+                                    const prevLink = document.createElement('a');
+                                    prevLink.href = `?gara=${prevRace.slug}`;
+                                    prevLink.className = 'series-link';
+                                    prevLink.innerHTML = `← ${prevYear}`;
+                                    seriesNavLinks.appendChild(prevLink);
+                                }
+                                
+                                // Link alle altre versioni
+                                seriesRaces.forEach((race, idx) => {
+                                    const year = race.data.split('-')[0];
+                                    const link = document.createElement('a');
+                                    link.href = `?gara=${race.slug}`;
+                                    link.className = idx === currentRaceIdx ? 'series-link current' : 'series-link';
+                                    link.textContent = year;
+                                    seriesNavLinks.appendChild(link);
+                                });
+                                
+                                // Link alla versione successiva
+                                if (currentRaceIdx < seriesRaces.length - 1) {
+                                    const nextRace = seriesRaces[currentRaceIdx + 1];
+                                    const nextYear = nextRace.data.split('-')[0];
+                                    const nextLink = document.createElement('a');
+                                    nextLink.href = `?gara=${nextRace.slug}`;
+                                    nextLink.className = 'series-link';
+                                    nextLink.innerHTML = `${nextYear} →`;
+                                    seriesNavLinks.appendChild(nextLink);
+                                }
+                                
+                                seriesNavDiv.classList.add('active');
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Errore caricamento index gare:', e);
+                    }
+                }
+
+                // Avvia elaborazione con i punti GPX dal JSON
+                if (gara.gpx_points && gara.gpx_points.length > 0) {
+                    window._gpxFileName = slug + '.json';
+                    window._gpxRawText = null;
+                    processRoute(gara.gpx_points, null);
+                } else {
+                    throw new Error('Nessun punto GPX nel JSON');
+                }
+            } catch (e) {
+                console.error('Auto-load fallito:', e);
+                const us2 = document.getElementById('upload-section');
+                if (us2) us2.style.display = 'block';
+                const zone = document.getElementById('uploadZone');
+                if (zone) zone.innerHTML = '<div style="color:#dc2626;font-size:1rem;font-weight:600;padding:1rem">⚠️ Impossibile caricare &ldquo;' + slug + '&rdquo;<br><small style="font-weight:400;color:#6b7280">' + e.message + '</small></div>';
+            }
+        })();
+        // ─────────────────────────────────────────────────────────────────
     </script>
-<!--GPXREPORT_START-->
-<script>
-(function(){
-    var GPX_B64 = "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPGdweCBjcmVhdG9yPSJTdHJhdmFHUFgiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudG9wb2dyYWZpeC5jb20vR1BYLzEvMSIgeG1sbnM6eHNpPSJodHRwOi8vd3d3LnczLm9yZy8yMDAxL1hNTFNjaGVtYS1pbnN0YW5jZSIgeHNpOnNjaGVtYUxvY2F0aW9uPSJodHRwOi8vd3d3LnRvcG9ncmFmaXguY29tL0dQWC8xLzEgaHR0cDovL3d3dy50b3BvZ3JhZml4LmNvbS9HUFgvMS8xL2dweC54c2QiPgogPG1ldGFkYXRhPgogIDxuYW1lPlNjaGlqbmRlbDwvbmFtZT4KICA8YXV0aG9yPgogICA8bmFtZT5BbmRyZWEgQm9udmljaW48L25hbWU+CiAgIDxsaW5rIGhyZWY9Imh0dHBzOi8vd3d3LnN0cmF2YS5jb20vYXRobGV0ZXMvMzM4MzAxMzEiLz4KICA8L2F1dGhvcj4KICA8Y29weXJpZ2h0IGF1dGhvcj0iT3BlblN0cmVldE1hcCBjb250cmlidXRvcnMiPgogICA8eWVhcj4yMDIwPC95ZWFyPgogICA8bGljZW5zZT5odHRwczovL3d3dy5vcGVuc3RyZWV0bWFwLm9yZy9jb3B5cmlnaHQ8L2xpY2Vuc2U+CiAgPC9jb3B5cmlnaHQ+CiAgPGxpbmsgaHJlZj0iaHR0cHM6Ly93d3cuc3RyYXZhLmNvbS9yb3V0ZXMvMzQ2MDM2MjkwNzAwNzM3NDE5NiIvPgogPC9tZXRhZGF0YT4KIDx0cms+CiAgPG5hbWU+U2NoaWpuZGVsPC9uYW1lPgogIDxsaW5rIGhyZWY9Imh0dHBzOi8vd3d3LnN0cmF2YS5jb20vcm91dGVzLzM0NjAzNjI5MDcwMDczNzQxOTYiLz4KICA8dHlwZT5jeWNsaW5nPC90eXBlPgogIDx0cmtzZWc+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNzEzMDAwMDAwMDAwNSIgbG9uPSI1LjQ2Nzc4Ij4KICAgIDxlbGU+OC40NTAwMDAwMDAwMDAwMDE8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjA3NyIgbG9uPSI1LjQ2NjkxIj4KICAgIDxlbGU+OC43MzwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDc3NSIgbG9uPSI1LjQ2Njc3Ij4KICAgIDxlbGU+OC43NjwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDc3NyIgbG9uPSI1LjQ2NjYzIj4KICAgIDxlbGU+OC43NzwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDc3NDAwMDgyNzAzMiIgbG9uPSI1LjQ2NTY0MzMzMjAyMjk2MyI+CiAgICA8ZWxlPjkuMDI8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjA3NzEwMDA4MjcwMTEiIGxvbj0iNS40NjQ2NTY2NjUzNDk3MjgiPgogICAgPGVsZT45LjMyPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNzY4IiBsb249IjUuNDYzNjcwMDAwMDAwMDAwNSI+CiAgICA8ZWxlPjEwLjQzPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNzY1MDAwMDAwMDAxIiBsb249IjUuNDYzNTYiPgogICAgPGVsZT4xMC4zMzwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDczNDAwMDAwMDAwMSIgbG9uPSI1LjQ2MzA2MDAwMDAwMDAwMDUiPgogICAgPGVsZT4xMC4yNjwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDc2MjAwMDAwMDAwMDQiIGxvbj0iNS40NjI2MTAwMDAwMDAwMDEiPgogICAgPGVsZT45LjUzPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNzY2IiBsb249IjUuNDYyNDUwMDAwMDAwMDAwNSI+CiAgICA8ZWxlPjkuNDMwMDAwMDAwMDAwMDAxPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNzY0MDAwNDAzNjA2NCIgbG9uPSI1LjQ2MTQ3NDk5OTQ3Mzg3NCI+CiAgICA8ZWxlPjkuNTkwMDAwMDAwMDAwMDAyPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNzYyMDAwMDAwMDAwNCIgbG9uPSI1LjQ2MDUwMDAwMDAwMDAwMSI+CiAgICA8ZWxlPjEwLjM3MDAwMDAwMDAwMDAwMTwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDc2MjAwMDAwMDAwMDQiIGxvbj0iNS40NjA0OSI+CiAgICA8ZWxlPjEwLjM4PC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNzM4MDAwMDAwMDAwNiIgbG9uPSI1LjQ2MDUyMDAwMDAwMDAwMSI+CiAgICA8ZWxlPjEwLjQyPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNzMiIGxvbj0iNS40NjA1NzAwMDAwMDAwMDEiPgogICAgPGVsZT4xMC40MjwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDY4MTUwMDI2NzA2OSIgbG9uPSI1LjQ2MTM1NTAwODI5OTg4NiI+CiAgICA8ZWxlPjEwLjAxMDAwMDAwMDAwMDAwMjwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDYzMzAwMDAwMDAwMSIgbG9uPSI1LjQ2MjE0MDAwMDAwMDAwMSI+CiAgICA8ZWxlPjEwLjU0MDAwMDAwMDAwMDAwMTwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDU2OTI1MTI1NDQ4MyIgbG9uPSI1LjQ2MzEzMjU0MTgxOTkiPgogICAgPGVsZT45Ljc2MDAwMDAwMDAwMDAwMjwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDUwNTUwMTY3MjA0NiIgbG9uPSI1LjQ2NDEyNTA1NTc2ODAzMSI+CiAgICA8ZWxlPjkuNjU8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjA0NDE3NTEyNTI3MzEiIGxvbj0iNS40NjUxMTc1NDE4NDU0NTEiPgogICAgPGVsZT45LjY2PC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwMzc4MDAwMDAwMDAxIiBsb249IjUuNDY2MTEwMDAwMDAwMDAwNSI+CiAgICA8ZWxlPjEwLjI5MDAwMDAwMDAwMDAwMTwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDM2MyIgbG9uPSI1LjQ2NjI2Ij4KICAgIDxlbGU+MTAuODE8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAzNTMwMDAwMDAwMDA2IiBsb249IjUuNDY2MzEwMDAwMDAwMDAxIj4KICAgIDxlbGU+MTAuODE8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAzNjIwMDAwMDAwMDEiIGxvbj0iNS40NjY1NCI+CiAgICA8ZWxlPjEwLjg3MDAwMDAwMDAwMDAwMTwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDM2MjAwMDAwMDAwMSIgbG9uPSI1LjQ2NjYyMDAwMDAwMDAwMSI+CiAgICA8ZWxlPjEwLjg3MDAwMDAwMDAwMDAwMTwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDM1OTAwMDAwMDAwMDQiIGxvbj0iNS40NjY3NDAwMDAwMDAwMDEiPgogICAgPGVsZT4xMC44NjAwMDAwMDAwMDAwMDE8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAzNDkiIGxvbj0iNS40NjY4NyI+CiAgICA8ZWxlPjEwLjgxPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwMzQyMDAwMDAwMDAxIiBsb249IjUuNDY2OTMwMDAwMDAwMDAwNSI+CiAgICA8ZWxlPjEwLjc0PC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwMzI4MDAwMDAwMDAwNSIgbG9uPSI1LjQ2Njk4Ij4KICAgIDxlbGU+MTAuNTU8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAzMTkwMDAwMDAwMDA1IiBsb249IjUuNDY3MDQwMDAwMDAwMDAxIj4KICAgIDxlbGU+MTAuNDk8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAzMTIwMDAwMDAwMDA0IiBsb249IjUuNDY3MTMiPgogICAgPGVsZT4xMC40NTAwMDAwMDAwMDAwMDE8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAyNjY1MDAyMjA3IiBsb249IjUuNDY3ODQ1MDA3MTA4OTkiPgogICAgPGVsZT4xMC41NDAwMDAwMDAwMDAwMDE8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAyMjEwMDAwMDAwMDEiIGxvbj0iNS40Njg1NiI+CiAgICA8ZWxlPjEwLjk5MDAwMDAwMDAwMDAwMjwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDE2ODgwMTEzNzI2OSIgbG9uPSI1LjQ2OTM3ODAzNzYwODQxMyI+CiAgICA8ZWxlPjEwLjk0PC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwMTE2NjAxNzA2MDExIiBsb249IjUuNDcwMTk2MDU2NDA5OTUzIj4KICAgIDxlbGU+MTAuODcwMDAwMDAwMDAwMDAxPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwMDY0NDAxNzA2MjU0IiBsb249IjUuNDcxMDE0MDU2NDA1MTk4Ij4KICAgIDxlbGU+MTAuOTkwMDAwMDAwMDAwMDAyPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwMDEyMjAxMTM4MDE5IiBsb249IjUuNDcxODMyMDM3NTk0NzI4Ij4KICAgIDxlbGU+MTAuOTY8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNTk5NiIgbG9uPSI1LjQ3MjY1MDAwMDAwMDAwMSI+CiAgICA8ZWxlPjExLjIyPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwMDE1NTAxMDkxOTQ3IiBsb249IjUuNDczNTc0OTY2MTEwOTE0Ij4KICAgIDxlbGU+OS40MTwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDA3MTAwMTQ1Njk4NTYiIGxvbj0iNS40NzQ0OTk5NTQ4MzEzMjIiPgogICAgPGVsZT45Ljc5PC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwMTI2NTAxMDk1MDgzIiBsb249IjUuNDc1NDI0OTY2MTYxOTMyIj4KICAgIDxlbGU+MTAuMjU8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAxODIwMDAwMDAwMDA0IiBsb249IjUuNDc2MzUiPgogICAgPGVsZT4xMC45NTAwMDAwMDAwMDAwMDE8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAxOTIwMDAwMDAwMDEiIGxvbj0iNS40NzY0MTAwMDAwMDAwMDA0Ij4KICAgIDxlbGU+MTEuMDMwMDAwMDAwMDAwMDAxPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwMTk0MDAwMDAwMDAwNiIgbG9uPSI1LjQ3NjMxMDAwMDAwMDAwMSI+CiAgICA8ZWxlPjEwLjU3PC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwMjAwMDAwMDAwMDAwNCIgbG9uPSI1LjQ3NjIxIj4KICAgIDxlbGU+MTAuNTc8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAyNjI1MDEyMjM2OTA2IiBsb249IjUuNDc1MjMwMDQwNDcwMTk1Ij4KICAgIDxlbGU+OC4xODAwMDAwMDAwMDAwMDE8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAzMjUwMDE2MzE0OCIgbG9uPSI1LjQ3NDI1MDA1Mzk2MzAzOCI+CiAgICA8ZWxlPjguNjM8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjAzODc1MDEyMjMzMjYiIGxvbj0iNS40NzMyNzAwNDA0Nzc1MzMiPgogICAgPGVsZT45LjYxPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNDUiIGxvbj0iNS40NzIyOSI+CiAgICA8ZWxlPjEwLjkyPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNDgwNTAwMTMxMjM0IiBsb249IjUuNDcxNzQwMDAzNjQ1MjUzIj4KICAgIDxlbGU+MTAuNjc8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjA1MTEiIGxvbj0iNS40NzExOTAwMDAwMDAwMDEiPgogICAgPGVsZT4xMC44MjAwMDAwMDAwMDAwMDI8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjA1MjEwMDAwMDAwMDEiIGxvbj0iNS40NzEwNCI+CiAgICA8ZWxlPjEwLjgzPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNTY2NTAwMjM3Njk3IiBsb249IjUuNDcxNzc0OTkyNzY3MDE2Ij4KICAgIDxlbGU+OS44OTwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDYxMjAwMDAwMDAwMDQiIGxvbj0iNS40NzI1MTAwMDAwMDAwMDEiPgogICAgPGVsZT4xMC43ODAwMDAwMDAwMDAwMDE8L2VsZT4KICAgPC90cmtwdD4KICAgPHRya3B0IGxhdD0iNTEuNjA2NTg2NjcxNDAxODciIGxvbj0iNS40NzE3NjMzNDg2ODQ3NjMiPgogICAgPGVsZT4xMC41MTwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDcwNTMzMzgwNjc0NDUiIGxvbj0iNS40NzEwMTY2ODIwMjAwODUiPgogICAgPGVsZT4xMC4yMzwvZWxlPgogICA8L3Rya3B0PgogICA8dHJrcHQgbGF0PSI1MS42MDc1MiIgbG9uPSI1LjQ3MDI3Ij4KICAgIDxlbGU+MTAuMjcwMDAwMDAwMDAwMDAxPC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNzAzMDAwMjcxMjI2NCIgbG9uPSI1LjQ2OTQ3OTk5MTU3MjM5MSI+CiAgICA8ZWxlPjEwLjE1PC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNjU0IiBsb249IjUuNDY4NjkwMDAwMDAwMDAwNSI+CiAgICA8ZWxlPjEwLjE3PC9lbGU+CiAgIDwvdHJrcHQ+CiAgIDx0cmtwdCBsYXQ9IjUxLjYwNzExMDAwMDAwMDAwNiIgbG9uPSI1LjQ2NzgxIj4KICAgIDxlbGU+OC40NTAwMDAwMDAwMDAwMDE8L2VsZT4KICAgPC90cmtwdD4KICA8L3Rya3NlZz4KIDwvdHJrPgo8L2dweD4K";
-    var GPX_NAME = "Schijndel.gpx";
-    var gpxText = decodeURIComponent(escape(atob(GPX_B64)));
-    window._gpxRawText = gpxText;
-    window._gpxFileName = GPX_NAME;
-    if (typeof parseGPX === 'function') parseGPX(gpxText);
-})();
-</script>
-<!--GPXREPORT_END-->
 </body>
 </html>

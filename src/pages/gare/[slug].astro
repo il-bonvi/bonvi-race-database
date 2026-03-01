@@ -18,6 +18,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 if (!gara) return Astro.redirect(`${base}/`);
 
 const color = categoriaColor(gara.categoria);
+const hasGpxData = gara.gpx_points && Array.isArray(gara.gpx_points) && gara.gpx_points.length > 0;
 ---
 
 <!DOCTYPE html>
@@ -29,6 +30,7 @@ const color = categoriaColor(gara.categoria);
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  
   <style>
     :root {
       --bg:     #f5f2ed;
@@ -97,6 +99,12 @@ const color = categoriaColor(gara.categoria);
     .bstat-l { font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); }
 
     .report-frame { width: 100%; border: none; display: block; flex: 1; }
+    
+    .content-wrapper {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
 
     @media (max-width: 600px) {
       .bar-stats { display: none; }
@@ -134,6 +142,8 @@ const color = categoriaColor(gara.categoria);
     </div>
   </div>
 
-  <iframe class="report-frame" src={`${base}/gare/${slug}.html`} title={gara.titolo}></iframe>
-</body>
-</html>
+  {hasGpxData ? (
+    <iframe class="report-frame" src={`${base}/gara.html?gara=${slug}`} title={gara.titolo}></iframe>
+  ) : (
+    <iframe class="report-frame" src={`${base}/gare/${slug}.html`} title={gara.titolo}></iframe>
+  )}

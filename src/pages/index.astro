@@ -9,6 +9,42 @@ gare.sort((a, b) => new Date(b.data) - new Date(a.data));
 
 const anni = [...new Set(gare.map(g => new Date(g.data).getFullYear()))].sort((a,b) => b-a);
 const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
+
+// Raggruppa per anno->mese
+const MONTH_NAMES = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+const groupedByYear = new Map();
+gare.forEach(g => {
+  const d = new Date(g.data);
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  if (!groupedByYear.has(year)) {
+    groupedByYear.set(year, new Map());
+  }
+  if (!groupedByYear.get(year).has(month)) {
+    groupedByYear.get(year).set(month, []);
+  }
+  groupedByYear.get(year).get(month).push(g);
+});
+
+// Converti a struttura ordinata: anni decrescenti, mesi decrescenti dentro ogni anno
+const yearMonthStructure = Array.from(groupedByYear.entries())
+  .sort(([yearA], [yearB]) => yearB - yearA)
+  .map(([year, monthsMap]) => ({
+    year,
+    months: Array.from(monthsMap.entries())
+      .sort(([monthA], [monthB]) => monthB - monthA)
+      .map(([month, races]) => ({
+        month,
+        // Ordina le gare per data crescente
+        races: races.slice().sort((a, b) => new Date(a.data) - new Date(b.data)),
+        monthKey: `${year}-${String(month).padStart(2, '0')}`
+      }))
+  }));
+
+// Trova mese corrente
+const today = new Date();
+const currentYear = today.getFullYear();
+const currentMonth = today.getMonth();
 ---
 
 <Base title="Race Database — by Bonvi">
@@ -31,8 +67,12 @@ const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
           <span class="db-l">percorsi</span>
         </div>
         <div class="db-stat">
-          <span class="db-n">{totKm.toFixed(0)}</span>
+          <span class="db-n" id="km-visible">{totKm.toFixed(0)}</span>
           <span class="db-l">km totali</span>
+        </div>
+        <div class="db-stat">
+          <span class="db-n" id="dislivello-visible">{gare.reduce((s, g) => s + (Number(g.dislivello_m) || 0), 0).toFixed(0)}</span>
+          <span class="db-l">m dislivello totali</span>
         </div>
       </div>
 
@@ -96,8 +136,8 @@ const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
       <div class="sort-wrap">
         <label class="sort-label">Ordina</label>
         <select id="sort-select" class="sort-select">
+          <option value="data-asc" selected>Data ↑</option>
           <option value="data-desc">Data ↓</option>
-          <option value="data-asc">Data ↑</option>
           <option value="km-desc">Km ↓</option>
           <option value="km-asc">Km ↑</option>
           <option value="nome">Nome A→Z</option>
@@ -105,7 +145,7 @@ const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
       </div>
     </div>
 
-    <div class="grid" id="gare-grid">
+    <div class="timeline" id="gare-timeline">
       {gare.length === 0 ? (
         <div class="empty">
           <div class="empty-icon">◎</div>
@@ -113,19 +153,54 @@ const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
           <div class="empty-sub">Aggiungi il primo percorso seguendo le istruzioni nel README</div>
         </div>
       ) : (
-        gare.map(g => (
-          <div class="card-wrap"
-            data-anno={new Date(g.data).getFullYear()}
-            data-genere={g.genere ?? ''}
-            data-categoria={g.categoria ?? ''}
-            data-disciplina={g.disciplina ?? ''}
-            data-titolo={(g.titolo ?? '').toLowerCase()}
-            data-luogo={(g.luogo ?? '').toLowerCase()}
-            data-km={g.distanza_km ?? 0}
-          >
-            <GaraCard gara={g} />
-          </div>
-        ))
+        yearMonthStructure.map(({ year, months }) => {
+          const yearTotalRaces = months.reduce((sum, m) => sum + m.races.length, 0);
+          const isCurrentYear = year === currentYear;
+          
+          return (
+            <div class={`year-group ${isCurrentYear ? 'expanded' : 'collapsed'}`} data-year={year}>
+              <button class="year-header" data-year-toggle={year}>
+                <span class="year-chevron">▼</span>
+                <span class="year-label"><strong>{year}</strong></span>
+                <span class="year-count">({yearTotalRaces})</span>
+              </button>
+              <div class="year-races" style={`display: ${isCurrentYear ? 'block' : 'none'}`}>
+                {months.map(({ month, races, monthKey }) => {
+                  const isCurrentMonth = year === currentYear && month === currentMonth;
+                  const monthName = MONTH_NAMES[month];
+                  
+                  return (
+                    <div class={`month-group ${isCurrentMonth ? 'expanded' : 'collapsed'}`} data-month-key={monthKey}>
+                      <button class="month-header" data-month-toggle={monthKey}>
+                        <span class="month-chevron">▼</span>
+                        <span class="month-label">{monthName}</span>
+                        <span class="month-count">({races.length})</span>
+                      </button>
+                      <div class="month-races" style={`display: ${isCurrentMonth ? 'grid' : 'none'}`}>
+                        {races.map(g => (
+                          <div class="card-wrap"
+                            data-anno={year}
+                            data-genere={g.genere ?? ''}
+                            data-categoria={g.categoria ?? ''}
+                            data-disciplina={g.disciplina ?? ''}
+                            data-titolo={(g.titolo ?? '').toLowerCase()}
+                            data-luogo={(g.luogo ?? '').toLowerCase()}
+                            data-km={g.distanza_km ?? 0}
+                            data-dislivello={g.dislivello_m ?? 0}
+                            data-month={monthKey}
+                            data-date={new Date(g.data).getTime()}
+                          >
+                            <GaraCard gara={g} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })
       )}
     </div>
 
@@ -147,15 +222,41 @@ const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
 </Base>
 
 <script>
-  const state = { anno: 'all', genere: 'all', categoria: 'all', disciplina: 'all', q: '', sort: 'data-desc' };
+  const state = { anno: 'all', genere: 'all', categoria: 'all', disciplina: 'all', q: '', sort: 'data-asc' };
   const cards   = Array.from(document.querySelectorAll('.card-wrap'));
   const counter = document.getElementById('count-visible');
+  const kmCounter = document.getElementById('km-visible');
+  const dislivelloCounter = document.getElementById('dislivello-visible');
   const noRes   = document.getElementById('no-results');
-  const grid    = document.getElementById('gare-grid');
+  const timeline = document.getElementById('gare-timeline');
+
+  // Toggle expand/collapse per anno
+  document.querySelectorAll('.year-header').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const group = btn.closest('.year-group');
+      const races = group.querySelector('.year-races');
+      const isExpanded = group.classList.toggle('expanded');
+      group.classList.toggle('collapsed', !isExpanded);
+      races.style.display = isExpanded ? 'block' : 'none';
+    });
+  });
+
+  // Toggle expand/collapse per mese
+  document.querySelectorAll('.month-header').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const group = btn.closest('.month-group');
+      const races = group.querySelector('.month-races');
+      const isExpanded = group.classList.toggle('expanded');
+      group.classList.toggle('collapsed', !isExpanded);
+      races.style.display = isExpanded ? 'grid' : 'none';
+    });
+  });
 
   function applyAll() {
     const q = state.q.toLowerCase();
     let visible = 0;
+    let totalKm = 0;
+    let totalDislivello = 0;
     cards.forEach(c => {
       const match =
         (state.anno       === 'all' || c.dataset.anno       === state.anno) &&
@@ -164,21 +265,63 @@ const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
         (state.disciplina === 'all' || c.dataset.disciplina === state.disciplina) &&
         (!q || c.dataset.titolo.includes(q) || c.dataset.luogo.includes(q));
       c.style.display = match ? '' : 'none';
-      if (match) visible++;
+      if (match) {
+        visible++;
+        totalKm += Number(c.dataset.km) || 0;
+        totalDislivello += Number(c.dataset.dislivello) || 0;
+      }
     });
     counter.textContent = visible;
+    kmCounter.textContent = totalKm.toFixed(0);
+    dislivelloCounter.textContent = totalDislivello.toFixed(0);
     noRes.style.display = visible === 0 && cards.length > 0 ? '' : 'none';
 
-    const sorted = cards.filter(c => c.style.display !== 'none');
-    sorted.sort((a, b) => {
-      if (state.sort === 'data-desc') return Number(b.dataset.anno) - Number(a.dataset.anno);
-      if (state.sort === 'data-asc')  return Number(a.dataset.anno) - Number(b.dataset.anno);
-      if (state.sort === 'km-desc')   return Number(b.dataset.km)   - Number(a.dataset.km);
-      if (state.sort === 'km-asc')    return Number(a.dataset.km)   - Number(b.dataset.km);
-      if (state.sort === 'nome')      return a.dataset.titolo.localeCompare(b.dataset.titolo);
-      return 0;
+    // Aggiorna visibilità dei mesi e anni
+    document.querySelectorAll('.month-group').forEach(monthGroup => {
+      const races = monthGroup.querySelectorAll('.card-wrap');
+      let visibleInMonth = 0;
+      races.forEach(c => {
+        if (c.style.display !== 'none') visibleInMonth++;
+      });
+      monthGroup.style.display = visibleInMonth === 0 ? 'none' : '';
     });
-    sorted.forEach(c => grid.appendChild(c));
+
+    // Aggiorna visibilità anni
+    document.querySelectorAll('.year-group').forEach(yearGroup => {
+      const visibleMonths = yearGroup.querySelectorAll('.month-group:not([style*="display: none"])');
+      yearGroup.style.display = visibleMonths.length === 0 ? 'none' : '';
+    });
+
+    // Riordina se necessario
+    const sorted = cards.filter(c => c.style.display !== 'none');
+    if (state.sort === 'data-desc' || state.sort === 'data-asc') {
+      sorted.sort((a, b) => {
+        const timeA = Number(a.dataset.date) || 0;
+        const timeB = Number(b.dataset.date) || 0;
+        return state.sort === 'data-desc' ? timeB - timeA : timeA - timeB;
+      });
+    } else if (state.sort === 'km-desc' || state.sort === 'km-asc') {
+      sorted.sort((a, b) => {
+        const kmA = Number(a.dataset.km) || 0;
+        const kmB = Number(b.dataset.km) || 0;
+        return state.sort === 'km-desc' ? kmB - kmA : kmA - kmB;
+      });
+    } else if (state.sort === 'nome') {
+      sorted.sort((a, b) => a.dataset.titolo.localeCompare(b.dataset.titolo));
+    }
+
+    // Applica l'ordinamento al DOM
+    const rankMap = new Map(sorted.map((c, i) => [c, i]));
+    document.querySelectorAll('.month-races').forEach(racesContainer => {
+      const cardsInContainer = Array.from(racesContainer.querySelectorAll('.card-wrap'));
+      const visibleCards = cardsInContainer.filter(c => c.style.display !== 'none');
+      
+      // Riordina le carte visibili rispetto all'array sorted globale
+      visibleCards.sort((a, b) => (rankMap.get(a) ?? 0) - (rankMap.get(b) ?? 0));
+      
+      // Riappendi le carte riordinate al contenitore
+      visibleCards.forEach(c => racesContainer.appendChild(c));
+    });
   }
 
   document.querySelectorAll('.pill').forEach(btn => {
@@ -195,9 +338,9 @@ const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
 
   document.getElementById('reset-filters').addEventListener('click', () => {
     state.anno = state.genere = state.categoria = state.disciplina = 'all';
-    state.q = ''; state.sort = 'data-desc';
+    state.q = ''; state.sort = 'data-asc';
     document.getElementById('search-input').value = '';
-    document.getElementById('sort-select').value = 'data-desc';
+    document.getElementById('sort-select').value = 'data-asc';
     document.querySelectorAll('.pill').forEach(b => b.classList.toggle('active', b.dataset.val === 'all'));
     applyAll();
   });
@@ -253,7 +396,7 @@ const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
     color: var(--text3); margin-top: 0.1rem;
   }
 
-  .db-stats { display: flex; gap: 1.5rem; }
+  .db-stats { display: flex; flex-direction: column; gap: 0.75rem; }
   .db-stat { display: flex; flex-direction: column; gap: 0.1rem; }
   .db-n {
     font-family: var(--font-display);
@@ -345,6 +488,162 @@ const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
     gap: 1rem; align-content: start;
   }
 
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  /* YEAR LEVEL */
+  .year-group {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    background: transparent;
+    transition: all 0.15s;
+  }
+
+  .year-group.collapsed {
+    border-color: var(--border);
+  }
+
+  .year-group.expanded {
+    border-color: var(--text2);
+    background: var(--bg2);
+  }
+
+  .year-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    text-align: left;
+    transition: all 0.15s;
+  }
+
+  .year-group.expanded .year-header {
+    border-bottom-color: var(--text2);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .year-header:hover {
+    background: var(--bg2);
+  }
+
+  .year-chevron {
+    display: inline-block;
+    font-size: 0.72rem;
+    color: var(--text2);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .year-group.collapsed .year-chevron {
+    transform: rotate(-90deg);
+  }
+
+  .year-label {
+    flex: 1;
+  }
+
+  .year-count {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+
+  .year-races {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+
+  /* MONTH LEVEL */
+  .month-group {
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    background: transparent;
+    transition: all 0.15s;
+  }
+
+  .month-group.collapsed {
+    border-color: var(--border);
+  }
+
+  .month-group.expanded {
+    border-color: var(--accent);
+    background: rgba(212, 64, 26, 0.02);
+  }
+
+  .month-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 0.88rem;
+    color: var(--text2);
+    text-align: left;
+    transition: all 0.15s;
+  }
+
+  .month-group.expanded .month-header {
+    border-bottom-color: var(--accent);
+    background: rgba(212, 64, 26, 0.04);
+    color: var(--text);
+  }
+
+  .month-header:hover {
+    background: var(--bg2);
+  }
+
+  .month-chevron {
+    display: inline-block;
+    font-size: 0.68rem;
+    color: var(--text3);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .month-group.collapsed .month-chevron {
+    transform: rotate(-90deg);
+  }
+
+  .month-label {
+    flex: 1;
+  }
+
+  .month-count {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+
+  .month-races {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    padding: 0.75rem;
+  }
+
   .empty, .no-results {
     grid-column: 1 / -1;
     text-align: center; padding: 5rem 2rem; color: var(--text3);
@@ -384,6 +683,7 @@ const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
     .sidebar-inner { padding: 1rem; }
     .main { padding: 1rem; }
     .grid { grid-template-columns: 1fr; }
+    .month-races { grid-template-columns: 1fr; }
     .db-stats { display: none; }
   }
 </style>

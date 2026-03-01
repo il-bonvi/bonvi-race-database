@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "astro dev",
-    "build": "python generator/build_all_reports.py && astro build",
+    "build": "astro build",
     "preview": "astro preview"
   },
   "dependencies": {

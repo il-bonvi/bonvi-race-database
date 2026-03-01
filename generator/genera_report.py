@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
 """
-genera_report.py — Genera report HTML da GPX e lo aggiunge all'archivio Astro.
+genera_report.py — Aggiungi nuova race al database da file GPX.
 
 Uso:
-    python generator/genera_report.py                  # dialog grafico completo
-    python generator/genera_report.py percorso.gpx     # salta selezione file
+    python generator/genera_report.py                  # dialog interattivo con selezione file
+    python generator/genera_report.py percorso.gpx     # salta selezione, usa il file indicato
+
+Per GESTIRE (list, edit, delete) le gare, usa:
+    python generator/gestisci_gare.py              # UI completa per gestione database
 
 Lo script:
-  1. Chiede di selezionare il file GPX
-  2. Legge distanza e dislivello direttamente dal GPX
-  3. Mostra form con tutti i metadati precompilati
-  4. Genera HTML → public/gare/<slug>.html
-  5. Crea JSON → gare-sorgenti/<slug>.json
+  1. Seleziona file GPX (da dialogo o riga di comando)
+  2. Estrae distanza, dislivello, punti GPS dal GPX
+  3. Mostra form interattivo per compilare metadati (titolo, slug, data, etc)
+  4. Crea JSON → gare-sorgenti/<slug>.json (database Astro)
+  5. Copia JSON → public/gare-sorgenti/<slug>.json (servito al browser per gara.html)
 
-  Per pubblicare sul sito:
+Visualizzazione:
+  La gara viene visualizzata in /gare/<slug>/ con:
+  - Top-bar Astro (navigazione, metadati)
+  - Iframe che carica /gara.html?gara=<slug> (HTML originale con mappa, altimetria, Street View)
+
+Pubblicazione:
     git add .
     git commit -m "Aggiungi gara: <titolo>"
     git push
@@ -23,7 +31,6 @@ import sys
 import re
 import json
 import math
-import base64
 import argparse
 import subprocess
 import xml.etree.ElementTree as ET
@@ -43,10 +50,57 @@ GENERI     = ["Maschile", "Femminile"]
 DISCIPLINE = ["Strada", "Criterium", "Cronometro"]
 
 
+# ── AUTO-UPDATE INDICE GARE ──────────────────────────────────────────────────
+
+def update_gares_index():
+    """Genera automaticamente gare-index.json per la navigazione tra serie."""
+    gare_dir = ARCHIVIO_DIR / "gare-sorgenti"
+    
+    if not gare_dir.exists():
+        return
+    
+    races = []
+    
+    # Scansiona tutti i file JSON
+    for json_file in sorted(gare_dir.glob("*.json")):
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                gara = json.load(f)
+            
+            slug = gara.get("slug")
+            if not slug:
+                continue
+            
+            # Estrai l'anno dalla data (formato AAAA-MM-GG)
+            data_str = gara.get("data", "")
+            year = data_str.split("-")[0] if data_str else "unknown"
+            
+            races.append({
+                "slug": slug,
+                "titolo": gara.get("titolo"),
+                "data": data_str,
+                "year": year,
+                "race_series": gara.get("race_series"),
+            })
+            
+        except Exception:
+            continue
+    
+    # Salva l'index
+    index_path = ARCHIVIO_DIR / "public" / "gare-index.json"
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        with open(index_path, 'w', encoding='utf-8') as f:
+            json.dump(races, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+
 # ── PARSING GPX ───────────────────────────────────────────────────────────────
 
 def parse_gpx(gpx_path: Path) -> dict:
-    """Estrae distanza (km) e dislivello positivo (m) dal file GPX."""
+    """Estrae distanza (km), dislivello positivo (m) e punti GPX dal file GPX."""
     try:
         tree = ET.parse(gpx_path)
         root = tree.getroot()
@@ -59,9 +113,10 @@ def parse_gpx(gpx_path: Path) -> dict:
             points = root.findall(f'.//{ns}rtept')
 
         if not points:
-            return {'distanza_km': None, 'dislivello_m': None}
+            return {'distanza_km': None, 'dislivello_m': None, 'gpx_points': None}
 
         coords = []
+        gpx_points = []  # Punti per il JSON
         for pt in points:
             try:
                 lat = float(pt.get('lat'))
@@ -69,11 +124,17 @@ def parse_gpx(gpx_path: Path) -> dict:
                 ele_el = pt.find(f'{ns}ele')
                 ele = float(ele_el.text) if ele_el is not None else None
                 coords.append((lat, lon, ele))
+                # Salva punti per il JSON (arrotondati per ridurre dimensione)
+                gpx_points.append({
+                    'lat': round(lat, 6),
+                    'lon': round(lon, 6),
+                    'ele': round(ele, 1) if ele is not None else None
+                })
             except (TypeError, ValueError):
                 continue
 
         if not coords:
-            return {'distanza_km': None, 'dislivello_m': None}
+            return {'distanza_km': None, 'dislivello_m': None, 'gpx_points': None}
 
         def haversine(lat1, lon1, lat2, lon2):
             R = 6371000
@@ -112,11 +173,12 @@ def parse_gpx(gpx_path: Path) -> dict:
             'dislivello_m': round(d_plus) if d_plus > 0 else None,
             'center_lat':   center_lat,
             'center_lon':   center_lon,
+            'gpx_points':   gpx_points,
         }
 
     except Exception as e:
         print(f"  Avviso: impossibile leggere dati dal GPX ({e})")
-        return {'distanza_km': None, 'dislivello_m': None, 'center_lat': None, 'center_lon': None}
+        return {'distanza_km': None, 'dislivello_m': None, 'center_lat': None, 'center_lon': None, 'gpx_points': None}
 
 
 # ── REVERSE GEOCODING ─────────────────────────────────────────────────────────
@@ -182,7 +244,7 @@ def slugify(s: str) -> str:
 
 # ── CALENDARIO POPUP ─────────────────────────────────────────────────────────
 
-def _show_calendar(parent, target_entry, BG, ACCENT, FG):
+def _show_calendar(parent, target_entry, BG, ACCENT, FG, on_date_selected=None):
     """Mini calendario popup. Scrive la data selezionata in target_entry."""
     import tkinter as tk
     import calendar as cal_mod
@@ -285,6 +347,8 @@ def _show_calendar(parent, target_entry, BG, ACCENT, FG):
         chosen = f"{state['year']:04d}-{state['month']:02d}-{day:02d}"
         target_entry.delete(0, "end")
         target_entry.insert(0, chosen)
+        if on_date_selected:
+            on_date_selected()
         top.destroy()
 
     refresh()
@@ -394,7 +458,7 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
         c.current(default)
         return c
 
-    def make_date_field(row_n, initial_val):
+    def make_date_field(row_n, initial_val, on_change_callback=None):
         """Entry data + bottone calendario popup."""
         f_row = tk.Frame(frame, bg=BG)
         f_row.grid(row=row_n*2+1, column=0, columnspan=2, sticky="ew")
@@ -404,7 +468,7 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
         e.insert(0, initial_val)
 
         def open_cal():
-            _show_calendar(root, e, BG, ACCENT, FG)
+            _show_calendar(root, e, BG, ACCENT, FG, on_date_selected=on_change_callback)
 
         tk.Button(f_row, text="📅", font=("Helvetica", 11), bg=BG, fg=FG,
                   relief="flat", bd=0, cursor="hand2",
@@ -413,7 +477,19 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
 
     lbl("Nome gara *", 0);       e_titolo   = ent(0, default_title)
     lbl("Slug URL *", 1);        e_slug     = ent(1)
-    lbl("Data (AAAA-MM-GG) *",2);e_data     = make_date_field(2, date.today().isoformat())
+    
+    # Crea placeholder per data (sarà sostituito dopo update_slug)
+    f_row_data = tk.Frame(frame, bg=BG)
+    f_row_data.grid(row=5, column=0, columnspan=2, sticky="ew")
+    f_row_data.grid_columnconfigure(0, weight=1)
+    lbl("Data (AAAA-MM-GG) *", 2);
+    e_data = tk.Entry(f_row_data, font=FONT_ENTRY, bg="white", fg=FG, relief="solid", bd=1)
+    e_data.grid(row=0, column=0, sticky="ew")
+    e_data.insert(0, date.today().isoformat())
+    btn_cal = tk.Button(f_row_data, text="📅", font=("Helvetica", 11), bg=BG, fg=FG,
+                  relief="flat", bd=0, cursor="hand2")
+    btn_cal.grid(row=0, column=1, padx=(4,0))
+    
     lbl("Genere *", 3);          cb_genere  = cmb(3, GENERI, default=GENERI.index("Femminile"))
     lbl("Categoria *", 4);       cb_cat     = cmb(4, CATEGORIE, default=CATEGORIE.index("Junior"))
     lbl("Disciplina *", 5);      cb_disc    = cmb(5, DISCIPLINE)
@@ -423,8 +499,21 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
     def update_slug(*_):
         if not slug_manual.get():
             e_slug.delete(0, tk.END)
-            e_slug.insert(0, slugify(e_titolo.get()))
+            titolo_slug = slugify(e_titolo.get())
+            # Aggiungi l'anno dalla data allo slug per differenziare le versioni
+            data_str = e_data.get().strip()
+            if data_str and len(data_str) >= 4:
+                year = data_str.split('-')[0]
+                e_slug.insert(0, f"{titolo_slug}-{year}")
+            else:
+                e_slug.insert(0, titolo_slug)
+    
+    # Imposta il comando del bottone calendario
+    btn_cal.config(command=lambda: _show_calendar(root, e_data, BG, ACCENT, FG, on_date_selected=lambda: update_slug()))
+    
     e_titolo.bind("<KeyRelease>", update_slug)
+    e_data.bind("<KeyRelease>", update_slug)
+    e_data.bind("<FocusOut>", update_slug)
     e_slug.bind("<KeyPress>", lambda e: slug_manual.set(True))
     update_slug()
 
@@ -478,6 +567,9 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
     lbl2("Luogo / Regione", 1, 0, colspan=2)
     e_luogo = ent2(1, 0, val=luogo_iniziale, colspan=2)
 
+    lbl2("Velocità media prevista (km/h)", 2, 0, colspan=1)
+    e_velocita = ent2(2, 0, val="25")
+
     tk.Label(frame2, text="Note (opzionali)", font=FONT_LABEL, bg=BG, fg="#7a746b",
              anchor="w").grid(row=4, column=0, columnspan=3, sticky="w", pady=(10,1))
     e_note = tk.Text(frame2, font=FONT_ENTRY, bg="white", fg=FG,
@@ -510,9 +602,12 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
             "genere":       cb_genere.get(),
             "categoria":    cb_cat.get(),
             "disciplina":   cb_disc.get(),
+            "giri":         int(giri_var.get()),
             "distanza_km":  num_or_none(e_km.get()),
             "dislivello_m": num_or_none(e_dp.get()),
+            "velocita_media_kmh": num_or_none(e_velocita.get()),
             "luogo":        e_luogo.get().strip() or None,
+            "race_series":  e_titolo.get().strip(),
             "note":         e_note.get("1.0", tk.END).strip() or None,
         })
         root.destroy()
@@ -604,10 +699,14 @@ def main():
     slug  = meta["slug"]
     title = meta["titolo"]
 
+    # 3b. Riprocessa GPX se è stato cambiato
+    print(f"[*] Processing GPX finale: {gpx_path.name}...")
+    gpx_data = parse_gpx(gpx_path)
+    if gpx_data.get('gpx_points'):
+        print(f"  {len(gpx_data['gpx_points'])} punti estratti")
+
     # 4. Cartelle destinazione
-    out_gpx_dir  = ARCHIVIO_DIR / "public" / "gpx"
     out_json_dir = ARCHIVIO_DIR / "gare-sorgenti"
-    out_gpx_dir.mkdir(parents=True, exist_ok=True)
     out_json_dir.mkdir(parents=True, exist_ok=True)
 
     json_path = out_json_dir / f"{slug}.json"
@@ -625,16 +724,25 @@ def main():
             print("Operazione annullata.")
             sys.exit(0)
 
-    # 6. Copia GPX in public/gpx/
-    import shutil
-    gpx_out = out_gpx_dir / f"{slug}.gpx"
-    shutil.copy2(gpx_path, gpx_out)
-    print(f"[OK] GPX   -> {gpx_out}")
+    # 6. Aggiungi dati GPX ai metadati
+    if gpx_data.get('gpx_points'):
+        meta['gpx_points'] = gpx_data['gpx_points']
 
     # 7. Salva JSON (rimuovi None)
     meta_clean = {k: v for k, v in meta.items() if v is not None}
-    json_path.write_text(json.dumps(meta_clean, ensure_ascii=False, indent=2), encoding='utf-8')
+    json_str = json.dumps(meta_clean, ensure_ascii=False, indent=2)
+    json_path.write_text(json_str, encoding='utf-8')
     print(f"[OK] JSON  -> {json_path}")
+
+    # 7b. Copia anche in public/gare-sorgenti/ (servito dal browser per gara.html)
+    public_json_dir = ARCHIVIO_DIR / "public" / "gare-sorgenti"
+    public_json_dir.mkdir(parents=True, exist_ok=True)
+    public_json_path = public_json_dir / f"{slug}.json"
+    public_json_path.write_text(json_str, encoding='utf-8')
+    print(f"[OK] JSON  -> {public_json_path}")
+
+    # Aggiorna l'indice per la navigazione tra serie
+    update_gares_index()
 
     print(f"\n[OK] Gara '{title}' aggiunta al database.")
     print("  Per pubblicare sul sito:")
@@ -650,7 +758,6 @@ def main():
         msg = (
             f'"{title}" aggiunta al database!\n\n'
             f'File creati:\n'
-            f'  public/gare/{slug}.html\n'
             f'  gare-sorgenti/{slug}.json\n\n'
             f'Per pubblicare sul sito:\n'
             f'  git add .\n'

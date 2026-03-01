@@ -642,6 +642,72 @@
         footer a:hover {
             color: #fc5200;
         }
+        
+        #series-nav {
+            text-align: center;
+            padding: 1.5rem 1rem;
+            border-top: 1px solid #e5e7eb;
+            background: #fafafa;
+            margin-top: 2rem;
+            display: none;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        #series-nav.active {
+            display: block;
+        }
+        
+        #series-nav-text {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-bottom: 0.75rem;
+        }
+        
+        #series-nav-links {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .series-link {
+            padding: 0.5rem 1rem;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #3b82f6;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .series-link:hover {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .series-link.current {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+            cursor: default;
+        }
+        
+        .series-link.current:hover {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .series-link.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -659,10 +725,26 @@
         </div>
         
         <div id="data-content">
+            <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+                <p class="sv-hint" style="flex: 1; margin: 0;">👆 Premi il tasto destro sulla mappa o sull'altimetria per esplorare il punto in Street View. Attenzione, l'orientamento potrebbe essere errato.</p>
+                <div style="display: flex; align-items: center; gap: 0.5rem; white-space: nowrap;">
+                    <label for="vel-input" style="font-size: 0.85rem; color: #6b7280;">avg speed:</label>
+                    <input type="number" id="vel-input" min="5" max="100" step="0.5" value="38" style="width: 70px; padding: 4px 6px; font-size: 0.9rem; border: 1px solid #d1d5db; border-radius: 4px;">
+                    <span style="font-size: 0.85rem; color: #6b7280;">km/h</span>
+                </div>
+            </div>
             <div class="stats-row">
+                <div class="stat-card" id="stat-laps-card" style="display:none;">
+                    <div class="stat-label">Laps</div>
+                    <div class="stat-value" id="stat-laps">--</div>
+                </div>
                 <div class="stat-card">
-                    <div class="stat-label">Total Length</div>
+                    <div class="stat-label" id="stat-distance-label">Total Length</div>
                     <div class="stat-value" id="stat-distance">--</div>
+                </div>
+                <div class="stat-card" id="stat-laptime-card" style="display:none;">
+                    <div class="stat-label">Lap Time</div>
+                    <div class="stat-value" id="stat-laptime">--</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Total Time</div>
@@ -681,7 +763,7 @@
                     <div class="stat-value" id="stat-avg-alt">--</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Elevation Gain</div>
+                    <div class="stat-label" id="stat-gain-label">Elevation Gain</div>
                     <div class="stat-value" id="stat-gain">--</div>
                 </div>
             </div>
@@ -726,52 +808,19 @@
                     <div class="climbs-title">⛰️ Salite Rilevate <span id="climbs-count" style="color: #6b7280; font-weight: 400; font-size: 0.9rem;"></span></div>
                 </div>
                 <div id="climbs-list" class="climbs-list"></div>
-                <div class="difficulty-legend">
-                    <strong>Scala Difficoltà:</strong>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #9aca3c;"></div>
-                        <span>20-75 (Facile)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #ffa500;"></div>
-                        <span>75-150 (Moderata)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #ff8c00;"></div>
-                        <span>150-300 (Impegnativa)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #ff4500;"></div>
-                        <span>300-600 (Difficile)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #b22222;"></div>
-                        <span>600-900 (Estrema)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #800000;"></div>
-                        <span>900-1200 (HC)</span>
-                    </div>
-                    <div class="difficulty-legend-item">
-                        <div class="difficulty-legend-color" style="background: #000000;"></div>
-                        <span>1200+ (Leggendaria)</span>
-                    </div>
+                <div class="difficulty-legend" style="display: block;">
+                    <strong>Scala Diff:</strong><br>
+                    <span style="font-size: 0.9rem; color: #4b5563; display: inline-block; margin-top: 4px;">Formula: Diff = (Pendenza Media %)² × (Distanza in km)</span>
                 </div>
             </div>
         </div>
-        <div id="reset-bar" style="display:none;text-align:center;padding:8px 0 4px;gap:8px;justify-content:center;align-items:center;">
-            <button id="reset-btn" onclick="resetApp()" style="
-                background:none;border:1px solid #d1d5db;color:#6b7280;
-                padding:5px 14px;border-radius:20px;font-size:0.75rem;
-                font-family:'Inter',sans-serif;cursor:pointer;
-                transition:all 0.2s;
-            " onmouseover="this.style.borderColor='#fc5200';this.style.color='#fc5200'"
-               onmouseout="this.style.borderColor='#d1d5db';this.style.color='#6b7280'">
-                ↩ Carica nuovo GPX
-            </button>
-
+        
+        <!-- Navigazione tra versioni della stessa serie di gare -->
+        <div id="series-nav">
+            <div id="series-nav-text"></div>
+            <div id="series-nav-links"></div>
         </div>
-        <p class="sv-hint">👆 Premi il tasto destro sulla mappa o sull'altimetria per esplorare il punto in Street View. Attenzione, l'orientamento potrebbe essere errato.</p>
+        
         <footer>
             <a href="https://linktr.ee/bonvicin.coaching" target="_blank">
                 &copy; 2026 Andrea Bonvicin &mdash; gpx-visualizer &mdash; Licenza MIT
@@ -1034,16 +1083,19 @@ let map;
         }
         
         function updateStats() {
-            const AVG_SPEED_KMH = 38;
-            const totalTimeHours = routeData.distance / AVG_SPEED_KMH;
+            // Usa il valore dall'input field
+            const velInput = document.getElementById('vel-input');
+            const avgSpeed = velInput ? parseFloat(velInput.value) || 38 : 38;
+            const numLaps = window._laps || 1;
+            
+            // Total time sulla distanza totale (routeData.distance è per singolo giro)
+            const totalTimeHours = (routeData.distance * numLaps) / avgSpeed;
             const hours = Math.floor(totalTimeHours);
             const minutes = Math.floor((totalTimeHours - hours) * 60);
             const seconds = Math.floor(((totalTimeHours - hours) * 60 - minutes) * 60);
             const timeString = `${hours}:${minutes.toString().padStart(2, '0')}'${seconds.toString().padStart(2, '0')}"`;
             
-            // Top stats
-            document.getElementById('stat-distance').innerHTML = 
-                `${routeData.distance.toFixed(2)}<span class="stat-unit">km</span>`;
+            // Aggiorna elementi comuni
             document.getElementById('stat-time').innerHTML = 
                 `${timeString}`;
             document.getElementById('stat-max-alt').innerHTML = 
@@ -1052,9 +1104,60 @@ let map;
                 `${Math.round(routeData.minElevation)}<span class="stat-unit">m</span>`;
             document.getElementById('stat-avg-alt').innerHTML = 
                 `${Math.round(routeData.avgElevation)}<span class="stat-unit">m</span>`;
-            document.getElementById('stat-gain').innerHTML = 
-                `${Math.round(routeData.elevationGain)}<span class="stat-unit">m</span>`;
+            
+            // Se >= 2 laps, mostra le card e i valori dei lap
+            if (numLaps >= 2) {
+                document.getElementById('stat-laps-card').style.display = 'block';
+                document.getElementById('stat-laptime-card').style.display = 'block';
+                
+                // Label per lap length e lap elevation
+                document.getElementById('stat-distance-label').textContent = 'Lap Length';
+                document.getElementById('stat-gain-label').textContent = 'Lap Elevation';
+                
+                // Lap length e elevation (distance e elevationGain sono già per singolo giro)
+                document.getElementById('stat-distance').innerHTML = 
+                    `${routeData.distance.toFixed(2)}<span class="stat-unit">km</span>`;
+                document.getElementById('stat-gain').innerHTML = 
+                    `${Math.round(routeData.elevationGain)}<span class="stat-unit">m</span>`;
+                
+                // Lap time
+                const lapTimeHours = routeData.distance / avgSpeed;
+                const lapHours = Math.floor(lapTimeHours);
+                const lapMinutes = Math.floor((lapTimeHours - lapHours) * 60);
+                const lapSeconds = Math.floor(((lapTimeHours - lapHours) * 60 - lapMinutes) * 60);
+                const lapTimeString = `${lapHours}:${lapMinutes.toString().padStart(2, '0')}'${lapSeconds.toString().padStart(2, '0')}"`;
+                document.getElementById('stat-laptime').innerHTML = lapTimeString;
+                
+                // Laps
+                document.getElementById('stat-laps').innerHTML = numLaps;
+            } else {
+                // Nascondi le card di laps
+                document.getElementById('stat-laps-card').style.display = 'none';
+                document.getElementById('stat-laptime-card').style.display = 'none';
+                
+                // Ripristina i label originali
+                document.getElementById('stat-distance-label').textContent = 'Total Length';
+                document.getElementById('stat-gain-label').textContent = 'Elevation Gain';
+                
+                // Mostra valori totali
+                document.getElementById('stat-distance').innerHTML = 
+                    `${routeData.distance.toFixed(2)}<span class="stat-unit">km</span>`;
+                document.getElementById('stat-gain').innerHTML = 
+                    `${Math.round(routeData.elevationGain)}<span class="stat-unit">m</span>`;
+            }
         }
+        
+        // Event listener per aggiornare il tempo quando cambia la velocità media
+        document.addEventListener('DOMContentLoaded', () => {
+            const velInput = document.getElementById('vel-input');
+            if (velInput) {
+                velInput.addEventListener('input', () => {
+                    if (routeData) {
+                        updateStats();
+                    }
+                });
+            }
+        });
         
         function initMap(gpxText) {
             map = L.map('map');
@@ -1945,7 +2048,7 @@ let map;
                 card.innerHTML = `
                     <div class="climb-number">${index + 1}</div>
                     <div class="climb-difficulty" style="background-color: ${color}">
-                        Difficoltà: ${climb.difficulty.toFixed(0)}
+                        Diff: ${climb.difficulty.toFixed(0)}
                     </div>
                     <div class="climb-stats">
                         <div class="climb-stat">
@@ -2506,13 +2609,141 @@ let map;
             // Reset UI
             document.getElementById('data-content').style.display = 'none';
             document.getElementById('upload-section').style.display = 'block';
-            document.getElementById('reset-bar').style.display = 'none';
             document.getElementById('sv-panel').classList.remove('open');
             document.getElementById('elevation-chart').innerHTML = '';
             document.getElementById('climbs-section').style.display = 'none';
             document.getElementById('climb-detail-chart').classList.remove('active');
             document.getElementById('fileInput').value = '';
         }
+        
+        // ── AUTO-LOAD DA PARAMETRO URL (?gara=slug) ───────────────────────
+        (async function () {
+            const slug = new URLSearchParams(location.search).get('gara');
+            if (!slug) return;
+
+            // Nascondi sezione upload
+            const us = document.getElementById('upload-section');
+            if (us) us.style.display = 'none';
+
+            try {
+                const res = await fetch('/gare-sorgenti/' + slug + '.json');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const gara = await res.json();
+
+                // Imposta titolo pagina
+                if (gara.titolo) {
+                    document.title = gara.titolo + ' — gpx-report';
+                    const h1 = document.querySelector('h1');
+                    if (h1) h1.textContent = gara.titolo;
+                }
+
+                // Salva la velocità media della gara
+                window._velocitaMedia = gara.velocita_media_kmh || null;
+                
+                // Salva il numero di giri
+                window._laps = gara.giri || 1;
+                
+                // Imposta il valore dell'input con la velocità della gara
+                const velInput = document.getElementById('vel-input');
+                if (velInput && gara.velocita_media_kmh) {
+                    velInput.value = gara.velocita_media_kmh;
+                }
+                
+                // Carica navigazione tra versioni della stessa serie
+                if (gara.race_series) {
+                    try {
+                        const indexRes = await fetch('/gare-index.json');
+                        if (indexRes.ok) {
+                            const allRaces = await indexRes.json();
+                            const seriesRaces = allRaces
+                                .filter(r => r.race_series === gara.race_series)
+                                .sort((a, b) => a.data.localeCompare(b.data));
+                            
+                            if (seriesRaces.length > 1) {
+                                const currentRaceIdx = seriesRaces.findIndex(r => r.slug === slug);
+                                const seriesNavDiv = document.getElementById('series-nav');
+                                const seriesNavText = document.getElementById('series-nav-text');
+                                const seriesNavLinks = document.getElementById('series-nav-links');
+                                
+                                // Estrai anno dalla data della gara attuale
+                                const currentYear = gara.data.split('-')[0];
+                                seriesNavText.innerHTML = `<strong>${gara.race_series}</strong> &mdash; ${currentYear}`;
+                                
+                                seriesNavLinks.innerHTML = '';
+                                
+                                // Link alla versione precedente
+                                if (currentRaceIdx > 0) {
+                                    const prevRace = seriesRaces[currentRaceIdx - 1];
+                                    const prevYear = prevRace.data.split('-')[0];
+                                    const prevLink = document.createElement('a');
+                                    prevLink.href = `?gara=${prevRace.slug}`;
+                                    prevLink.className = 'series-link';
+                                    prevLink.innerHTML = `← ${prevYear}`;
+                                    seriesNavLinks.appendChild(prevLink);
+                                }
+                                
+                                // Link alle altre versioni
+                                seriesRaces.forEach((race, idx) => {
+                                    const year = race.data.split('-')[0];
+                                    const link = document.createElement('a');
+                                    link.href = `?gara=${race.slug}`;
+                                    link.className = idx === currentRaceIdx ? 'series-link current' : 'series-link';
+                                    link.textContent = year;
+                                    seriesNavLinks.appendChild(link);
+                                });
+                                
+                                // Link alla versione successiva
+                                if (currentRaceIdx < seriesRaces.length - 1) {
+                                    const nextRace = seriesRaces[currentRaceIdx + 1];
+                                    const nextYear = nextRace.data.split('-')[0];
+                                    const nextLink = document.createElement('a');
+                                    nextLink.href = `?gara=${nextRace.slug}`;
+                                    nextLink.className = 'series-link';
+                                    nextLink.innerHTML = `${nextYear} →`;
+                                    seriesNavLinks.appendChild(nextLink);
+                                }
+                                
+                                seriesNavDiv.classList.add('active');
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Errore caricamento index gare:', e);
+                    }
+                }
+
+                // Avvia elaborazione con i punti GPX dal JSON
+                if (gara.gpx_points && gara.gpx_points.length > 0) {
+                    window._gpxFileName = slug + '.json';
+                    window._gpxRawText = null;
+                    processRoute(gara.gpx_points, null);
+                } else {
+                    throw new Error('Nessun punto GPX nel JSON');
+                }
+            } catch (e) {
+                console.error('Auto-load fallito:', e);
+                const us2 = document.getElementById('upload-section');
+                if (us2) us2.style.display = 'block';
+                const zone = document.getElementById('uploadZone');
+                if (zone) {
+                    zone.innerHTML = '';
+                    const div = document.createElement('div');
+                    div.style.color = '#dc2626';
+                    div.style.fontSize = '1rem';
+                    div.style.fontWeight = '600';
+                    div.style.padding = '1rem';
+                    div.textContent = '⚠️ Impossibile caricare "' + slug + '"';
+                    const br = document.createElement('br');
+                    const small = document.createElement('small');
+                    small.style.fontWeight = '400';
+                    small.style.color = '#6b7280';
+                    small.textContent = e.message;
+                    div.appendChild(br);
+                    div.appendChild(small);
+                    zone.appendChild(div);
+                }
+            }
+        })();
+        // ─────────────────────────────────────────────────────────────────
     </script>
 </body>
 </html>
