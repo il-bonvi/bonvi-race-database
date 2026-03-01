@@ -94,9 +94,7 @@ def load_all_races():
 
 
 def save_race(slug: str, data: dict):
-    """Salva race JSON nella root (source of truth).
-    
-    Il file viene copiato automaticamente in public/ durante il build Astro.
+    """Salva race JSON nella root (source of truth) e sincronizza in public/.
     """
     # Imposta race_series automaticamente dal titolo
     if 'titolo' in data:
@@ -107,6 +105,12 @@ def save_race(slug: str, data: dict):
     json_str = json.dumps(data_clean, ensure_ascii=False, indent=2)
     
     json_path.write_text(json_str, encoding='utf-8')
+    
+    # Sincronizza anche in public/gare-sorgenti/ per il browser
+    public_json_dir = ARCHIVIO_DIR / "public" / "gare-sorgenti"
+    public_json_dir.mkdir(parents=True, exist_ok=True)
+    public_json_path = public_json_dir / f"{slug}.json"
+    public_json_path.write_text(json_str, encoding='utf-8')
     
     # Aggiorna l'indice per la navigazione tra serie
     update_gares_index()

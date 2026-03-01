@@ -568,7 +568,24 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
     e_luogo = ent2(1, 0, val=luogo_iniziale, colspan=2)
 
     lbl2("Velocità media prevista (km/h)", 2, 0, colspan=1)
-    e_velocita = ent2(2, 0, val="25")
+    e_velocita = ent2(2, 0, val="")
+    
+    # Suggerimenti velocità per disciplina
+    def suggest_velocity(*_):
+        """Suggerisce velocità media basata su disciplina"""
+        disc = cb_disc.get()
+        suggestions = {
+            "Strada": "35",
+            "Criterium": "40",
+            "Cronometro": "32"
+        }
+        suggested_vel = suggestions.get(disc, "35")
+        e_velocita.delete(0, tk.END)
+        e_velocita.insert(0, suggested_vel)
+    
+    # Inizializza con default e collega il callback
+    cb_disc.bind("<<ComboboxSelected>>", suggest_velocity)
+    suggest_velocity()  # Imposta il valore iniziale
 
     tk.Label(frame2, text="Note (opzionali)", font=FONT_LABEL, bg=BG, fg="#7a746b",
              anchor="w").grid(row=4, column=0, columnspan=3, sticky="w", pady=(10,1))

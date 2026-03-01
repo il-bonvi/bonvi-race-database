@@ -6,7 +6,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 <Base title="Il Progetto — Race Database by Bonvi">
 <div class="page-layout">
 
-  <aside class="sidebar">
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-inner">
       <div class="brand">
         <div class="brand-mark">RDB</div>
@@ -16,7 +18,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         </div>
       </div>
       <nav class="sidebar-nav">
-        <a href={`${base}/`} class="nav-btn">← Database Gare</a>
+        <a href={`${base}/`} class="nav-btn">Prossime Gare</a>
+        <a href={`${base}/archivio`} class="nav-btn">Archivio</a>
         <a href={`${base}/progetto`} class="nav-btn active">Il Progetto</a>
         <a href={`${base}/faq`} class="nav-btn">FAQ</a>
         <a href={`${base}/contattami`} class="nav-btn">Contattami</a>
@@ -25,6 +28,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   </aside>
 
   <main class="main">
+
+    <div class="mobile-topbar">
+      <button class="mobile-menu-btn" id="menu-btn" aria-label="Apri menu">☰</button>
+    </div>
+
     <div class="page-content">
 
       <header class="page-header">
@@ -54,50 +62,21 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           <div class="feature-card">
             <div class="feature-icon">△</div>
             <div class="feature-title">Profilo altimetrico 3D</div>
-            <p class="feature-desc">Il grafico dell'altitudine con rendering tridimensionale e gradiente colorato in base alla pendenza. Ogni sezione ha il suo colore dal verde al rosso.</p>
+            <p class="feature-desc">Il grafico dell'altitudine con rendering tridimensionale e gradiente colorato in base alla pendenza.</p>
           </div>
           <div class="feature-card">
-            <div class="feature-icon">⛰</div>
-            <div class="feature-title">Salite rilevate automaticamente</div>
-            <p class="feature-desc">Il sistema individua ogni salita significativa e ne calcola distanza, dislivello, pendenza media, pendenza massima e un indice di difficoltà.</p>
+            <div class="feature-icon">⊘</div>
+            <div class="feature-title">Salite rilevate</div>
+            <p class="feature-desc">Ogni salita significativa viene rilevata automaticamente dal GPX e classificata per difficoltà, lunghezza e pendenza media.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">◉</div>
-            <div class="feature-title">Street View su ogni punto</div>
-            <p class="feature-desc">Clic destro su qualsiasi punto per aprire Google Street View su quella coordinata esatta. Link diretto, non embedded — le API integrate costano — ma funziona perfettamente.</p>
+            <div class="feature-title">Street View</div>
+            <p class="feature-desc">Un link diretto a Google Street View posizionato all'inizio di ogni salita. Puoi "pedalare" virtualmente il percorso prima di arrivarci.</p>
           </div>
         </div>
-      </section>
-
-      <section class="section">
-        <h2 class="section-title">Un esempio reale</h2>
-        <div class="example-card">
-          <div class="example-header">
-            <div class="example-badge elite">Elite</div>
-            <div class="example-badge strada">Strada</div>
-            <div class="example-date">12 Apr 2024</div>
-          </div>
-          <h3 class="example-title">Gran Premio Primavera — Lago di Garda</h3>
-          <div class="example-stats">
-            <div class="estat">
-              <span class="estat-v">142.3</span>
-              <span class="estat-l">km</span>
-            </div>
-            <div class="estat">
-              <span class="estat-v">2.840</span>
-              <span class="estat-l">m D+</span>
-            </div>
-            <div class="estat">
-              <span class="estat-v">Veneto</span>
-              <span class="estat-l">luogo</span>
-            </div>
-          </div>
-          <p class="example-desc">
-            Classica primaverile con partenza da Desenzano del Garda e arrivo a Salò. Aprendo la scheda trovi la mappa con il tracciato completo, il profilo altimetrico tridimensionale con il gradiente colorato per pendenza, le salite rilevate automaticamente con i relativi dati tecnici, e la possibilità di aprire Street View su qualsiasi punto — utile per riconoscere gli ultimi chilometri ancora prima di gareggiare.
-          </p>
-          <div class="example-note">
-            ↑ Mappa · Profilo 3D · Salite rilevate · Street View — tutto da un singolo file GPX
-          </div>
+        <div class="example-note">
+          ↑ Mappa · Profilo 3D · Salite rilevate · Street View — tutto da un singolo file GPX
         </div>
       </section>
 
@@ -129,6 +108,19 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 </div>
 </Base>
 
+<script>
+  const menuBtn = document.getElementById('menu-btn') as HTMLElement;
+  const overlay = document.getElementById('sidebar-overlay') as HTMLElement;
+  const sidebar = document.getElementById('sidebar') as HTMLElement;
+
+  function openDrawer() { sidebar.classList.add('open'); overlay.classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function closeDrawer() { sidebar.classList.remove('open'); overlay.classList.remove('open'); document.body.style.overflow = ''; }
+
+  menuBtn?.addEventListener('click', openDrawer);
+  overlay?.addEventListener('click', closeDrawer);
+  document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', closeDrawer));
+</script>
+
 <style>
   .page-layout {
     display: grid;
@@ -136,364 +128,95 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     min-height: 100vh;
   }
 
+  .sidebar-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 99;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  .sidebar-overlay.open { display: block; }
+
   .sidebar {
     background: var(--bg2);
     border-right: 1px solid var(--border);
     position: sticky; top: 0;
     height: 100vh; overflow-y: auto;
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
   }
 
-  .sidebar-inner {
-    display: flex; flex-direction: column;
-    padding: 1.75rem 1.25rem;
-    height: 100%; gap: 1.5rem;
-  }
+  .sidebar-inner { display: flex; flex-direction: column; padding: 1.75rem 1.25rem; height: 100%; gap: 1.5rem; }
 
-  .brand {
-    display: flex; align-items: center; gap: 0.85rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border);
-  }
+  .brand { display: flex; align-items: center; gap: 0.85rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+  .brand-mark { font-family: var(--font-display); font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em; background: var(--text); color: var(--bg); padding: 0.3rem 0.5rem; border-radius: 2px; flex-shrink: 0; }
+  .brand-name { font-family: var(--font-display); font-size: 1rem; font-weight: 700; letter-spacing: 0.02em; line-height: 1.1; }
+  .brand-sub { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text3); margin-top: 0.15rem; }
 
-  .brand-mark {
-    font-family: var(--font-display);
-    font-size: 0.85rem; font-weight: 800;
-    letter-spacing: 0.08em;
-    background: var(--text);
-    color: var(--bg);
-    padding: 0.3rem 0.5rem;
-    border-radius: 2px;
-    flex-shrink: 0;
-  }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 0.4rem; }
+  .nav-btn { font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text2); text-decoration: none; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 3px; background: transparent; transition: all 0.15s; display: block; }
+  .nav-btn:hover { color: var(--text); border-color: var(--text2); background: var(--bg3); }
+  .nav-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(212, 64, 26, 0.05); }
 
-  .brand-name {
-    font-family: var(--font-display);
-    font-size: 1rem; font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1.1;
-  }
+  /* ── Mobile topbar ── */
+  .mobile-topbar { display: none; }
+  .mobile-menu-btn { background: none; border: 1px solid var(--border); border-radius: 3px; cursor: pointer; padding: 0.4rem 0.65rem; font-size: 1.1rem; color: var(--text); line-height: 1; transition: border-color 0.15s; }
+  .mobile-menu-btn:hover { border-color: var(--text2); }
 
-  .brand-sub {
-    font-family: var(--font-mono);
-    font-size: 0.6rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--text3);
-    margin-top: 0.15rem;
-  }
+  .main { padding: 3rem 3.5rem; max-width: 780px; }
+  .page-content { display: flex; flex-direction: column; gap: 3rem; }
 
-  .sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
+  .page-header { border-bottom: 1px solid var(--border); padding-bottom: 2rem; }
+  .page-tag { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent); margin-bottom: 0.75rem; }
+  .page-title { font-family: var(--font-display); font-size: 2.8rem; font-weight: 800; letter-spacing: 0.01em; line-height: 1; margin-bottom: 1rem; color: var(--text); }
+  .page-lead { font-size: 1.1rem; color: var(--text2); line-height: 1.6; max-width: 560px; }
 
-  .nav-btn {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text2);
-    text-decoration: none;
-    padding: 0.6rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    background: transparent;
-    transition: all 0.15s;
-    display: block;
-  }
+  .section { display: flex; flex-direction: column; gap: 1rem; }
+  .section-title { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: 0.03em; color: var(--text); padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+  .section p { font-size: 0.93rem; line-height: 1.75; color: var(--text2); }
+  .section p a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
 
-  .nav-btn:hover {
-    color: var(--text);
-    border-color: var(--text2);
-    background: var(--bg3);
-  }
+  .features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .feature-card { border: 1px solid var(--border); border-radius: 4px; padding: 1.25rem; background: var(--bg2); }
+  .feature-icon { font-size: 1.2rem; color: var(--accent); margin-bottom: 0.5rem; }
+  .feature-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 0.4rem; }
+  .feature-desc { font-size: 0.82rem; line-height: 1.6; color: var(--text2); }
 
-  .nav-btn.active {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: rgba(212, 64, 26, 0.05);
-  }
+  .example-note { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); padding: 0.6rem 1.25rem; background: var(--bg3); border-top: 1px solid var(--border); }
 
-  /* MAIN */
-  .main {
-    padding: 3rem 3.5rem;
-    max-width: 780px;
-  }
+  .section-cta { flex-direction: row; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 
-  .page-content {
-    display: flex;
-    flex-direction: column;
-    gap: 3rem;
-  }
+  .cta-btn { font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.75rem 1.25rem; border-radius: 3px; text-decoration: none; transition: all 0.15s; background: var(--text); color: var(--bg); border: 1px solid var(--text); }
+  .cta-btn:hover { background: var(--accent); border-color: var(--accent); }
+  .cta-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .cta-secondary:hover { border-color: var(--text2); background: var(--bg3); color: var(--text); }
 
-  .page-header {
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 2rem;
-  }
-
-  .page-tag {
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--accent);
-    margin-bottom: 0.75rem;
-  }
-
-  .page-title {
-    font-family: var(--font-display);
-    font-size: 2.8rem;
-    font-weight: 800;
-    letter-spacing: 0.01em;
-    line-height: 1;
-    margin-bottom: 1rem;
-    color: var(--text);
-  }
-
-  .page-lead {
-    font-size: 1.1rem;
-    color: var(--text2);
-    line-height: 1.6;
-    max-width: 560px;
-  }
-
-  .section {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .section-title {
-    font-family: var(--font-display);
-    font-size: 1.3rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    color: var(--text);
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .section p {
-    font-size: 0.93rem;
-    line-height: 1.75;
-    color: var(--text2);
-  }
-
-  .section p a {
-    color: var(--accent);
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-
-  .features-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-
-  .feature-card {
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 1.25rem;
-    background: var(--bg2);
-  }
-
-  .feature-icon {
-    font-size: 1.2rem;
-    color: var(--accent);
-    margin-bottom: 0.5rem;
-  }
-
-  .feature-title {
-    font-family: var(--font-display);
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    margin-bottom: 0.4rem;
-  }
-
-  .feature-desc {
-    font-size: 0.82rem;
-    line-height: 1.6;
-    color: var(--text2);
-  }
-
-  .example-card {
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--bg2);
-    overflow: hidden;
-  }
-
-  .example-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.85rem 1.25rem;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg3);
-  }
-
-  .example-badge {
-    font-family: var(--font-mono);
-    font-size: 0.6rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    padding: 0.2rem 0.5rem;
-    border-radius: 2px;
-  }
-
-  .example-badge.elite {
-    background: var(--gold);
-    color: #fff;
-  }
-
-  .example-badge.strada {
-    background: var(--blue);
-    color: #fff;
-  }
-
-  .example-date {
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    color: var(--text3);
-    margin-left: auto;
-  }
-
-  .example-title {
-    font-family: var(--font-display);
-    font-size: 1.3rem;
-    font-weight: 700;
-    padding: 1rem 1.25rem 0.5rem;
-  }
-
-  .example-stats {
-    display: flex;
-    gap: 1.5rem;
-    padding: 0.5rem 1.25rem 1rem;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .estat { display: flex; flex-direction: column; }
-  .estat-v {
-    font-family: var(--font-mono);
-    font-size: 1.1rem;
-    font-weight: 500;
-    color: var(--text);
-  }
-  .estat-l {
-    font-family: var(--font-mono);
-    font-size: 0.58rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--text3);
-  }
-
-  .example-desc {
-    font-size: 0.86rem;
-    line-height: 1.7;
-    color: var(--text2);
-    padding: 1rem 1.25rem;
-  }
-
-  .example-note {
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    color: var(--text3);
-    padding: 0.6rem 1.25rem;
-    background: var(--bg3);
-    border-top: 1px solid var(--border);
-  }
-
-  .section-cta {
-    flex-direction: row;
-    gap: 0.75rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
-  }
-
-  .cta-btn {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 0.75rem 1.25rem;
-    border-radius: 3px;
-    text-decoration: none;
-    transition: all 0.15s;
-    background: var(--text);
-    color: var(--bg);
-    border: 1px solid var(--text);
-  }
-
-  .cta-btn:hover {
-    background: var(--accent);
-    border-color: var(--accent);
-  }
-
-  .cta-secondary {
-    background: transparent;
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
-
-  .cta-secondary:hover {
-    border-color: var(--text2);
-    background: var(--bg3);
-    color: var(--text);
-  }
-
-  .feature-card--note {
-    /* rimosso - card identiche */
-  }
-
-  .kofi-wrap {
-    margin-top: 0.5rem;
-  }
-
-  .kofi-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 0.75rem 1.25rem;
-    border-radius: 3px;
-    text-decoration: none;
-    background: #FF5E5B;
-    color: #fff;
-    border: 1px solid #FF5E5B;
-    transition: all 0.15s;
-  }
-
-  .kofi-btn:hover {
-    background: #e54c49;
-    border-color: #e54c49;
-  }
-
-  .kofi-icon {
-    font-size: 1rem;
-    line-height: 1;
-  }
-
-  .cta-kofi {
-    background: #FF5E5B;
-    color: #fff;
-    border: 1px solid #FF5E5B;
-  }
-
-  .cta-kofi:hover {
-    background: #e54c49;
-    border-color: #e54c49;
-  }
+  .kofi-wrap { margin-top: 0.5rem; }
+  .kofi-btn { display: inline-flex; align-items: center; gap: 0.6rem; font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.75rem 1.25rem; border-radius: 3px; text-decoration: none; background: #FF5E5B; color: #fff; border: 1px solid #FF5E5B; transition: all 0.15s; }
+  .kofi-btn:hover { background: #e54c49; border-color: #e54c49; }
+  .kofi-icon { font-size: 1rem; line-height: 1; }
+  .cta-kofi { background: #FF5E5B; color: #fff; border: 1px solid #FF5E5B; }
+  .cta-kofi:hover { background: #e54c49; border-color: #e54c49; }
 
   @media (max-width: 768px) {
     .page-layout { grid-template-columns: 1fr; }
-    .sidebar { position: static; height: auto; }
-    .main { padding: 1.5rem 1rem; }
+
+    .mobile-topbar { display: flex; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); background: var(--bg); position: sticky; top: 0; z-index: 10; margin-bottom: 1.5rem; }
+
+    .sidebar {
+      position: fixed !important;
+      top: 0; left: 0;
+      height: 100dvh !important;
+      width: 285px;
+      z-index: 100;
+      transform: translateX(-100%);
+      box-shadow: none;
+      overflow-y: auto;
+    }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 32px rgba(0,0,0,0.18); }
+    .sidebar-inner { height: auto; min-height: 100%; padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 1rem)); }
+
+    .main { padding: 0 1rem calc(1.5rem + env(safe-area-inset-bottom, 0.5rem)); }
     .features-grid { grid-template-columns: 1fr; }
     .section-cta { flex-direction: column; }
     .page-title { font-size: 2rem; }

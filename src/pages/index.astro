@@ -16,23 +16,17 @@ gare.sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getT
 const anni = [...new Set(gare.map(g => new Date(g.data).getFullYear()))].sort((a,b) => b-a);
 const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
 
-// Raggruppa per anno->mese
 const MONTH_NAMES = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 const groupedByYear = new Map();
 gare.forEach(g => {
   const d = new Date(g.data);
   const year = d.getFullYear();
   const month = d.getMonth();
-  if (!groupedByYear.has(year)) {
-    groupedByYear.set(year, new Map());
-  }
-  if (!groupedByYear.get(year).has(month)) {
-    groupedByYear.get(year).set(month, []);
-  }
+  if (!groupedByYear.has(year)) groupedByYear.set(year, new Map());
+  if (!groupedByYear.get(year).has(month)) groupedByYear.get(year).set(month, []);
   groupedByYear.get(year).get(month).push(g);
 });
 
-// Converti a struttura ordinata: anni decrescenti, mesi decrescenti dentro ogni anno
 const yearMonthStructure = Array.from(groupedByYear.entries())
   .sort(([yearA]: [any, any], [yearB]: [any, any]) => yearB - yearA)
   .map(([year, monthsMap]: [any, any]) => ({
@@ -41,13 +35,11 @@ const yearMonthStructure = Array.from(groupedByYear.entries())
       .sort(([monthA]: [any, any], [monthB]: [any, any]) => monthB - monthA)
       .map(([month, races]: [any, any]) => ({
         month,
-        // Ordina le gare per data crescente
         races: races.slice().sort((a: any, b: any) => new Date(a.data).getTime() - new Date(b.data).getTime()),
         monthKey: `${year}-${String(month).padStart(2, '0')}`
       }))
   }));
 
-// Trova mese corrente
 const currentYear = today.getFullYear();
 const currentMonth = today.getMonth();
 
@@ -57,7 +49,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 <Base title="Race Database — by Bonvi">
 <div class="layout">
 
-  <aside class="sidebar">
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-inner">
 
       <div class="brand">
@@ -87,7 +81,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
         <div class="filter-group">
           <div class="filter-label">Anno</div>
-          <div class="filter-pills" >
+          <div class="filter-pills">
             <button class="pill active" data-group="anno" data-val="all">Tutti</button>
             {anni.map(a => (
               <button class="pill" data-group="anno" data-val={String(a)}>{a}</button>
@@ -141,6 +135,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   <main class="main">
 
     <div class="topbar">
+      <button class="mobile-menu-btn" id="menu-btn" aria-label="Apri menu">☰</button>
       <div class="search-wrap">
         <span class="search-icon">⌕</span>
         <input type="text" id="search-input" class="search-input" placeholder="Cerca per nome, luogo..." autocomplete="off" />
@@ -168,7 +163,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         yearMonthStructure.map(({ year, months }: any) => {
           const yearTotalRaces = months.reduce((sum, m) => sum + m.races.length, 0);
           const isCurrentYear = year === currentYear;
-          
           return (
             <div class={`year-group ${isCurrentYear ? 'expanded' : 'collapsed'}`} data-year={year}>
               <button class="year-header" data-year-toggle={year}>
@@ -176,22 +170,20 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
                 <span class="year-label"><strong>{year}</strong></span>
                 <span class="year-count">({yearTotalRaces})</span>
               </button>
-              <div class="year-races" style={`display: ${isCurrentYear ? 'block' : 'none'}`}>
+              <div class="year-races" style={`display: ${isCurrentYear ? 'flex' : 'none'}`}>
                 {months.map(({ month, races, monthKey }: any) => {
-                  const isCurrentMonth = year === currentYear && month === currentMonth;
-                  const monthName = MONTH_NAMES[month];
-                  
+                  const isCurrentMonth = isCurrentYear && month === currentMonth;
                   return (
-                    <div class={`month-group ${isCurrentMonth ? 'expanded' : 'collapsed'}`} data-month-key={monthKey}>
+                    <div class={`month-group ${isCurrentMonth ? 'expanded' : 'collapsed'}`} data-month={monthKey}>
                       <button class="month-header" data-month-toggle={monthKey}>
                         <span class="month-chevron">▼</span>
-                        <span class="month-label">{monthName}</span>
+                        <span class="month-label">{MONTH_NAMES[month]}</span>
                         <span class="month-count">({races.length})</span>
                       </button>
                       <div class="month-races" style={`display: ${isCurrentMonth ? 'grid' : 'none'}`}>
                         {races.map((g: any) => (
                           <div class="card-wrap"
-                            data-anno={year}
+                            data-anno={new Date(g.data).getFullYear()}
                             data-genere={g.genere ?? ''}
                             data-categoria={g.categoria ?? ''}
                             data-disciplina={g.disciplina ?? ''}
@@ -242,18 +234,16 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const noRes = document.getElementById('no-results') as HTMLElement;
   const timeline = document.getElementById('gare-timeline') as HTMLElement;
 
-  // Toggle expand/collapse per anno
   document.querySelectorAll('.year-header').forEach((btn: Element) => {
     btn.addEventListener('click', () => {
       const group = (btn as HTMLElement).closest('.year-group') as HTMLElement;
       const races = group.querySelector('.year-races') as HTMLElement;
       const isExpanded = group.classList.toggle('expanded');
       group.classList.toggle('collapsed', !isExpanded);
-      races.style.display = isExpanded ? 'block' : 'none';
+      races.style.display = isExpanded ? 'flex' : 'none';
     });
   });
 
-  // Toggle expand/collapse per mese
   document.querySelectorAll('.month-header').forEach((btn: Element) => {
     btn.addEventListener('click', () => {
       const group = (btn as HTMLElement).closest('.month-group') as HTMLElement;
@@ -265,73 +255,63 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   });
 
   function applyAll() {
-    const q = state.q.toLowerCase();
-    let visible = 0;
-    let totalKm = 0;
-    let totalDislivello = 0;
+    let visibleCount = 0;
+    let visibleKm = 0;
+    let visibleDislivello = 0;
     cards.forEach((c: HTMLElement) => {
       const match =
-        (state.anno       === 'all' || (c.dataset.anno ?? '')       === state.anno) &&
-        (state.genere     === 'all' || (c.dataset.genere ?? '')     === state.genere) &&
-        (state.categoria  === 'all' || (c.dataset.categoria ?? '')  === state.categoria) &&
-        (state.disciplina === 'all' || (c.dataset.disciplina ?? '') === state.disciplina) &&
-        (!q || (c.dataset.titolo ?? '').includes(q) || (c.dataset.luogo ?? '').includes(q));
+        (state.anno === 'all' || c.dataset.anno === state.anno) &&
+        (state.genere === 'all' || c.dataset.genere === state.genere) &&
+        (state.categoria === 'all' || c.dataset.categoria === state.categoria) &&
+        (state.disciplina === 'all' || c.dataset.disciplina === state.disciplina) &&
+        (!state.q || (c.dataset.titolo ?? '').includes(state.q.toLowerCase()) || (c.dataset.luogo ?? '').includes(state.q.toLowerCase()));
       c.style.display = match ? '' : 'none';
       if (match) {
-        visible++;
-        totalKm += Number(c.dataset.km) || 0;
-        totalDislivello += Number(c.dataset.dislivello) || 0;
+        visibleCount++;
+        visibleKm += parseFloat(c.dataset.km ?? '0') || 0;
+        visibleDislivello += parseFloat(c.dataset.dislivello ?? '0') || 0;
       }
     });
-    counter.textContent = visible.toString();
-    kmCounter.textContent = totalKm.toFixed(0);
-    dislivelloCounter.textContent = totalDislivello.toFixed(0);
-    noRes.style.display = visible === 0 && cards.length > 0 ? '' : 'none';
+    counter.textContent = String(visibleCount);
+    kmCounter.textContent = visibleKm.toFixed(0);
+    dislivelloCounter.textContent = visibleDislivello.toFixed(0);
 
-    // Aggiorna visibilità dei mesi e anni
-    document.querySelectorAll('.month-group').forEach((monthGroup: Element) => {
-      const races = monthGroup.querySelectorAll('.card-wrap');
-      let visibleInMonth = 0;
-      races.forEach((c: Element) => {
-        if ((c as HTMLElement).style.display !== 'none') visibleInMonth++;
-      });
-      (monthGroup as HTMLElement).style.display = visibleInMonth === 0 ? 'none' : '';
+    document.querySelectorAll('.month-group').forEach((group: Element) => {
+      const monthRaces = group.querySelector('.month-races') as HTMLElement;
+      if (!monthRaces) return;
+      const hasVisible = Array.from(monthRaces.querySelectorAll('.card-wrap')).some(
+        (c: Element) => (c as HTMLElement).style.display !== 'none'
+      );
+      (group as HTMLElement).style.display = hasVisible ? '' : 'none';
     });
 
-    // Aggiorna visibilità anni
-    document.querySelectorAll('.year-group').forEach((yearGroup: Element) => {
-      const visibleMonths = yearGroup.querySelectorAll('.month-group:not([style*="display: none"])');
-      (yearGroup as HTMLElement).style.display = visibleMonths.length === 0 ? 'none' : '';
+    document.querySelectorAll('.year-group').forEach((group: Element) => {
+      const hasVisible = Array.from(group.querySelectorAll('.month-group')).some(
+        (g: Element) => (g as HTMLElement).style.display !== 'none'
+      );
+      (group as HTMLElement).style.display = hasVisible ? '' : 'none';
     });
 
-    // Riordina se necessario
-    const sorted = cards.filter((c: HTMLElement) => c.style.display !== 'none');
-    if (state.sort === 'data-desc' || state.sort === 'data-asc') {
-      sorted.sort((a: HTMLElement, b: HTMLElement) => {
-        const timeA = Number(a.dataset.date) || 0;
-        const timeB = Number(b.dataset.date) || 0;
-        return state.sort === 'data-desc' ? timeB - timeA : timeA - timeB;
-      });
-    } else if (state.sort === 'km-desc' || state.sort === 'km-asc') {
-      sorted.sort((a: HTMLElement, b: HTMLElement) => {
-        const kmA = Number(a.dataset.km) || 0;
-        const kmB = Number(b.dataset.km) || 0;
-        return state.sort === 'km-desc' ? kmB - kmA : kmA - kmB;
-      });
-    } else if (state.sort === 'nome') {
-      sorted.sort((a: HTMLElement, b: HTMLElement) => (a.dataset.titolo ?? '').localeCompare(b.dataset.titolo ?? ''));
-    }
+    noRes.style.display = visibleCount === 0 ? '' : 'none';
 
-    // Applica l'ordinamento al DOM
+    applySorting();
+  }
+
+  function applySorting() {
+    const sorted = [...cards].filter((c: HTMLElement) => c.style.display !== 'none').sort((a: HTMLElement, b: HTMLElement) => {
+      if (state.sort === 'data-asc') return Number(a.dataset.date ?? 0) - Number(b.dataset.date ?? 0);
+      if (state.sort === 'data-desc') return Number(b.dataset.date ?? 0) - Number(a.dataset.date ?? 0);
+      if (state.sort === 'km-desc') return Number(b.dataset.km ?? 0) - Number(a.dataset.km ?? 0);
+      if (state.sort === 'km-asc') return Number(a.dataset.km ?? 0) - Number(b.dataset.km ?? 0);
+      if (state.sort === 'nome') return (a.dataset.titolo ?? '').localeCompare(b.dataset.titolo ?? '');
+      return 0;
+    });
+
     const rankMap = new Map(sorted.map((c, i) => [c, i]));
     document.querySelectorAll('.month-races').forEach((racesContainer: Element) => {
       const cardsInContainer = Array.from(racesContainer.querySelectorAll('.card-wrap')) as HTMLElement[];
       const visibleCards = cardsInContainer.filter((c: HTMLElement) => c.style.display !== 'none');
-      
-      // Riordina le carte visibili rispetto all'array sorted globale
       visibleCards.sort((a: HTMLElement, b: HTMLElement) => (rankMap.get(a) ?? 0) - (rankMap.get(b) ?? 0));
-      
-      // Riappendi le carte riordinate al contenitore
       visibleCards.forEach((c: HTMLElement) => racesContainer.appendChild(c));
     });
   }
@@ -352,7 +332,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     state.q = (e.target as HTMLInputElement).value;
     applyAll();
   });
-  
+
   (document.getElementById('sort-select') as HTMLSelectElement).addEventListener('change', (e: Event) => {
     state.sort = (e.target as HTMLSelectElement).value;
     applyAll();
@@ -369,6 +349,30 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     });
     applyAll();
   });
+
+  // ── Mobile drawer ──────────────────────────────
+  const menuBtn = document.getElementById('menu-btn') as HTMLElement;
+  const overlay = document.getElementById('sidebar-overlay') as HTMLElement;
+  const sidebar = document.getElementById('sidebar') as HTMLElement;
+
+  function openDrawer() {
+    sidebar.classList.add('open');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer() {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  menuBtn?.addEventListener('click', openDrawer);
+  overlay?.addEventListener('click', closeDrawer);
+
+  // Chiudi drawer quando si clicca su un filtro pill (UX mobile)
+  document.querySelectorAll('.sidebar-page-btn').forEach(btn => {
+    btn.addEventListener('click', closeDrawer);
+  });
 </script>
 
 <style>
@@ -379,13 +383,26 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     height: 100vh;
   }
 
-  /* SIDEBAR */
+  /* ── SIDEBAR OVERLAY (mobile) ── */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 99;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  .sidebar-overlay.open { display: block; }
+
+  /* ── SIDEBAR ── */
   .sidebar {
     background: var(--bg2);
     border-right: 1px solid var(--border);
     position: sticky; top: 0;
     height: 100vh; overflow-y: auto;
     grid-row: 1 / -1;
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
   }
 
   .sidebar-inner {
@@ -464,38 +481,40 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   }
   .reset-filters:hover { color: var(--accent); border-color: var(--accent); }
 
-  /* SIDEBAR FOOTER NAV */
   .sidebar-footer {
     margin-top: auto;
     padding-top: 1rem;
     border-top: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
+    display: flex; flex-direction: column; gap: 0.4rem;
   }
 
   .sidebar-page-btn {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text2);
-    text-decoration: none;
+    font-family: var(--font-mono); font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text2); text-decoration: none;
     padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border); border-radius: 3px;
+    background: transparent; transition: all 0.15s; display: block;
+  }
+  .sidebar-page-btn:hover { color: var(--text); border-color: var(--text2); background: var(--bg3); }
+
+  /* ── MOBILE MENU BTN (hidden on desktop) ── */
+  .mobile-menu-btn {
+    display: none;
+    background: none;
     border: 1px solid var(--border);
     border-radius: 3px;
-    background: transparent;
-    transition: all 0.15s;
-    display: block;
-  }
-
-  .sidebar-page-btn:hover {
+    cursor: pointer;
+    padding: 0.4rem 0.65rem;
+    font-size: 1.1rem;
     color: var(--text);
-    border-color: var(--text2);
-    background: var(--bg3);
+    line-height: 1;
+    flex-shrink: 0;
+    transition: border-color 0.15s;
   }
+  .mobile-menu-btn:hover { border-color: var(--text2); }
 
-  /* MAIN */
+  /* ── MAIN ── */
   .main {
     display: flex; flex-direction: column; gap: 1.25rem;
     padding: 1.75rem 2rem 1rem; min-width: 0;
@@ -537,171 +556,54 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   }
   .sort-select:focus { border-color: var(--text2); }
 
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1rem; align-content: start;
-  }
+  .timeline { display: flex; flex-direction: column; gap: 1.5rem; }
 
-  .timeline {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  /* YEAR LEVEL */
   .year-group {
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    overflow: hidden;
-    background: transparent;
-    transition: all 0.15s;
+    border: 1px solid var(--border); border-radius: 4px;
+    overflow: hidden; background: transparent; transition: all 0.15s;
   }
-
-  .year-group.collapsed {
-    border-color: var(--border);
-  }
-
-  .year-group.expanded {
-    border-color: var(--text2);
-    background: var(--bg2);
-  }
+  .year-group.collapsed { border-color: var(--border); }
+  .year-group.expanded { border-color: var(--text2); background: var(--bg2); }
 
   .year-header {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1.25rem;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    font-family: var(--font-display);
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text);
-    text-align: left;
-    transition: all 0.15s;
+    width: 100%; display: flex; align-items: center; gap: 0.75rem;
+    padding: 1rem 1.25rem; background: transparent; border: none;
+    border-bottom: 1px solid var(--border); cursor: pointer;
+    font-family: var(--font-display); font-size: 1.1rem;
+    font-weight: 700; color: var(--text); text-align: left; transition: all 0.15s;
   }
+  .year-group.expanded .year-header { border-bottom-color: var(--text2); background: rgba(255,255,255,0.02); }
+  .year-header:hover { background: var(--bg2); }
+  .year-chevron { display: inline-block; font-size: 0.72rem; color: var(--text2); transition: transform 0.2s; flex-shrink: 0; }
+  .year-group.collapsed .year-chevron { transform: rotate(-90deg); }
+  .year-label { flex: 1; }
+  .year-count { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text3); flex-shrink: 0; }
+  .year-races { display: flex; flex-direction: column; gap: 0.75rem; padding: 0.75rem 1rem; }
 
-  .year-group.expanded .year-header {
-    border-bottom-color: var(--text2);
-    background: rgba(255, 255, 255, 0.02);
-  }
-
-  .year-header:hover {
-    background: var(--bg2);
-  }
-
-  .year-chevron {
-    display: inline-block;
-    font-size: 0.72rem;
-    color: var(--text2);
-    transition: transform 0.2s;
-    flex-shrink: 0;
-  }
-
-  .year-group.collapsed .year-chevron {
-    transform: rotate(-90deg);
-  }
-
-  .year-label {
-    flex: 1;
-  }
-
-  .year-count {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: var(--text3);
-    flex-shrink: 0;
-  }
-
-  .year-races {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-  }
-
-  /* MONTH LEVEL */
   .month-group {
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-    background: transparent;
-    transition: all 0.15s;
+    border: 1px solid var(--border); border-radius: 3px;
+    overflow: hidden; background: transparent; transition: all 0.15s;
   }
-
-  .month-group.collapsed {
-    border-color: var(--border);
-  }
-
-  .month-group.expanded {
-    border-color: var(--accent);
-    background: rgba(212, 64, 26, 0.02);
-  }
+  .month-group.collapsed { border-color: var(--border); }
+  .month-group.expanded { border-color: var(--accent); background: rgba(212,64,26,0.02); }
 
   .month-header {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.8rem 1rem;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    font-family: var(--font-display);
-    font-size: 0.88rem;
-    color: var(--text2);
-    text-align: left;
-    transition: all 0.15s;
+    width: 100%; display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.8rem 1rem; background: transparent;
+    border: none; border-bottom: 1px solid var(--border);
+    cursor: pointer; font-family: var(--font-display); font-size: 0.88rem;
+    color: var(--text2); text-align: left; transition: all 0.15s;
   }
-
-  .month-group.expanded .month-header {
-    border-bottom-color: var(--accent);
-    background: rgba(212, 64, 26, 0.04);
-    color: var(--text);
-  }
-
-  .month-header:hover {
-    background: var(--bg2);
-  }
-
-  .month-chevron {
-    display: inline-block;
-    font-size: 0.68rem;
-    color: var(--text3);
-    transition: transform 0.2s;
-    flex-shrink: 0;
-  }
-
-  .month-group.collapsed .month-chevron {
-    transform: rotate(-90deg);
-  }
-
-  .month-label {
-    flex: 1;
-  }
-
-  .month-count {
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    color: var(--text3);
-    flex-shrink: 0;
-  }
-
-  .month-races {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1rem;
-    padding: 0.75rem;
-  }}
+  .month-group.expanded .month-header { border-bottom-color: var(--accent); background: rgba(212,64,26,0.04); color: var(--text); }
+  .month-header:hover { background: var(--bg2); }
+  .month-chevron { display: inline-block; font-size: 0.68rem; color: var(--text3); transition: transform 0.2s; flex-shrink: 0; }
+  .month-group.collapsed .month-chevron { transform: rotate(-90deg); }
+  .month-label { flex: 1; }
+  .month-count { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text3); flex-shrink: 0; }
+  .month-races { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; padding: 0.75rem; }
 
   .empty, .no-results {
-    grid-column: 1 / -1;
-    text-align: center; padding: 5rem 2rem; color: var(--text3);
+    grid-column: 1 / -1; text-align: center; padding: 5rem 2rem; color: var(--text3);
   }
   .empty-icon { font-size: 2.5rem; margin-bottom: 1rem; color: var(--border2); }
   .empty-title { font-family: var(--font-display); font-size: 1.25rem; color: var(--text2); margin-bottom: 0.5rem; }
@@ -709,38 +611,42 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   .empty-sub a { color: var(--accent); }
 
   footer {
-    grid-column: 2;
-    grid-row: 2;
-    text-align: center;
-    padding: 1rem 1.25rem;
-    background: var(--bg2);
-    color: var(--text2);
-    margin-top: 0;
-    font-size: 0.8rem;
-    width: 100%;
-    box-sizing: border-box;
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
+    grid-column: 2; grid-row: 2;
+    text-align: center; padding: 1rem 1.25rem;
+    background: var(--bg2); color: var(--text2); margin-top: 0;
+    font-size: 0.8rem; width: 100%; box-sizing: border-box;
+    border-top: 1px solid var(--border); flex-shrink: 0;
   }
+  footer a { color: var(--text2); text-decoration: none; font-weight: 500; transition: color 0.2s; }
+  footer a:hover { color: var(--accent); }
 
-  footer a {
-    color: var(--text2);
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.2s;
-  }
-
-  footer a:hover {
-    color: var(--accent);
-  }
-
+  /* ── MOBILE ── */
   @media (max-width: 768px) {
     .layout { grid-template-columns: 1fr; }
-    .sidebar { position: static; height: auto; }
-    .sidebar-inner { padding: 1rem; }
-    .main { padding: 1rem; }
-    .grid { grid-template-columns: 1fr; }
+
+    .mobile-menu-btn { display: flex; align-items: center; }
+
+    .sidebar {
+      position: fixed !important;
+      top: 0; left: 0;
+      height: 100dvh !important;
+      width: 285px;
+      z-index: 100;
+      transform: translateX(-100%);
+      box-shadow: none;
+      overflow-y: auto;
+    }
+    .sidebar.open {
+      transform: translateX(0);
+      box-shadow: 4px 0 32px rgba(0,0,0,0.18);
+    }
+
+    .sidebar-inner { padding: 1.25rem 1rem; padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 1rem)); height: auto; min-height: 100%; }
+
+    .main { padding: 1rem; padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0.5rem)); grid-column: 1; overflow-y: auto; }
     .month-races { grid-template-columns: 1fr; }
     .db-stats { display: none; }
+
+    footer { grid-column: 1; }
   }
 </style>
