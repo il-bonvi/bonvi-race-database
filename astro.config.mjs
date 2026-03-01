@@ -1,8 +1,10 @@
 import { defineConfig } from 'astro/config';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 export default defineConfig({
   site: 'https://il-bonvi.github.io',
-  base: process.env.GITHUB_ACTIONS ? '/archivio-prototipo' : undefined,
+  base: isProduction ? '/archivio-prototipo' : '/',
 
   build: {
     assets: 'assets'
