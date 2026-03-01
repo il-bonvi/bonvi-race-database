@@ -2626,7 +2626,7 @@ let map;
             if (us) us.style.display = 'none';
 
             try {
-                const res = await fetch('/gare-sorgenti/' + slug + '.json');
+                const res = await fetch('gare-sorgenti/' + slug + '.json');
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const gara = await res.json();
 
@@ -2652,7 +2652,7 @@ let map;
                 // Carica navigazione tra versioni della stessa serie
                 if (gara.race_series) {
                     try {
-                        const indexRes = await fetch('/gare-index.json');
+                        const indexRes = await fetch('gare-index.json');
                         if (indexRes.ok) {
                             const allRaces = await indexRes.json();
                             const seriesRaces = allRaces
