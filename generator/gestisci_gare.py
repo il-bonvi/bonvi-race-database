@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-gestisci_gare_gui.py — Gestore GUI per le gare (list, view, edit, delete, add).
+gestisci_gare.py — Gestore GUI per le gare (list, view, edit, delete, add).
 
 Uso:
-    python generator/gestisci_gare_gui.py
+    python generator/gestisci_gare.py
 
 Funzionalità:
   - Elenco di tutte le gare nel database con filtri e sorting
@@ -489,7 +489,7 @@ GPX POINTS:   {gpx_count} punti"""
                 else:
                     val = widget.get() if hasattr(widget, 'get') else widget
                 
-                if key in ("distanza_km", "dislivello_m", "giri"):
+                if key in ("distanza_km", "dislivello_m", "giri", "velocita_media_kmh"):
                     try:
                         if key == "giri":
                             val = int(val) if val else 1
