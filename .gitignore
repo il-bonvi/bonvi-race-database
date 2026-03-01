@@ -8,3 +8,4 @@ Thumbs.db
 bTeam/
 public/gare-sorgenti/
 tsconfig.json
+*.bat
