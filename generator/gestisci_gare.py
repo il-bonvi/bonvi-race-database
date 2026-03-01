@@ -127,6 +127,58 @@ def delete_race(slug: str):
     update_gares_index()
 
 
+def git_push_changes(message: str = None) -> tuple:
+    """Esegue git add, commit e push automatico.
+    
+    Returns:
+        (success: bool, message: str)
+    """
+    import subprocess
+    
+    try:
+        # git add
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=ARCHIVIO_DIR,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        # git commit (con messaggio di default se non fornito)
+        if not message:
+            message = f"Update races database - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        
+        result = subprocess.run(
+            ["git", "commit", "-m", message],
+            cwd=ARCHIVIO_DIR,
+            capture_output=True,
+            text=True
+        )
+        
+        # Se non c'è nulla da committare, va bene comunque
+        if result.returncode != 0 and "nothing to commit" not in result.stdout:
+            return False, f"Errore commit: {result.stderr}"
+        
+        # git push
+        result = subprocess.run(
+            ["git", "push"],
+            cwd=ARCHIVIO_DIR,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        return True, "Push completato con successo!"
+        
+    except subprocess.CalledProcessError as e:
+        return False, f"Errore git: {e.stderr}"
+    except FileNotFoundError:
+        return False, "Git non trovato. Assicurati che git sia installato."
+    except Exception as e:
+        return False, f"Errore inaspettato: {str(e)}"
+
+
 # ── MAIN GUI ──────────────────────────────────────────────────────────────────
 
 class RaceManagerApp:
@@ -269,6 +321,10 @@ class RaceManagerApp:
         tk.Button(button_frame, text="🗑️ Elimina", font=("Helvetica", 10),
                  bg="#dc2626", fg="white", padx=12, pady=8, relief="flat", bd=0,
                  cursor="hand2", command=self.delete_race).pack(side="left", padx=6)
+        
+        tk.Button(button_frame, text="📤 Push", font=("Helvetica", 10),
+                 bg="#8b5cf6", fg="white", padx=12, pady=8, relief="flat", bd=0,
+                 cursor="hand2", command=self.push_changes).pack(side="left", padx=6)
         
         self.refresh_list()
     
@@ -530,6 +586,14 @@ GPX POINTS:   {gpx_count} punti"""
             delete_race(slug)
             messagebox.showinfo("Eliminato", "Gara rimossa dal database")
             self.refresh_list()
+    
+    def push_changes(self):
+        """Esegue git push automatico"""
+        success, msg = git_push_changes()
+        if success:
+            messagebox.showinfo("Git Push", msg)
+        else:
+            messagebox.showerror("Errore Git", msg)
 
 
 if __name__ == "__main__":

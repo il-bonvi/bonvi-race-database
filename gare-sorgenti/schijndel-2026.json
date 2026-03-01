@@ -1,6 +1,6 @@
 {
   "slug": "schijndel-2026",
-  "titolo": "Schijndel",
+  "titolo": "Omloop van Schijndel",
   "data": "2026-03-01",
   "genere": "Femminile",
   "categoria": "Junior",
@@ -10,7 +10,7 @@
   "dislivello_m": 75.0,
   "velocita_media_kmh": 40.0,
   "luogo": "NL",
-  "race_series": "Schijndel",
+  "race_series": "Omloop van Schijndel",
   "gpx_points": [
     {
       "lat": 51.60713,
