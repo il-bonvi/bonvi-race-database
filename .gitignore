@@ -5,5 +5,6 @@ __pycache__/
 .env
 .DS_Store
 Thumbs.db
-bTeam/!public/gare-sorgenti/
+bTeam/
+public/gare-sorgenti/
 tsconfig.json

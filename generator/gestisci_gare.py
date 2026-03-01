@@ -94,7 +94,10 @@ def load_all_races():
 
 
 def save_race(slug: str, data: dict):
-    """Salva race JSON in entrambe le location"""
+    """Salva race JSON nella root (source of truth).
+    
+    Il file viene copiato automaticamente in public/ durante il build Astro.
+    """
     # Imposta race_series automaticamente dal titolo
     if 'titolo' in data:
         data['race_series'] = data['titolo']
@@ -105,23 +108,18 @@ def save_race(slug: str, data: dict):
     
     json_path.write_text(json_str, encoding='utf-8')
     
-    public_json_dir = ARCHIVIO_DIR / "public" / "gare-sorgenti"
-    public_json_dir.mkdir(parents=True, exist_ok=True)
-    (public_json_dir / f"{slug}.json").write_text(json_str, encoding='utf-8')
-    
     # Aggiorna l'indice per la navigazione tra serie
     update_gares_index()
 
 
 def delete_race(slug: str):
-    """Elimina race da entrambe le location"""
+    """Elimina race dalla root (source of truth).
+    
+    Il file viene rimosso automaticamente da public/ durante il build Astro.
+    """
     json_path = GARE_DIR / f"{slug}.json"
     if json_path.exists():
         json_path.unlink()
-    
-    public_json_path = ARCHIVIO_DIR / "public" / "gare-sorgenti" / f"{slug}.json"
-    if public_json_path.exists():
-        public_json_path.unlink()
     
     # Aggiorna l'indice per la navigazione tra serie
     update_gares_index()
