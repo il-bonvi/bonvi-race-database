@@ -6,10 +6,10 @@ import { GENERI, CATEGORIE, DISCIPLINE } from '../lib/gare.js';
 const garaFiles = import.meta.glob('../../gare-sorgenti/*.json', { eager: true });
 let gare = Object.values(garaFiles).map((m: any) => m.default ?? m);
 
-// Filtra solo gare future (da oggi in poi)
+// Filtra solo gare passate (prima di oggi)
 const today = new Date();
 today.setHours(0, 0, 0, 0);
-gare = gare.filter((g: any) => new Date(g.data) >= today);
+gare = gare.filter((g: any) => new Date(g.data) < today);
 
 gare.sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
@@ -47,14 +47,10 @@ const yearMonthStructure = Array.from(groupedByYear.entries())
       }))
   }));
 
-// Trova mese corrente
-const currentYear = today.getFullYear();
-const currentMonth = today.getMonth();
-
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
-<Base title="Race Database — by Bonvi">
+<Base title="Archivio — Race Database">
 <div class="layout">
 
   <aside class="sidebar">
@@ -64,7 +60,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         <div class="brand-mark">RDB</div>
         <div>
           <div class="brand-name">Race Database</div>
-          <div class="brand-sub">Easy</div>
+          <div class="brand-sub">Archivio</div>
         </div>
       </div>
 
@@ -129,7 +125,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       </div>
 
       <div class="sidebar-footer">
-        <a href={`${base}/archivio`} class="sidebar-page-btn">Archivio</a>
+        <a href={`${base}`} class="sidebar-page-btn">Prossime Gare</a>
         <a href={`${base}/progetto`} class="sidebar-page-btn">Il Progetto</a>
         <a href={`${base}/faq`} class="sidebar-page-btn">FAQ</a>
         <a href={`${base}/contattami`} class="sidebar-page-btn">Contattami</a>
@@ -161,34 +157,32 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       {gare.length === 0 ? (
         <div class="empty">
           <div class="empty-icon">◎</div>
-          <div class="empty-title">Database vuoto</div>
-          <div class="empty-sub">Aggiungi il primo percorso seguendo le istruzioni nel README</div>
+          <div class="empty-title">Archivio vuoto</div>
+          <div class="empty-sub">Non hai gare passate ancora</div>
         </div>
       ) : (
         yearMonthStructure.map(({ year, months }: any) => {
           const yearTotalRaces = months.reduce((sum, m) => sum + m.races.length, 0);
-          const isCurrentYear = year === currentYear;
           
           return (
-            <div class={`year-group ${isCurrentYear ? 'expanded' : 'collapsed'}`} data-year={year}>
+            <div class={`year-group collapsed`} data-year={year}>
               <button class="year-header" data-year-toggle={year}>
                 <span class="year-chevron">▼</span>
                 <span class="year-label"><strong>{year}</strong></span>
                 <span class="year-count">({yearTotalRaces})</span>
               </button>
-              <div class="year-races" style={`display: ${isCurrentYear ? 'block' : 'none'}`}>
+              <div class="year-races" style={`display: none`}>
                 {months.map(({ month, races, monthKey }: any) => {
-                  const isCurrentMonth = year === currentYear && month === currentMonth;
                   const monthName = MONTH_NAMES[month];
                   
                   return (
-                    <div class={`month-group ${isCurrentMonth ? 'expanded' : 'collapsed'}`} data-month-key={monthKey}>
+                    <div class={`month-group collapsed`} data-month-key={monthKey}>
                       <button class="month-header" data-month-toggle={monthKey}>
                         <span class="month-chevron">▼</span>
                         <span class="month-label">{monthName}</span>
                         <span class="month-count">({races.length})</span>
                       </button>
-                      <div class="month-races" style={`display: ${isCurrentMonth ? 'grid' : 'none'}`}>
+                      <div class="month-races" style={`display: none`}>
                         {races.map((g: any) => (
                           <div class="card-wrap"
                             data-anno={year}
@@ -697,7 +691,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1rem;
     padding: 0.75rem;
-  }}
+  }
 
   .empty, .no-results {
     grid-column: 1 / -1;
