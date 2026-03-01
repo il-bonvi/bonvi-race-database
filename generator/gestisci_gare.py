@@ -132,15 +132,21 @@ def git_push_changes(message: str = None) -> tuple:
         (success: bool, message: str)
     """
     import subprocess
+    import os
     
     try:
+        # Configura Git per non richiedere interattivamente le credenziali
+        env = os.environ.copy()
+        env['GIT_TERMINAL_PROMPT'] = '0'
+        
         # git add
         subprocess.run(
             ["git", "add", "."],
             cwd=ARCHIVIO_DIR,
             capture_output=True,
             text=True,
-            check=True
+            check=True,
+            env=env
         )
         
         # git commit (con messaggio di default se non fornito)
@@ -151,30 +157,40 @@ def git_push_changes(message: str = None) -> tuple:
             ["git", "commit", "-m", message],
             cwd=ARCHIVIO_DIR,
             capture_output=True,
-            text=True
+            text=True,
+            env=env
         )
         
         # Se non c'è nulla da committare, va bene comunque
         if result.returncode != 0 and "nothing to commit" not in result.stdout:
             return False, f"Errore commit: {result.stderr}"
         
-        # git push
+        # git push con credenziali configurate
         result = subprocess.run(
             ["git", "push"],
             cwd=ARCHIVIO_DIR,
             capture_output=True,
             text=True,
-            check=True
+            env=env,
+            timeout=10
         )
         
-        return True, "Push completato con successo!"
+        if result.returncode != 0:
+            if "fatal: could not read" in result.stderr:
+                return False, "❌ Errore autenticazione Git:\nConfigura le credenziali con:\n  git config --global credential.helper store"
+            else:
+                return False, f"Errore git: {result.stderr}"
         
+        return True, "✅ Push completato con successo!"
+        
+    except subprocess.TimeoutExpired:
+        return False, "❌ Timeout: Push impiegato troppo tempo"
     except subprocess.CalledProcessError as e:
         return False, f"Errore git: {e.stderr}"
     except FileNotFoundError:
-        return False, "Git non trovato. Assicurati che git sia installato."
+        return False, "❌ Git non trovato. Assicurati che git sia installato."
     except Exception as e:
-        return False, f"Errore inaspettato: {str(e)}"
+        return False, f"❌ Errore inaspettato: {str(e)}"
 
 
 # ── MAIN GUI ──────────────────────────────────────────────────────────────────
