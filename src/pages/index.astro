@@ -45,6 +45,8 @@ const yearMonthStructure = Array.from(groupedByYear.entries())
 const today = new Date();
 const currentYear = today.getFullYear();
 const currentMonth = today.getMonth();
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 <Base title="Race Database — by Bonvi">
@@ -121,7 +123,10 @@ const currentMonth = today.getMonth();
         <button class="reset-filters" id="reset-filters">Azzera filtri</button>
       </div>
 
-
+      <div class="sidebar-footer">
+        <a href={`${base}/progetto`} class="sidebar-page-btn">Il Progetto</a>
+        <a href={`${base}/contattami`} class="sidebar-page-btn">Contattami</a>
+      </div>
 
     </div>
   </aside>
@@ -437,11 +442,36 @@ const currentMonth = today.getMonth();
   }
   .reset-filters:hover { color: var(--accent); border-color: var(--accent); }
 
+  /* SIDEBAR FOOTER NAV */
   .sidebar-footer {
+    margin-top: auto;
     padding-top: 1rem;
     border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
   }
 
+  .sidebar-page-btn {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+    text-decoration: none;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: transparent;
+    transition: all 0.15s;
+    display: block;
+  }
+
+  .sidebar-page-btn:hover {
+    color: var(--text);
+    border-color: var(--text2);
+    background: var(--bg3);
+  }
 
   /* MAIN */
   .main {

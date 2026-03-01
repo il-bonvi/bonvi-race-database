@@ -1,0 +1,267 @@
+---
+import Base from '../layouts/Base.astro';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<Base title="Contattami — Race Database by Bonvi">
+<div class="page-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <div class="brand">
+        <div class="brand-mark">RDB</div>
+        <div>
+          <div class="brand-name">Race Database</div>
+          <div class="brand-sub">Easy</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href={`${base}/`} class="nav-btn">← Database Gare</a>
+        <a href={`${base}/progetto`} class="nav-btn">Il Progetto</a>
+        <a href={`${base}/contattami`} class="nav-btn active">Contattami</a>
+      </nav>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-content">
+
+      <header class="page-header">
+        <div class="page-tag">Contatti</div>
+        <h1 class="page-title">Contattami</h1>
+        <p class="page-lead">Scrivi a <a href="mailto:bonvicin.coaching@gmail.com">bonvicin.coaching@gmail.com</a> — trovi qui sotto dei suggerimenti su cosa includere a seconda del motivo.</p>
+      </header>
+
+      <section class="section">
+        <h2 class="section-title">Perché scrivere</h2>
+        <div class="reasons-grid">
+
+          <div class="reason-card">
+            <div class="reason-icon">⊕</div>
+            <div class="reason-title">Aggiungi una gara</div>
+            <p class="reason-desc">Allega il file <strong>.gpx</strong> e indica: nome della gara, data, luogo, categoria (Elite / U23 / Junior / Allievi), disciplina (Strada / Criterium / Cronometro) e genere (Maschile / Femminile).</p>
+          </div>
+
+          <div class="reason-card">
+            <div class="reason-icon">◎</div>
+            <div class="reason-title">Farsi allenare</div>
+            <p class="reason-desc">Sono un preparatore atletico e sport scientist. Raccontami il tuo livello, i tuoi obiettivi e il calendario che hai in mente — vediamo se possiamo lavorare insieme.</p>
+          </div>
+
+          <div class="reason-card">
+            <div class="reason-icon">✎</div>
+            <div class="reason-title">Segnala un errore</div>
+            <p class="reason-desc">Indica il nome della gara e il dato errato — distanza, dislivello, data o altro. Correggo il prima possibile.</p>
+          </div>
+
+          <div class="reason-card">
+            <div class="reason-icon">◇</div>
+            <div class="reason-title">Qualsiasi altra cosa</div>
+            <p class="reason-desc">Suggerimenti, feedback, domande, o semplicemente vuoi parlare di ciclismo e preparazione. Va bene tutto.</p>
+          </div>
+
+        </div>
+      </section>
+
+      <div class="mail-cta">
+        <a href="mailto:bonvicin.coaching@gmail.com" class="mail-btn">
+          Scrivi una mail →
+        </a>
+        <a href="https://linktr.ee/bonvicin.coaching" target="_blank" rel="noopener" class="mail-btn mail-btn--secondary">
+          Linktree
+        </a>
+        <a href="https://ko-fi.com/andreabonvicin" target="_blank" rel="noopener" class="mail-btn mail-btn--kofi">
+          ☕ Sostieni
+        </a>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</Base>
+
+<style>
+  .page-layout {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    position: sticky; top: 0;
+    height: 100vh; overflow-y: auto;
+  }
+
+  .sidebar-inner {
+    display: flex; flex-direction: column;
+    padding: 1.75rem 1.25rem;
+    height: 100%; gap: 1.5rem;
+  }
+
+  .brand {
+    display: flex; align-items: center; gap: 0.85rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand-mark {
+    font-family: var(--font-display);
+    font-size: 0.85rem; font-weight: 800;
+    letter-spacing: 0.08em;
+    background: var(--text); color: var(--bg);
+    padding: 0.3rem 0.5rem; border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .brand-name {
+    font-family: var(--font-display);
+    font-size: 1rem; font-weight: 700;
+    letter-spacing: 0.02em; line-height: 1.1;
+  }
+
+  .brand-sub {
+    font-family: var(--font-mono); font-size: 0.6rem;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text3); margin-top: 0.15rem;
+  }
+
+  .sidebar-nav { display: flex; flex-direction: column; gap: 0.4rem; }
+
+  .nav-btn {
+    font-family: var(--font-mono); font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text2); text-decoration: none;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border); border-radius: 3px;
+    background: transparent; transition: all 0.15s; display: block;
+  }
+  .nav-btn:hover { color: var(--text); border-color: var(--text2); background: var(--bg3); }
+  .nav-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(212, 64, 26, 0.05); }
+
+  .main { padding: 3rem 3.5rem; max-width: 780px; }
+
+  .page-content { display: flex; flex-direction: column; gap: 3rem; }
+
+  .page-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 2rem;
+  }
+
+  .page-tag {
+    font-family: var(--font-mono); font-size: 0.62rem;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--accent); margin-bottom: 0.75rem;
+  }
+
+  .page-title {
+    font-family: var(--font-display); font-size: 2.8rem;
+    font-weight: 800; letter-spacing: 0.01em; line-height: 1;
+    margin-bottom: 1rem; color: var(--text);
+  }
+
+  .page-lead {
+    font-size: 1.05rem; color: var(--text2); line-height: 1.6;
+  }
+
+  .page-lead a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-weight: 500;
+  }
+
+  .section { display: flex; flex-direction: column; gap: 1rem; }
+
+  .section-title {
+    font-family: var(--font-display); font-size: 1.3rem;
+    font-weight: 700; letter-spacing: 0.03em; color: var(--text);
+    padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+  }
+
+  .reasons-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  }
+
+  .reason-card {
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 1.1rem; background: var(--bg2);
+  }
+
+  .reason-icon {
+    font-size: 1.1rem; color: var(--accent); margin-bottom: 0.4rem;
+  }
+
+  .reason-title {
+    font-family: var(--font-display); font-size: 0.95rem;
+    font-weight: 700; letter-spacing: 0.03em; margin-bottom: 0.35rem;
+  }
+
+  .reason-desc {
+    font-size: 0.8rem; line-height: 1.6; color: var(--text2);
+  }
+
+  .reason-desc strong { color: var(--text); font-weight: 500; }
+
+  .mail-cta {
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .mail-btn {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.8rem 1.5rem;
+    border-radius: 3px;
+    text-decoration: none;
+    display: inline-block;
+    background: var(--text);
+    color: var(--bg);
+    border: 1px solid var(--text);
+    transition: all 0.15s;
+  }
+
+  .mail-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .mail-btn--secondary {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border);
+  }
+
+  .mail-btn--secondary:hover {
+    background: var(--bg3);
+    border-color: var(--text2);
+    color: var(--text);
+  }
+
+  .mail-btn--kofi {
+    background: #FF5E5B;
+    color: #fff;
+    border-color: #FF5E5B;
+  }
+
+  .mail-btn--kofi:hover {
+    background: #e54c49;
+    border-color: #e54c49;
+    color: #fff;
+  }
+
+  @media (max-width: 768px) {
+    .page-layout { grid-template-columns: 1fr; }
+    .sidebar { position: static; height: auto; }
+    .main { padding: 1.5rem 1rem; }
+    .reasons-grid { grid-template-columns: 1fr; }
+    .page-title { font-size: 2rem; }
+  }
+</style>
