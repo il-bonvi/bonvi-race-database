@@ -122,13 +122,13 @@ def parse_gpx(gpx_path: Path) -> dict:
                 lat = float(pt.get('lat'))
                 lon = float(pt.get('lon'))
                 ele_el = pt.find(f'{ns}ele')
-                ele = float(ele_el.text) if ele_el is not None else 0
+                ele = float(ele_el.text) if ele_el is not None else None
                 coords.append((lat, lon, ele))
                 # Salva punti per il JSON (arrotondati per ridurre dimensione)
                 gpx_points.append({
                     'lat': round(lat, 6),
                     'lon': round(lon, 6),
-                    'ele': round(ele, 1)
+                    'ele': round(ele, 1) if ele is not None else None
                 })
             except (TypeError, ValueError):
                 continue

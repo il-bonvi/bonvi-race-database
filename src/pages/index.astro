@@ -45,7 +45,6 @@ const yearMonthStructure = Array.from(groupedByYear.entries())
 const today = new Date();
 const currentYear = today.getFullYear();
 const currentMonth = today.getMonth();
-const currentYearMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
 ---
 
 <Base title="Race Database — by Bonvi">
@@ -312,16 +311,13 @@ const currentYearMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')
     }
 
     // Applica l'ordinamento al DOM
+    const rankMap = new Map(sorted.map((c, i) => [c, i]));
     document.querySelectorAll('.month-races').forEach(racesContainer => {
       const cardsInContainer = Array.from(racesContainer.querySelectorAll('.card-wrap'));
       const visibleCards = cardsInContainer.filter(c => c.style.display !== 'none');
       
       // Riordina le carte visibili rispetto all'array sorted globale
-      visibleCards.sort((a, b) => {
-        const idxA = sorted.indexOf(a);
-        const idxB = sorted.indexOf(b);
-        return idxA - idxB;
-      });
+      visibleCards.sort((a, b) => (rankMap.get(a) ?? 0) - (rankMap.get(b) ?? 0));
       
       // Riappendi le carte riordinate al contenitore
       visibleCards.forEach(c => racesContainer.appendChild(c));
@@ -342,9 +338,9 @@ const currentYearMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')
 
   document.getElementById('reset-filters').addEventListener('click', () => {
     state.anno = state.genere = state.categoria = state.disciplina = 'all';
-    state.q = ''; state.sort = 'data-desc';
+    state.q = ''; state.sort = 'data-asc';
     document.getElementById('search-input').value = '';
-    document.getElementById('sort-select').value = 'data-desc';
+    document.getElementById('sort-select').value = 'data-asc';
     document.querySelectorAll('.pill').forEach(b => b.classList.toggle('active', b.dataset.val === 'all'));
     applyAll();
   });

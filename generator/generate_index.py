@@ -5,9 +5,7 @@ per la navigazione tra le versioni delle stesse serie di gare.
 """
 
 import json
-import os
 from pathlib import Path
-from datetime import datetime
 
 def generate_index():
     gare_dir = Path(__file__).parent.parent / "data" / "gare-sorgenti"

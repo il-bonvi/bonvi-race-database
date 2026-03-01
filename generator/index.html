@@ -2626,7 +2626,7 @@ let map;
             if (us) us.style.display = 'none';
 
             try {
-                const res = await fetch('../data/gare-sorgenti/' + slug + '.json');
+                const res = await fetch('/gare-sorgenti/' + slug + '.json');
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const gara = await res.json();
 
@@ -2652,7 +2652,7 @@ let map;
                 // Carica navigazione tra versioni della stessa serie
                 if (gara.race_series) {
                     try {
-                        const indexRes = await fetch('../public/gare-index.json');
+                        const indexRes = await fetch('/gare-index.json');
                         if (indexRes.ok) {
                             const allRaces = await indexRes.json();
                             const seriesRaces = allRaces
@@ -2724,7 +2724,23 @@ let map;
                 const us2 = document.getElementById('upload-section');
                 if (us2) us2.style.display = 'block';
                 const zone = document.getElementById('uploadZone');
-                if (zone) zone.innerHTML = '<div style="color:#dc2626;font-size:1rem;font-weight:600;padding:1rem">⚠️ Impossibile caricare &ldquo;' + slug + '&rdquo;<br><small style="font-weight:400;color:#6b7280">' + e.message + '</small></div>';
+                if (zone) {
+                    zone.innerHTML = '';
+                    const div = document.createElement('div');
+                    div.style.color = '#dc2626';
+                    div.style.fontSize = '1rem';
+                    div.style.fontWeight = '600';
+                    div.style.padding = '1rem';
+                    div.textContent = '⚠️ Impossibile caricare "' + slug + '"';
+                    const br = document.createElement('br');
+                    const small = document.createElement('small');
+                    small.style.fontWeight = '400';
+                    small.style.color = '#6b7280';
+                    small.textContent = e.message;
+                    div.appendChild(br);
+                    div.appendChild(small);
+                    zone.appendChild(div);
+                }
             }
         })();
         // ─────────────────────────────────────────────────────────────────

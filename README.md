@@ -96,9 +96,9 @@ python generator/genera_report.py /path/to/race.gpx # Specifica il file
 - Chiede metadati: titolo, slug, data, categoria, genere, disciplina, luogo
 - Crea JSON in `gare-sorgenti/` e `public/gare-sorgenti/`
 
-### Visualizzare, modificare, elimare gare
+### Visualizzare, modificare, eliminare gare
 ```bash
-python generator/gestisci_gare_gui.py
+python generator/gestisci_gare.py
 ```
 Apre **UI grafica completa**:
 - 📋 Elenco di tutte le gare nel database
