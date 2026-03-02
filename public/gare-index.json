@@ -19,5 +19,12 @@
     "data": "2026-03-15",
     "year": "2026",
     "race_series": "Piccolo Trofeo Alfredo Binda"
+  },
+  {
+    "slug": "testbonus-2026",
+    "titolo": "TESTBONUS",
+    "data": "2026-03-04",
+    "year": "2026",
+    "race_series": "TESTBONUS"
   }
 ]
