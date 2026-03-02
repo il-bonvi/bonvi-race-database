@@ -496,6 +496,7 @@ GPX POINTS:   {gpx_count} punti"""
         dislivello_raw = dislivello_iniziale / giri_iniziali if giri_iniziali > 0 else 0
         
         fields = [
+            ("slug", "Slug", "entry"),
             ("titolo", "Titolo", "entry"),
             ("data", "Data (AAAA-MM-GG)", "entry"),
             ("luogo", "Luogo", "entry"),
@@ -556,12 +557,19 @@ GPX POINTS:   {gpx_count} punti"""
                 entries[key] = entry
         
         def save_changes():
+            new_slug = None
+            
             for key, widget in entries.items():
                 if hasattr(widget, 'cget') and widget.cget('state') == 'readonly':
                     # Per i campi readonly, leggi il valore come è
                     val = widget.get()
                 else:
                     val = widget.get() if hasattr(widget, 'get') else widget
+                
+                if key == "slug":
+                    new_slug = val  # Salva il nuovo slug
+                    data[key] = val  # Salva anche nel data dict per il JSON
+                    continue
                 
                 if key in ("distanza_km", "dislivello_m", "giri", "velocita_media_kmh"):
                     try:
@@ -573,7 +581,13 @@ GPX POINTS:   {gpx_count} punti"""
                         val = None
                 data[key] = val
             
-            save_race(slug, data)
+            # Se lo slug è cambiato, elimina il file vecchio e salva con il nuovo slug
+            if new_slug and new_slug != slug:
+                delete_race(slug)
+                save_race(new_slug, data)
+            else:
+                save_race(slug, data)
+            
             messagebox.showinfo("Salvato", "Gara modificata con successo")
             self.refresh_list()
             edit_win.destroy()
