@@ -246,13 +246,17 @@ def save_race(slug: str, data: dict):
 
 
 def delete_race(slug: str):
-    """Elimina race dalla root (source of truth).
-    
-    Il file viene rimosso automaticamente da public/ durante il build Astro.
+    """Elimina race dalla root (source of truth) e sincronizza in public/.
     """
     json_path = GARE_DIR / f"{slug}.json"
     if json_path.exists():
         json_path.unlink()
+    
+    # Sincronizza eliminazione anche in public/gare-sorgenti/
+    public_json_dir = ARCHIVIO_DIR / "public" / "gare-sorgenti"
+    public_json_path = public_json_dir / f"{slug}.json"
+    if public_json_path.exists():
+        public_json_path.unlink()
     
     # Aggiorna l'indice per la navigazione tra serie
     update_gares_index()
