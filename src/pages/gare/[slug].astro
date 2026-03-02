@@ -27,6 +27,17 @@ const hasGpxData = gara.gpx_points && Array.isArray(gara.gpx_points) && gara.gpx
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{gara.titolo} — Race DB</title>
+  <meta name="description" content={`${gara.titolo} - ${gara.luogo} - ${gara.distanza_km}km`} />
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content={`${gara.titolo} — Race DB`} />
+  <meta property="og:description" content={`${gara.titolo} - ${gara.luogo} - ${gara.distanza_km}km`} />
+  <meta property="og:type" content="website" />
+  
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={`${gara.titolo} — Race DB`} />
+  <meta name="twitter:description" content={`${gara.titolo} - ${gara.luogo} - ${gara.distanza_km}km`} />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
