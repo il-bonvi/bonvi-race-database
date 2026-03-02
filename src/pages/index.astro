@@ -218,7 +218,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   <footer>
     <a href="https://linktr.ee/bonvicin.coaching" target="_blank">
-      &copy; 2026 Andrea Bonvicin — RaceArchive — Licenza MIT
+      &copy; 2026 Andrea Bonvicin — RaceArchive — Licenza AGPL v3
     </a>
   </footer>
 
@@ -401,6 +401,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     border-right: 1px solid var(--border);
     position: sticky; top: 0;
     height: 100vh; overflow-y: auto;
+    grid-column: 1;
     grid-row: 1 / -1;
     transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
   }
@@ -611,7 +612,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   .empty-sub a { color: var(--accent); }
 
   footer {
-    grid-column: 2; grid-row: 2;
+    grid-column: 1 / -1; grid-row: 2;
     text-align: center; padding: 1rem 1.25rem;
     background: var(--bg2); color: var(--text2); margin-top: 0;
     font-size: 0.8rem; width: 100%; box-sizing: border-box;

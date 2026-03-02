@@ -211,7 +211,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   <footer>
     <a href="https://linktr.ee/bonvicin.coaching" target="_blank">
-      &copy; 2026 Andrea Bonvicin — RaceArchive — Licenza MIT
+      &copy; 2026 Andrea Bonvicin — RaceArchive — Licenza AGPL v3
     </a>
   </footer>
 
@@ -364,6 +364,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     border-right: 1px solid var(--border);
     position: sticky; top: 0;
     height: 100vh; overflow-y: auto;
+    grid-column: 1;
     grid-row: 1 / -1;
     transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
   }
@@ -453,7 +454,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   .empty-title { font-family: var(--font-display); font-size: 1.25rem; color: var(--text2); margin-bottom: 0.5rem; }
   .empty-sub { font-size: 0.82rem; line-height: 1.6; }
 
-  footer { grid-column: 2; grid-row: 2; text-align: center; padding: 1rem 1.25rem; background: var(--bg2); color: var(--text2); font-size: 0.8rem; width: 100%; box-sizing: border-box; border-top: 1px solid var(--border); flex-shrink: 0; }
+  footer { grid-column: 1 / -1; grid-row: 2; text-align: center; padding: 1rem 1.25rem; background: var(--bg2); color: var(--text2); font-size: 0.8rem; width: 100%; box-sizing: border-box; border-top: 1px solid var(--border); flex-shrink: 0; }
   footer a { color: var(--text2); text-decoration: none; font-weight: 500; transition: color 0.2s; }
   footer a:hover { color: var(--accent); }
 
