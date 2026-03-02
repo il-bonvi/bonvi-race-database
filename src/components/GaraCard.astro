@@ -4,12 +4,13 @@ const { gara } = Astro.props;
 const color = categoriaColor(gara.categoria);
 const icon  = disciplinaIcon(gara.disciplina);
 const base  = import.meta.env.BASE_URL.replace(/\/$/, '');
+const categorieText = Array.isArray(gara.categoria) ? gara.categoria.join(' / ') : gara.categoria;
 ---
 
 <a href={`${base}/gare/${gara.slug}/`} class="card" style={`--cat-color: ${color}`}>
 
   <div class="card-top">
-    <span class="cat-badge">{gara.categoria ?? '—'}</span>
+    <span class="cat-badge">{categorieText ?? '—'}</span>
     <span class="disc-badge">{icon} {gara.disciplina ?? '—'}</span>
     <span class="genere-badge">{gara.genere === 'Femminile' ? '♀' : '♂'}</span>
   </div>

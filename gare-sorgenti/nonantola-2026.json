@@ -3,7 +3,9 @@
   "titolo": "Nonantola",
   "data": "2026-03-08",
   "genere": "Femminile",
-  "categoria": "Junior",
+  "categoria": [
+    "Junior"
+  ],
   "disciplina": "Criterium",
   "giri": 8,
   "distanza_km": 74.0,

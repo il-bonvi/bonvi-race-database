@@ -515,7 +515,10 @@ class RaceManagerApp:
                     match = False
             # Categoria
             if match and self.filter_state['categoria'] != 'all':
-                if data.get('categoria') != self.filter_state['categoria']:
+                gara_cats = data.get('categoria', [])
+                if isinstance(gara_cats, str):
+                    gara_cats = [gara_cats]
+                if self.filter_state['categoria'] not in gara_cats:
                     match = False
             # Disciplina
             if match and self.filter_state['disciplina'] != 'all':
@@ -581,7 +584,7 @@ class RaceManagerApp:
 SLUG:         {slug}
 DATA:         {data.get('data', '—')}
 GENERE:       {data.get('genere', '—')}
-CATEGORIA:    {data.get('categoria', '—')}
+CATEGORIE:    {', '.join(data.get('categoria', [])) if isinstance(data.get('categoria'), list) else data.get('categoria', '—')}
 DISCIPLINA:   {data.get('disciplina', '—')}
 DISTANZA:     {data.get('distanza_km', '—')} km
 DISLIVELLO:   {data.get('dislivello_m', '—')} m
@@ -669,7 +672,7 @@ GPX POINTS:   {gpx_count} punti"""
             'titolo': gpx_path.stem,
             'data': date.today().isoformat(),
             'genere': 'Femminile',
-            'categoria': 'Junior',
+            'categoria': ['Junior'],
             'disciplina': 'Strada',
             'giri': 1,
         }
@@ -772,7 +775,7 @@ GPX POINTS:   {gpx_count} punti"""
                 'titolo': titolo_ref,
                 'data': date.today().isoformat(),
                 'genere': 'Femminile',
-                'categoria': 'Junior',
+                'categoria': ['Junior'],
                 'disciplina': 'Strada',
                 'giri': 1,
                 'gpx_reference': slug_ref,
@@ -801,7 +804,7 @@ GPX POINTS:   {gpx_count} punti"""
             'titolo': '',
             'data': date.today().isoformat(),
             'genere': 'Femminile',
-            'categoria': 'Junior',
+            'categoria': ['Junior'],
             'disciplina': 'Strada',
             'giri': 1,
         }
@@ -842,7 +845,7 @@ GPX POINTS:   {gpx_count} punti"""
             ("dislivello_m", "Dislivello (m)", "entry"),
             ("velocita_media_kmh", "Velocità media prevista (km/h)", "entry"),
             ("genere", "Genere", "combo", GENERI),
-            ("categoria", "Categoria", "combo", CATEGORIE),
+            ("categoria", "Categorie", "categoria_checkboxes", CATEGORIE),
             ("disciplina", "Disciplina", "combo", DISCIPLINE),
             ("gpx_reference", "Usa GPX da gara precedente", "combo_gare", opzioni_gare, opzioni_gare_vals),
         ]
@@ -893,6 +896,24 @@ GPX POINTS:   {gpx_count} punti"""
                 combo.config(width=40)
                 combo.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
                 entries[key] = var
+            
+            elif widget_type == "categoria_checkboxes":
+                options = field_info[3]
+                current_cats = data.get(key, [])
+                if isinstance(current_cats, str):
+                    current_cats = [current_cats] if current_cats else []
+                
+                cat_frame = tk.Frame(edit_win, bg=BG)
+                cat_frame.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
+                
+                cat_vars = {}
+                for cat in options:
+                    var = tk.BooleanVar(value=cat in current_cats)
+                    cb = tk.Checkbutton(cat_frame, text=cat, variable=var, bg=BG, font=("Helvetica", 9))
+                    cb.pack(side="left", padx=(0, 12))
+                    cat_vars[cat] = var
+                
+                entries[key] = cat_vars
             else:
                 entry = tk.Entry(edit_win, width=35, font=("Helvetica", 10))
                 entry.insert(0, str(data.get(key, "") or ""))
@@ -937,6 +958,13 @@ GPX POINTS:   {gpx_count} punti"""
             new_slug = None
             
             for key, widget in entries.items():
+                if key == "categoria":
+                    # Estrai categorie selezionate dai checkbutton
+                    if isinstance(widget, dict):
+                        selected_cats = [cat for cat, var in widget.items() if var.get()]
+                        data[key] = selected_cats
+                    continue
+                
                 if key == "gpx_reference":
                     current_val = widget.get()
                     if not current_val or current_val == "[Nessun riferimento]":
@@ -984,7 +1012,7 @@ GPX POINTS:   {gpx_count} punti"""
             
             # Salva
             save_race(data.get('slug'), data)
-            messagebox.showinfo("Salvato", "Gara aggiunta con successo!")
+            messagebox.showinfo("Salvato", "Gara modificata con successo!")
             self.refresh_list()
             edit_win.destroy()
         

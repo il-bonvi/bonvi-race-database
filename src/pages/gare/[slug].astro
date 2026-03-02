@@ -137,7 +137,10 @@ const hasGpxData = gara.gpx_points && Array.isArray(gara.gpx_points) && gara.gpx
   <div class="top-bar" style={{ "--cat-color": color }}>
     <a href={`${base}/`} class="back">← Race DB</a>
     <div class="bar-divider"></div>
-    <span class="bar-cat" style={{ color: color }}>{gara.categoria} {gara.genere === 'Femminile' ? '♀' : '♂'} · {gara.disciplina}</span>
+    <span class="bar-cat" style={{ color: color }}>
+      {Array.isArray(gara.categoria) ? gara.categoria.join(' / ') : gara.categoria} 
+      {gara.genere === 'Femminile' ? '♀' : '♂'} · {gara.disciplina}
+    </span>
     <div class="bar-divider"></div>
     <span class="bar-title">{gara.titolo}</span>
     <div class="bar-stats">
