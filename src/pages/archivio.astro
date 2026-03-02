@@ -16,7 +16,7 @@ gare.sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getT
 const anni = [...new Set(gare.map(g => new Date(g.data).getFullYear()))].sort((a,b) => b-a);
 const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
 
-const MONTH_NAMES = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+const MONTH_NAMES = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const groupedByYear = new Map();
 gare.forEach(g => {
   const d = new Date(g.data);

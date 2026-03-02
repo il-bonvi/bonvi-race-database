@@ -2733,11 +2733,25 @@ let map;
                     }
                 }
 
+                // Se la gara ha un riferimento a un'altra gara per il GPX, carica i punti da quella
+                let gpxPoints = gara.gpx_points;
+                if (!gpxPoints && gara.gpx_reference) {
+                    try {
+                        const garaRifRes = await fetch('gare-sorgenti/' + gara.gpx_reference + '.json');
+                        if (garaRifRes.ok) {
+                            const garaRif = await garaRifRes.json();
+                            gpxPoints = garaRif.gpx_points;
+                        }
+                    } catch (e) {
+                        console.warn('Errore caricamento gara referenziata:', e);
+                    }
+                }
+
                 // Avvia elaborazione con i punti GPX dal JSON
-                if (gara.gpx_points && gara.gpx_points.length > 0) {
+                if (gpxPoints && gpxPoints.length > 0) {
                     window._gpxFileName = slug + '.json';
                     window._gpxRawText = null;
-                    processRoute(gara.gpx_points, null);
+                    processRoute(gpxPoints, null);
                 } else {
                     throw new Error('Nessun punto GPX nel JSON');
                 }

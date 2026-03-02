@@ -1,12 +1,5 @@
 [
   {
-    "slug": "cittiglio-2026",
-    "titolo": "Piccolo Trofeo Alfredo Binda",
-    "data": "2026-03-15",
-    "year": "2026",
-    "race_series": "Piccolo Trofeo Alfredo Binda"
-  },
-  {
     "slug": "nonantola-2026",
     "titolo": "Nonantola",
     "data": "2026-03-08",
@@ -14,10 +7,17 @@
     "race_series": "Nonantola"
   },
   {
-    "slug": "schijndel-2026",
+    "slug": "omloop-van-schijndel-2026",
     "titolo": "Omloop van Schijndel",
     "data": "2026-03-01",
     "year": "2026",
     "race_series": "Omloop van Schijndel"
+  },
+  {
+    "slug": "piccolo-trofeo-alfredo-binda-2026",
+    "titolo": "Piccolo Trofeo Alfredo Binda",
+    "data": "2026-03-15",
+    "year": "2026",
+    "race_series": "Piccolo Trofeo Alfredo Binda"
   }
 ]

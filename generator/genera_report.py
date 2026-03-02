@@ -587,6 +587,58 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
     cb_disc.bind("<<ComboboxSelected>>", suggest_velocity)
     suggest_velocity()  # Imposta il valore iniziale
 
+    tk.Label(frame2, text="Opzioni GPX", font=FONT_LABEL, bg=BG, fg="#7a746b",
+             anchor="w").grid(row=3, column=0, columnspan=3, sticky="w", pady=(10,1))
+    
+    # Checkbox per usare GPX di una gara precedente
+    use_existing_gpx_var = tk.BooleanVar(value=False)
+    
+    def load_existing_races():
+        """Carica lista gare precedenti per rilascio GPX"""
+        gare_dir = ARCHIVIO_DIR / "gare-sorgenti"
+        race_options = []
+        if gare_dir.exists():
+            for json_file in sorted(gare_dir.glob("*.json")):
+                try:
+                    with open(json_file, 'r', encoding='utf-8') as f:
+                        gara = json.load(f)
+                    if gara.get('gpx_points'):  # Solo gare che hanno GPX
+                        slug = gara.get("slug", "")
+                        titolo = gara.get("titolo", "")
+                        data = gara.get("data", "")
+                        race_options.append((slug, f"{titolo} ({data})"))
+                except:
+                    pass
+        return race_options
+    
+    existing_races = load_existing_races()
+    existing_races_sorted = sorted(existing_races, key=lambda x: x[1], reverse=True)
+    existing_slugs = [s for s, _ in existing_races_sorted]
+    existing_labels = [l for _, l in existing_races_sorted]
+    
+    cb_existing_gpx = None
+    if existing_races_sorted:
+        chk_frame = tk.Frame(frame2, bg=BG)
+        chk_frame.grid(row=3, column=0, columnspan=2, sticky="w", padx=(0,8), pady=(4,0))
+        
+        chk = tk.Checkbutton(chk_frame, text="Usa GPX da gara precedente",
+                            variable=use_existing_gpx_var, bg=BG, fg=FG, font=("Helvetica", 10))
+        chk.pack(side="left")
+        
+        tk.Label(frame2, text="", font=FONT_LABEL, bg=BG, fg="#7a746b",
+                 anchor="w").grid(row=3, column=2, sticky="w", pady=(10,1))
+        cb_existing_gpx = ttk.Combobox(frame2, values=existing_labels, state="readonly", font=FONT_ENTRY)
+        cb_existing_gpx.grid(row=3, column=2, sticky="ew", padx=(0,0))
+        if existing_labels:
+            cb_existing_gpx.current(0)
+        
+        # Disabilita/abilita combo in base al checkbox
+        def toggle_combo(*_):
+            cb_existing_gpx.config(state="readonly" if use_existing_gpx_var.get() else "disabled")
+        
+        use_existing_gpx_var.trace_add("write", toggle_combo)
+        toggle_combo()
+
     tk.Label(frame2, text="Note (opzionali)", font=FONT_LABEL, bg=BG, fg="#7a746b",
              anchor="w").grid(row=4, column=0, columnspan=3, sticky="w", pady=(10,1))
     e_note = tk.Text(frame2, font=FONT_ENTRY, bg="white", fg=FG,
@@ -627,6 +679,17 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
             "race_series":  e_titolo.get().strip(),
             "note":         e_note.get("1.0", tk.END).strip() or None,
         })
+        
+        # Se user ha scelto di usare GPX da gara precedente, aggiungi il riferimento
+        if use_existing_gpx_var.get() and cb_existing_gpx and cb_existing_gpx.get():
+            # Il valore selezionato nel combo è nel formato "Titolo (data)"
+            # Devo trovare lo slug corrispondente
+            selected_label = cb_existing_gpx.get()
+            for slug_ref, label in existing_races_sorted:
+                if label == selected_label:
+                    result["gpx_reference"] = slug_ref
+                    break
+        
         root.destroy()
 
     def on_cancel():

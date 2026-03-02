@@ -18,15 +18,144 @@ Funzionalità:
 
 import sys
 import json
-from datetime import datetime
-from tkinter import ttk
+import re
+import math
+from datetime import datetime, date
+from tkinter import ttk, filedialog
 import tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 ARCHIVIO_DIR = Path(__file__).parent.parent
 GARE_DIR = ARCHIVIO_DIR / "gare-sorgenti"
 GARE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# ── UTILITY FUNCTIONS ─────────────────────────────────────────────────────────
+
+def slugify(s: str) -> str:
+    """Converte una stringa in slug URL-safe"""
+    import unicodedata
+    s = unicodedata.normalize('NFD', s)
+    s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+    s = s.lower()
+    s = re.sub(r'[^a-z0-9]+', '-', s)
+    return s.strip('-')
+
+
+def reverse_geocode(lat: float, lon: float) -> str | None:
+    """Ritorna 'Provincia, Regione, IT' tramite Nominatim (OpenStreetMap)."""
+    import urllib.request
+    import urllib.parse
+    import json as _json
+    
+    try:
+        params = urllib.parse.urlencode({
+            "lat": round(lat, 5),
+            "lon": round(lon, 5),
+            "format": "json",
+            "zoom": 8,
+        })
+        url = f"https://nominatim.openstreetmap.org/reverse?{params}"
+        req = urllib.request.Request(url, headers={"User-Agent": "RaceDB/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = _json.loads(response.read())
+        
+        address = data.get("address", {})
+        provincia = address.get("county", address.get("province", ""))
+        regione = address.get("state", address.get("region", ""))
+        
+        if provincia and regione:
+            return f"{provincia}, {regione}, IT"
+        elif regione:
+            return f"{regione}, IT"
+        return None
+        
+    except Exception:
+        return None
+
+
+def parse_gpx(gpx_path: Path) -> dict:
+    """Estrae distanza (km), dislivello positivo (m) e punti GPX dal file GPX."""
+    try:
+        tree = ET.parse(gpx_path)
+        root = tree.getroot()
+        ns = ''
+        if root.tag.startswith('{'):
+            ns = root.tag.split('}')[0] + '}'
+
+        points = root.findall(f'.//{ns}trkpt')
+        if not points:
+            points = root.findall(f'.//{ns}rtept')
+
+        if not points:
+            return {'distanza_km': None, 'dislivello_m': None, 'gpx_points': None}
+
+        coords = []
+        gpx_points = []  # Punti per il JSON
+        for pt in points:
+            try:
+                lat = float(pt.get('lat'))
+                lon = float(pt.get('lon'))
+                ele_el = pt.find(f'{ns}ele')
+                ele = float(ele_el.text) if ele_el is not None else None
+                coords.append((lat, lon, ele))
+                # Salva punti per il JSON (arrotondati per ridurre dimensione)
+                gpx_points.append({
+                    'lat': round(lat, 6),
+                    'lon': round(lon, 6),
+                    'ele': round(ele, 1) if ele is not None else None
+                })
+            except (TypeError, ValueError):
+                continue
+
+        if not coords:
+            return {'distanza_km': None, 'dislivello_m': None, 'gpx_points': None}
+
+        def haversine(lat1, lon1, lat2, lon2):
+            R = 6371000
+            φ1, φ2 = math.radians(lat1), math.radians(lat2)
+            dφ = math.radians(lat2 - lat1)
+            dλ = math.radians(lon2 - lon1)
+            a = math.sin(dφ/2)**2 + math.cos(φ1)*math.cos(φ2)*math.sin(dλ/2)**2
+            return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+        dist_m = sum(
+            haversine(coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1])
+            for i in range(len(coords)-1)
+        )
+
+        # Smoothing quote con media mobile (finestra 5) per ridurre rumore GPS
+        eles_raw = [c[2] for c in coords if c[2] is not None]
+        w = 5
+        eles = []
+        for i in range(len(eles_raw)):
+            start = max(0, i - w // 2)
+            end   = min(len(eles_raw), i + w // 2 + 1)
+            eles.append(sum(eles_raw[start:end]) / (end - start))
+
+        d_plus = 0.0
+        for i in range(1, len(eles)):
+            diff = eles[i] - eles[i-1]
+            if diff > 0:
+                d_plus += diff
+
+        # Punto centrale per il geocoding
+        mid = coords[len(coords) // 2]
+        center_lat, center_lon = mid[0], mid[1]
+
+        return {
+            'distanza_km': round(dist_m / 1000, 2),
+            'dislivello_m': round(d_plus) if d_plus > 0 else None,
+            'gpx_points':   gpx_points,
+            'center_lat': center_lat,
+            'center_lon': center_lon,
+        }
+
+    except Exception as e:
+        messagebox.showerror("Errore", f"Impossibile leggere il GPX: {e}")
+        return {'distanza_km': None, 'dislivello_m': None, 'gpx_points': None, 'center_lat': None, 'center_lon': None}
 
 
 # ── AUTO-UPDATE INDICE GARE ──────────────────────────────────────────────────
@@ -466,47 +595,256 @@ GPX POINTS:   {gpx_count} punti"""
         self.info_text.config(state="disabled")
     
     def add_race(self):
-        """Chiama genera_report.py"""
-        import subprocess
-        try:
-            subprocess.run([sys.executable, str(ARCHIVIO_DIR / "generator" / "genera_report.py")], check=False)
-            self.refresh_list()
-        except Exception as e:
-            messagebox.showerror("Errore", f"Impossibile aggiungere gara: {e}")
+        """Dialogo per scegliere come aggiungere una nuova gara"""
+        add_mode_win = tk.Toplevel(self.root)
+        add_mode_win.title("Aggiungi nuova gara")
+        add_mode_win.geometry("500x280")
+        add_mode_win.configure(bg=BG)
+        add_mode_win.resizable(False, False)
+        
+        # Header
+        tk.Frame(add_mode_win, bg=ACCENT, height=4).pack(fill="x")
+        tk.Label(add_mode_win, text="Come vuoi aggiungere la gara?", font=("Helvetica", 13, "bold"),
+                bg=BG, fg=FG, pady=12).pack()
+        
+        # Description
+        tk.Label(add_mode_win, text="Scegli come iniziare:", font=("Helvetica", 10),
+                bg=BG, fg="#7a746b", pady=0).pack()
+        
+        button_frame = tk.Frame(add_mode_win, bg=BG, padx=20, pady=20)
+        button_frame.pack(fill="both", expand=True)
+        
+        def on_load_gpx():
+            add_mode_win.destroy()
+            gpx_path = filedialog.askopenfilename(
+                title='Seleziona file GPX',
+                filetypes=[('GPX files', '*.gpx'), ('All files', '*.*')]
+            )
+            if gpx_path:
+                self.new_race_with_gpx(Path(gpx_path))
+        
+        def on_use_existing():
+            add_mode_win.destroy()
+            self.new_race_with_existing_gpx()
+        
+        def on_empty():
+            add_mode_win.destroy()
+            self.new_race_empty()
+        
+        # Bottone 1: Carica GPX
+        tk.Button(button_frame, text="📁 Carica file GPX", font=("Helvetica", 11, "bold"),
+                 bg=ACCENT, fg="white", relief="flat", bd=0, padx=16, pady=12,
+                 cursor="hand2", command=on_load_gpx, wraplength=400,
+                 justify="left").pack(fill="x", pady=8)
+        tk.Label(button_frame, text="Seleziona un file GPX dal computer.\nVerranno estratti automaticamente distanza, dislivello e tracciato.",
+                font=("Helvetica", 9), bg=BG, fg="#7a746b", justify="left").pack(fill="x", padx=(0,0))
+        
+        tk.Frame(button_frame, bg="#d1d5db", height=1).pack(fill="x", pady=12)
+        
+        # Bottone 2: Usa GPX esistente
+        tk.Button(button_frame, text="🔗 Usa GPX di gara precedente", font=("Helvetica", 11, "bold"),
+                 bg="#4a7fa5", fg="white", relief="flat", bd=0, padx=16, pady=12,
+                 cursor="hand2", command=on_use_existing, wraplength=400,
+                 justify="left").pack(fill="x", pady=8)
+        tk.Label(button_frame, text="Carica il percorso da una gara che hai già nel database.\nPerfetto se il percorso è identico solo anno diverso.",
+                font=("Helvetica", 9), bg=BG, fg="#7a746b", justify="left").pack(fill="x", padx=(0,0))
+        
+        tk.Frame(button_frame, bg="#d1d5db", height=1).pack(fill="x", pady=12)
+        
+        # Bottone 3: Niente GPX
+        tk.Button(button_frame, text="+  Solo dettagli (niente GPX)", font=("Helvetica", 11, "bold"),
+                 bg="#8b8b8b", fg="white", relief="flat", bd=0, padx=16, pady=12,
+                 cursor="hand2", command=on_empty, wraplength=400,
+                 justify="left").pack(fill="x", pady=8)
+        tk.Label(button_frame, text="Compila manualmente i dettagli della gara (titolo, data, categoria, ecc).\nPotrai sempre aggiungere il GPX in seguito.",
+                font=("Helvetica", 9), bg=BG, fg="#7a746b", justify="left").pack(fill="x", padx=(0,0))
     
-    def edit_race(self):
-        """Modifica metadati"""
-        idx = self.race_listbox.curselection()
-        if not idx:
-            messagebox.showwarning("Attenzione", "Seleziona una gara prima")
+    def new_race_with_gpx(self, gpx_path: Path):
+        """Aggiunge gara da file GPX"""
+        print(f"[*] Lettura GPX: {gpx_path.name}...")
+        gpx_data = parse_gpx(gpx_path)
+        
+        # Prepara dati iniziali
+        new_data = {
+            'titolo': gpx_path.stem,
+            'data': date.today().isoformat(),
+            'genere': 'Femminile',
+            'categoria': 'Junior',
+            'disciplina': 'Strada',
+            'giri': 1,
+        }
+        
+        if gpx_data.get('distanza_km'):
+            new_data['distanza_km'] = gpx_data['distanza_km']
+        if gpx_data.get('dislivello_m'):
+            new_data['dislivello_m'] = gpx_data['dislivello_m']
+        if gpx_data.get('gpx_points'):
+            new_data['gpx_points'] = gpx_data['gpx_points']
+        
+        # Reverse geocoding per il luogo
+        if gpx_data.get('center_lat') and gpx_data.get('center_lon'):
+            lat = gpx_data.get('center_lat')
+            lon = gpx_data.get('center_lon')
+            luogo = reverse_geocode(lat, lon)
+            if luogo:
+                new_data['luogo'] = luogo
+        
+        self.open_add_race_form(new_data, is_new=True)
+    
+    def new_race_with_existing_gpx(self):
+        """Aggiunge gara referenziando GPX di una gara esistente"""
+        # Dialog per scegliere quale gara
+        existing_races = [(s, d.get('titolo', s), d.get('data', '')) 
+                         for s, d in self.all_races 
+                         if d.get('gpx_points')]
+        existing_races.sort(key=lambda x: x[2], reverse=True)
+        
+        if not existing_races:
+            messagebox.showwarning("Attenzione", "Non ci sono gare con GPX nel database")
             return
         
-        slug, data = self.filtered_races[idx[0]]
+        select_win = tk.Toplevel(self.root)
+        select_win.title("Seleziona gara di riferimento")
+        select_win.geometry("500x400")
+        select_win.configure(bg=BG)
         
+        tk.Label(select_win, text="Seleziona la gara da cui copiare il GPX:", 
+                font=("Helvetica", 11, "bold"), bg=BG, fg=FG, pady=12).pack()
+        
+        # Campo di ricerca
+        search_frame = tk.Frame(select_win, bg=BG)
+        search_frame.pack(fill="x", padx=12, pady=(0, 8))
+        
+        tk.Label(search_frame, text="🔍 Ricerca:", font=("Helvetica", 9, "bold"),
+                bg=BG, fg="#7a746b").pack(side="left", padx=(0, 6))
+        
+        search_var = tk.StringVar()
+        search_entry = tk.Entry(search_frame, textvariable=search_var, font=("Helvetica", 10),
+                               bg="white", fg=FG, relief="solid", bd=1)
+        search_entry.pack(side="left", fill="x", expand=True)
+        search_entry.focus()
+        
+        list_frame = tk.Frame(select_win, bg="white", relief="solid", bd=1)
+        list_frame.pack(fill="both", expand=True, padx=12, pady=12)
+        
+        scrollbar = tk.Scrollbar(list_frame)
+        scrollbar.pack(side="right", fill="y")
+        
+        race_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, bg="white",
+                                 selectmode="single", font=("Courier", 9), bd=0)
+        race_listbox.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=race_listbox.yview)
+        
+        # Lista di indici per track quali righe sono visibili after filtering
+        displayed_indices = []
+        
+        def update_listbox(*args):
+            """Aggiorna listbox filtrando per il testo di ricerca"""
+            nonlocal displayed_indices
+            race_listbox.delete(0, tk.END)
+            displayed_indices = []
+            
+            search_text = search_var.get().lower()
+            
+            for idx, (slug, titolo, data_gara) in enumerate(existing_races):
+                if search_text == "" or search_text in titolo.lower() or search_text in slug.lower():
+                    race_listbox.insert(tk.END, f"{titolo:30s} | {data_gara}")
+                    displayed_indices.append(idx)
+        
+        # Popola inizialmente e collega il filtro
+        update_listbox()
+        search_var.trace_add("write", update_listbox)
+        
+        def on_select():
+            sel = race_listbox.curselection()
+            if not sel:
+                messagebox.showwarning("Attenzione", "Seleziona una gara prima")
+                return
+            
+            # Recupera il vero indice dalla lista originale
+            displayed_idx = sel[0]
+            actual_idx = displayed_indices[displayed_idx]
+            slug_ref, titolo_ref, data_ref = existing_races[actual_idx]
+            _, ref_data = next((s, d) for s, d in self.all_races if s == slug_ref)
+            
+            # Crea nuova gara con riferimento
+            new_data = {
+                'titolo': titolo_ref,
+                'data': date.today().isoformat(),
+                'genere': 'Femminile',
+                'categoria': 'Junior',
+                'disciplina': 'Strada',
+                'giri': 1,
+                'gpx_reference': slug_ref,
+                'distanza_km': ref_data.get('distanza_km'),
+                'dislivello_m': ref_data.get('dislivello_m'),
+            }
+            
+            # Aggiungi il luogo della gara di riferimento se esiste
+            if ref_data.get('luogo'):
+                new_data['luogo'] = ref_data.get('luogo')
+            
+            select_win.destroy()
+            self.open_add_race_form(new_data, is_new=True)
+        
+        button_frame = tk.Frame(select_win, bg=BG)
+        button_frame.pack(fill="x", padx=12, pady=12)
+        
+        tk.Button(button_frame, text="Seleziona", bg=ACCENT, fg="white", padx=16, pady=6,
+                 relief="flat", bd=0, cursor="hand2", command=on_select).pack(side="left", padx=(0, 6))
+        tk.Button(button_frame, text="Annulla", bg="#d1d5db", fg=FG, padx=16, pady=6,
+                 relief="flat", bd=0, cursor="hand2", command=select_win.destroy).pack(side="left")
+    
+    def new_race_empty(self):
+        """Aggiunge gara senza GPX, solo metadati"""
+        new_data = {
+            'titolo': '',
+            'data': date.today().isoformat(),
+            'genere': 'Femminile',
+            'categoria': 'Junior',
+            'disciplina': 'Strada',
+            'giri': 1,
+        }
+        
+        self.open_add_race_form(new_data, is_new=True)
+    
+    def open_add_race_form(self, initial_data: dict, is_new: bool = False, original_slug: str = ""):
+        """Apre il form per compilare/modificare i dettagli della gara"""
         edit_win = tk.Toplevel(self.root)
-        edit_win.title(f"Modifica: {data.get('titolo', slug)}")
-        edit_win.geometry("500x650")
+        edit_win.title("Aggiungi gara" if is_new else f"Modifica: {initial_data.get('titolo', '')}")
+        edit_win.geometry("500x750")
         edit_win.configure(bg=BG)
         
-        # Calcolo valori raw (per singolo giro) dai dati attuali
+        # Crea copia per modifiche
+        data = initial_data.copy()
+        
+        # Calcolo valori raw (per singolo giro)
         giri_iniziali = max(1, int(data.get('giri', 1)))
         km_iniziale = float(data.get('distanza_km', 0)) or 0
         dislivello_iniziale = float(data.get('dislivello_m', 0)) or 0
         km_raw = km_iniziale / giri_iniziali if giri_iniziali > 0 else 0
         dislivello_raw = dislivello_iniziale / giri_iniziali if giri_iniziali > 0 else 0
         
+        # Ottieni lista di tutte le gare per il riferimento GPX
+        tutte_le_gare = [(s, d.get('titolo', s)) for s, d in self.all_races 
+                        if d.get('gpx_points') and (not is_new or True)]
+        tutte_le_gare.sort(key=lambda x: x[1])
+        opzioni_gare = ["[Nessun riferimento]"] + [f"{titolo} ({s})" for s, titolo in tutte_le_gare]
+        opzioni_gare_vals = [""] + [s for s, titolo in tutte_le_gare]
+        
         fields = [
             ("slug", "Slug", "entry"),
             ("titolo", "Titolo", "entry"),
             ("data", "Data (AAAA-MM-GG)", "entry"),
             ("luogo", "Luogo", "entry"),
-            ("giri", "Giri del circuito", "spinner"),  # Nuovo campo
+            ("giri", "Giri del circuito", "spinner"),
             ("distanza_km", "Distanza (km)", "entry"),
             ("dislivello_m", "Dislivello (m)", "entry"),
             ("velocita_media_kmh", "Velocità media prevista (km/h)", "entry"),
             ("genere", "Genere", "combo", GENERI),
             ("categoria", "Categoria", "combo", CATEGORIE),
             ("disciplina", "Disciplina", "combo", DISCIPLINE),
+            ("gpx_reference", "Usa GPX da gara precedente", "combo_gare", opzioni_gare, opzioni_gare_vals),
         ]
         
         entries = {}
@@ -520,14 +858,12 @@ GPX POINTS:   {gpx_count} punti"""
                 row=i, column=0, sticky="w", padx=12, pady=6)
             
             if widget_type == "spinner":
-                # Spinbox per giri del circuito
                 var = tk.IntVar(value=data.get(key, 1))
                 spinner = tk.Spinbox(edit_win, from_=1, to=50, textvariable=var,
                                    font=("Helvetica", 10), width=10)
                 spinner.grid(row=i, column=1, sticky="w", padx=12, pady=6)
                 entries[key] = var
                 
-                # Binding: quando cambia giri, aggiorna km e dislivello
                 def on_giri_change(*args, km_raw=km_raw, dislivello_raw=dislivello_raw, entries=entries):
                     try:
                         giri = int(entries['giri'].get())
@@ -542,33 +878,81 @@ GPX POINTS:   {gpx_count} punti"""
                 
                 var.trace_add("write", on_giri_change)
                 
+            elif widget_type == "combo_gare":
+                opzioni_labels = field_info[3]
+                var = tk.StringVar(value=data.get(key, "") or "")
+                combo = tk.OptionMenu(edit_win, var, *opzioni_labels)
+                combo.config(width=40)
+                combo.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
+                entries[key] = var
+                
             elif widget_type == "combo":
                 options = field_info[3]
                 var = tk.StringVar(value=data.get(key, ""))
                 combo = tk.OptionMenu(edit_win, var, *options)
-                combo.config(width=30)
+                combo.config(width=40)
                 combo.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
                 entries[key] = var
             else:
                 entry = tk.Entry(edit_win, width=35, font=("Helvetica", 10))
-                # Tutti i campi editabili
                 entry.insert(0, str(data.get(key, "") or ""))
                 entry.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
                 entries[key] = entry
+        
+        # Auto-slug: quando cambia titolo o data, aggiorna slug automaticamente
+        slug_manual = tk.BooleanVar(value=False)
+        
+        def update_slug(*args):
+            """Aggiorna slug automaticamente dal titolo e data se non modificato manualmente"""
+            if not slug_manual.get():
+                try:
+                    titolo = entries['titolo'].get().strip()
+                    data_str = entries['data'].get().strip()
+                    year = data_str.split('-')[0] if data_str and len(data_str) >= 4 else "2026"
+                    new_auto_slug = slugify(titolo) + f"-{year}" if titolo else ""
+                    
+                    entries['slug'].delete(0, tk.END)
+                    entries['slug'].insert(0, new_auto_slug)
+                except:
+                    pass
+        
+        # Collega i binding per titolo e data
+        if isinstance(entries['titolo'], tk.Entry):
+            entries['titolo'].bind("<KeyRelease>", update_slug)
+        
+        if isinstance(entries['data'], tk.Entry):
+            entries['data'].bind("<KeyRelease>", update_slug)
+            entries['data'].bind("<FocusOut>", update_slug)
+        
+        # Quando l'utente modifica lo slug manualmente, disabilita l'auto-update
+        if isinstance(entries['slug'], tk.Entry):
+            def on_slug_edit(event):
+                slug_manual.set(True)
+            entries['slug'].bind("<KeyPress>", on_slug_edit)
+        
+        # Genera slug iniziale
+        update_slug()
         
         def save_changes():
             new_slug = None
             
             for key, widget in entries.items():
-                if hasattr(widget, 'cget') and widget.cget('state') == 'readonly':
-                    # Per i campi readonly, leggi il valore come è
-                    val = widget.get()
-                else:
-                    val = widget.get() if hasattr(widget, 'get') else widget
+                if key == "gpx_reference":
+                    current_val = widget.get()
+                    if not current_val or current_val == "[Nessun riferimento]":
+                        if key in data:
+                            del data[key]
+                    else:
+                        if "(" in current_val and current_val.endswith(")"):
+                            slug_ref = current_val.split("(")[-1].rstrip(")")
+                            data[key] = slug_ref
+                    continue
+                
+                val = widget.get() if hasattr(widget, 'get') else widget
                 
                 if key == "slug":
-                    new_slug = val  # Salva il nuovo slug
-                    data[key] = val  # Salva anche nel data dict per il JSON
+                    new_slug = val
+                    data[key] = val
                     continue
                 
                 if key in ("distanza_km", "dislivello_m", "giri", "velocita_media_kmh"):
@@ -581,14 +965,26 @@ GPX POINTS:   {gpx_count} punti"""
                         val = None
                 data[key] = val
             
-            # Se lo slug è cambiato, elimina il file vecchio e salva con il nuovo slug
-            if new_slug and new_slug != slug:
-                delete_race(slug)
-                save_race(new_slug, data)
-            else:
-                save_race(slug, data)
+            # Se è nuova gara, genera slug automaticamente
+            if is_new and (not new_slug or new_slug.strip() == ""):
+                year = data.get('data', '').split('-')[0] if data.get('data') else "2026"
+                new_slug = slugify(data.get('titolo', '')) + f"-{year}"
+                data['slug'] = new_slug
+            elif new_slug:
+                data['slug'] = new_slug
             
-            messagebox.showinfo("Salvato", "Gara modificata con successo")
+            # Validazioni
+            if not data.get('titolo', '').strip():
+                messagebox.showerror("Errore", "Titolo obbligatorio")
+                return
+            
+            if not data.get('slug', '').strip():
+                messagebox.showerror("Errore", "Slug obbligatorio")
+                return
+            
+            # Salva
+            save_race(data.get('slug'), data)
+            messagebox.showinfo("Salvato", "Gara aggiunta con successo!")
             self.refresh_list()
             edit_win.destroy()
         
@@ -602,6 +998,17 @@ GPX POINTS:   {gpx_count} punti"""
                  relief="flat", bd=0, cursor="hand2", command=edit_win.destroy).pack(side="left")
         
         edit_win.columnconfigure(1, weight=1)
+    
+    def edit_race(self):
+        """Modifica metadati della gara selezionata"""
+        idx = self.race_listbox.curselection()
+        if not idx:
+            messagebox.showwarning("Attenzione", "Seleziona una gara prima")
+            return
+        
+        slug, data = self.filtered_races[idx[0]]
+        self.open_add_race_form(data.copy(), is_new=False, original_slug=slug)
+    
     
     def delete_race(self):
         """Elimina race"""
