@@ -2292,8 +2292,9 @@ let map;
             
             const container = document.getElementById('climb-detail-svg');
             const width = container.clientWidth || 1200;
-            const height = 220;
-            const margin = { top: 20, right: 80, bottom: 50, left: 80 };
+            const height = container.clientHeight || 220;
+            const isMobile = window.innerWidth <= 768;
+            const margin = { top: 20, right: isMobile ? 60 : 80, bottom: isMobile ? 38 : 50, left: isMobile ? 50 : 80 };
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
             
@@ -2471,10 +2472,10 @@ let map;
                 
                 g.append('text')
                     .attr('x', midX)
-                    .attr('y', chartHeight + 20)
+                    .attr('y', chartHeight + Math.round(margin.bottom * 0.42))
                     .attr('text-anchor', 'middle')
                     .attr('fill', '#444')
-                    .attr('font-size', '11px')
+                    .attr('font-size', isMobile ? '9px' : '11px')
                     .attr('font-weight', 'bold')
                     .text(`${section.grade.toFixed(1)}%`);
             });
@@ -2512,7 +2513,7 @@ let map;
                 // Label distanza
                 g.append('text')
                     .attr('x', x)
-                    .attr('y', chartHeight + 38)
+                    .attr('y', chartHeight + Math.round(margin.bottom * 0.79))
                     .attr('text-anchor', 'middle')
                     .attr('fill', '#888')
                     .attr('font-size', '9px')
@@ -2520,9 +2521,9 @@ let map;
             });
             
             // SCALA GRADIENTE a destra
-            const legendWidth = 20;
-            const legendHeight = 120;
-            const legendX = chartWidth + 20;
+            const legendWidth = isMobile ? 12 : 20;
+            const legendHeight = isMobile ? 80 : 120;
+            const legendX = chartWidth + (isMobile ? 8 : 20);
             const legendY = (chartHeight - legendHeight) / 2;
             
             // Crea gradiente per la legenda
@@ -2567,31 +2568,31 @@ let map;
             
             legendLabels.forEach(label => {
                 g.append('text')
-                    .attr('x', legendX + legendWidth + 8)
+                    .attr('x', legendX + legendWidth + (isMobile ? 4 : 8))
                     .attr('y', label.y + 4)
                     .attr('fill', '#666')
-                    .attr('font-size', '10px')
+                    .attr('font-size', isMobile ? '8px' : '10px')
                     .text(label.text);
             });
             
             // Titolo legenda
             g.append('text')
                 .attr('x', legendX + legendWidth / 2)
-                .attr('y', legendY - 10)
+                .attr('y', legendY - (isMobile ? 6 : 10))
                 .attr('text-anchor', 'middle')
                 .attr('fill', '#444')
-                .attr('font-size', '10px')
+                .attr('font-size', isMobile ? '8px' : '10px')
                 .attr('font-weight', 'bold')
                 .text('Pendenza');
             
             // Asse Y
             const yAxis = d3.axisLeft(yScale)
-                .ticks(6)
+                .ticks(isMobile ? 4 : 6)
                 .tickFormat(d => Math.round(d) + ' m');
             
             g.append('g')
                 .call(yAxis)
-                .style('font-size', '10px');
+                .style('font-size', isMobile ? '8px' : '10px');
             
             // Linea base
             g.append('line')
