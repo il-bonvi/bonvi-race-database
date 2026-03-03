@@ -2117,7 +2117,10 @@ let map;
                     card.classList.add('highlighted');
                     
                     // Draw the detail chart for this climb
-                    drawClimbDetailChart(climb, index, sections);
+                    // Use rAF so the browser applies CSS (display:block, height) before we read clientHeight
+                    requestAnimationFrame(() => {
+                        drawClimbDetailChart(climb, index, sections);
+                    });
                     
                     // Zoom to climb area
                     const bounds = L.latLngBounds(climb.coordinates);
