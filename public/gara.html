@@ -323,7 +323,6 @@
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             margin-bottom: 0.4rem;
-            overflow: hidden;
         }
 
         .climb-detail-chart.active {
@@ -585,7 +584,7 @@
             .climbs-header, .difficulty-legend { padding: 0.75rem; }
             .climb-detail-header { flex-wrap: wrap; gap: 0.5rem; padding: 0.75rem; }
             .climb-detail-chart { max-height: calc(100vh - 450px); overflow-y: auto; }
-            #climb-detail-svg { height: 160px; }
+            #climb-detail-svg { height: 220px; }
             #app-layout { flex-direction: column; }
             #sv-panel {
                 position: fixed !important;
@@ -2117,10 +2116,17 @@ let map;
                     card.classList.add('highlighted');
                     
                     // Draw the detail chart for this climb
-                    // Use rAF so the browser applies CSS (display:block, height) before we read clientHeight
-                    requestAnimationFrame(() => {
-                        drawClimbDetailChart(climb, index, sections);
-                    });
+                    drawClimbDetailChart(climb, index, sections);
+
+                    // Auto-scroll to chart on mobile
+                    if (window.innerWidth <= 768) {
+                        const chartEl = document.getElementById('climb-detail-chart');
+                        if (chartEl) {
+                            setTimeout(() => {
+                                chartEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }, 100);
+                        }
+                    }
                     
                     // Zoom to climb area
                     const bounds = L.latLngBounds(climb.coordinates);
@@ -2290,14 +2296,18 @@ let map;
                 }
             }
             
-            const svg = d3.select('#climb-detail-svg');
-            svg.selectAll('*').remove();
-            
             const container = document.getElementById('climb-detail-svg');
-            const width = container.clientWidth || 1200;
-            const height = container.clientHeight || 220;
             const isMobile = window.innerWidth <= 768;
-            const margin = { top: 20, right: isMobile ? 60 : 80, bottom: isMobile ? 38 : 50, left: isMobile ? 50 : 80 };
+            const height = isMobile ? 220 : 220;
+            const margin = { top: 10, right: isMobile ? 48 : 80, bottom: isMobile ? 32 : 50, left: isMobile ? 42 : 80 };
+            // Use parent width - don't rely on container.clientWidth which may also be 0
+            const width = (container.parentElement ? container.parentElement.clientWidth : 0) || window.innerWidth || 800;
+            // Set SVG size explicitly via attributes so layout is always correct regardless of CSS timing
+            const svg = d3.select('#climb-detail-svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`);
+            svg.selectAll('*').remove();
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
             
@@ -2524,8 +2534,8 @@ let map;
             });
             
             // SCALA GRADIENTE a destra
-            const legendWidth = isMobile ? 12 : 20;
-            const legendHeight = isMobile ? 80 : 120;
+            const legendWidth = isMobile ? 14 : 20;
+            const legendHeight = isMobile ? 100 : 120;
             const legendX = chartWidth + (isMobile ? 8 : 20);
             const legendY = (chartHeight - legendHeight) / 2;
             
