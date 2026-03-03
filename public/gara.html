@@ -2115,6 +2115,9 @@ let map;
                     // Highlight this card
                     card.classList.add('highlighted');
                     
+                    // Mostra la card PRIMA di disegnare, così clientWidth è corretto
+                    document.getElementById('climb-detail-chart').classList.add('active');
+                    
                     // Draw the detail chart for this climb
                     drawClimbDetailChart(climb, index, sections);
 
@@ -2124,7 +2127,7 @@ let map;
                         if (chartEl) {
                             setTimeout(() => {
                                 chartEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }, 100);
+                            }, 200);
                         }
                     }
                     
