@@ -819,7 +819,7 @@ GPX POINTS:   {gpx_count} punti"""
         """Apre il form per compilare/modificare i dettagli della gara"""
         edit_win = tk.Toplevel(self.root)
         edit_win.title("Aggiungi gara" if is_new else f"Modifica: {initial_data.get('titolo', '')}")
-        edit_win.geometry("500x750")
+        edit_win.geometry("500x850")
         edit_win.configure(bg=BG)
         
         # Crea copia per modifiche
@@ -958,6 +958,54 @@ GPX POINTS:   {gpx_count} punti"""
         # Genera slug iniziale
         update_slug()
         
+        def load_gpx_file():
+            """Carica file GPX e aggiorna i dati della gara"""
+            gpx_file = filedialog.askopenfilename(
+                title="Seleziona file GPX",
+                filetypes=[('GPX files', '*.gpx'), ('All files', '*.*')],
+                parent=edit_win
+            )
+            
+            if not gpx_file:
+                return
+            
+            try:
+                gpx_data = parse_gpx(Path(gpx_file))
+                
+                if not gpx_data.get('gpx_points'):
+                    messagebox.showwarning("Attenzione", "Il file GPX non contiene dati validi")
+                    return
+                
+                # Aggiorna i dati con le informazioni dal GPX
+                if gpx_data.get('distanza_km'):
+                    data['distanza_km'] = gpx_data['distanza_km']
+                    entries['distanza_km'].delete(0, tk.END)
+                    entries['distanza_km'].insert(0, str(gpx_data['distanza_km']))
+                
+                if gpx_data.get('dislivello_m'):
+                    data['dislivello_m'] = gpx_data['dislivello_m']
+                    entries['dislivello_m'].delete(0, tk.END)
+                    entries['dislivello_m'].insert(0, str(gpx_data['dislivello_m']))
+                
+                # Salva i punti GPX nei dati
+                data['gpx_points'] = gpx_data['gpx_points']
+                
+                # Reverse geocoding per il luogo (se non è stato ancora impostato)
+                if gpx_data.get('center_lat') and gpx_data.get('center_lon'):
+                    if not entries['luogo'].get().strip():
+                        lat = gpx_data.get('center_lat')
+                        lon = gpx_data.get('center_lon')
+                        luogo = reverse_geocode(lat, lon)
+                        if luogo:
+                            data['luogo'] = luogo
+                            entries['luogo'].delete(0, tk.END)
+                            entries['luogo'].insert(0, luogo)
+                
+                messagebox.showinfo("Successo", "GPX caricato con successo!\nDistanza e dislivello sono stati aggiornati.")
+            
+            except Exception as e:
+                messagebox.showerror("Errore", f"Errore nel caricamento del GPX:\n{str(e)}")
+        
         def save_changes():
             new_slug = None
             
@@ -1024,6 +1072,8 @@ GPX POINTS:   {gpx_count} punti"""
         button_frame = tk.Frame(edit_win, bg=BG)
         button_frame.grid(row=row_button, column=0, columnspan=2, sticky="ew", padx=12, pady=12)
         
+        tk.Button(button_frame, text="📁 Carica GPX", bg="#8b5cf6", fg="white", padx=12, pady=6,
+                 relief="flat", bd=0, cursor="hand2", command=load_gpx_file).pack(side="left", padx=(0, 6))
         tk.Button(button_frame, text="Salva", bg=ACCENT, fg="white", padx=16, pady=6,
                  relief="flat", bd=0, cursor="hand2", command=save_changes).pack(side="left", padx=(0, 6))
         tk.Button(button_frame, text="Annulla", bg="#d1d5db", fg=FG, padx=16, pady=6,
