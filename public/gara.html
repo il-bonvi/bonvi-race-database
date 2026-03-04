@@ -2059,10 +2059,14 @@ let map;
                 
                 if (difficultyCoefficient < MIN_DIFFICULTY) return;
                 
-                // Get max gradient from sections (not individual points to avoid GPS noise)
+                // Get max gradient over 100m windows (2 × 50m sections) to avoid GPS noise
                 let maxGrade = 0;
                 for (let s = climb.startSegment; s <= climb.endSegment; s++) {
-                    if (sections[s].grade > maxGrade) maxGrade = sections[s].grade;
+                    const next = Math.min(s + 1, climb.endSegment);
+                    const combinedDist = sections[s].distance + sections[next].distance;
+                    const combinedEle  = sections[s].elevation + sections[next].elevation;
+                    const combinedGrade = combinedDist > 0 ? (combinedEle / combinedDist) * 100 : 0;
+                    if (combinedGrade > maxGrade) maxGrade = combinedGrade;
                 }
                 
                 const coords = [];
