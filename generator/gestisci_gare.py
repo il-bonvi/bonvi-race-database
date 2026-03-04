@@ -89,7 +89,7 @@ def categoria_code(genere: str, categoria: str) -> str:
 
 
 def reverse_geocode(lat: float, lon: float) -> str | None:
-    """Ritorna 'Provincia, Regione, IT' tramite Nominatim (OpenStreetMap)."""
+    """Ritorna 'Provincia, Regione, CC' tramite Nominatim (OpenStreetMap)."""
     import urllib.request
     import urllib.parse
     import json as _json
@@ -109,11 +109,12 @@ def reverse_geocode(lat: float, lon: float) -> str | None:
         address = data.get("address", {})
         provincia = address.get("county", address.get("province", ""))
         regione = address.get("state", address.get("region", ""))
+        country_code = data.get("address", {}).get("country_code", "IT").upper()
         
         if provincia and regione:
-            return f"{provincia}, {regione}, IT"
+            return f"{provincia}, {regione}, {country_code}"
         elif regione:
-            return f"{regione}, IT"
+            return f"{regione}, {country_code}"
         return None
         
     except Exception:
