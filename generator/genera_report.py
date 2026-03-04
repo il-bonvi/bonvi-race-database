@@ -78,8 +78,11 @@ def update_gares_index():
             # Estrai genere e categoria per generare il codice categoria
             genere = gara.get("genere", "")
             categoria_list = gara.get("categoria", [])
-            categoria = categoria_list[0] if categoria_list else ""
-            cat_code = categoria_code(genere, categoria) if genere and categoria else ""
+            # Memorizza tutte le categorie
+            categoria_display = categoria_list if isinstance(categoria_list, list) else ([categoria_list] if categoria_list else [])
+            # Per il codice, usa la prima categoria
+            categoria_first = categoria_list[0] if categoria_list else ""
+            cat_code = categoria_code(genere, categoria_first) if genere and categoria_first else ""
             
             races.append({
                 "slug": slug,
@@ -88,7 +91,7 @@ def update_gares_index():
                 "year": year,
                 "race_series": gara.get("race_series"),
                 "genere": genere,
-                "categoria": categoria,
+                "categoria": categoria_display,
                 "categoria_code": cat_code,
             })
             

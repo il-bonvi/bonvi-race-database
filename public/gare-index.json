@@ -6,7 +6,9 @@
     "year": "2026",
     "race_series": "nonantola",
     "genere": "Femminile",
-    "categoria": "Junior",
+    "categoria": [
+      "Junior"
+    ],
     "categoria_code": "DJ"
   },
   {
@@ -16,7 +18,9 @@
     "year": "2026",
     "race_series": "omloop van schijndel",
     "genere": "Femminile",
-    "categoria": "Junior",
+    "categoria": [
+      "Junior"
+    ],
     "categoria_code": "DJ"
   },
   {
@@ -26,7 +30,9 @@
     "year": "2026",
     "race_series": "cittiglio",
     "genere": "Femminile",
-    "categoria": "Junior",
+    "categoria": [
+      "Junior"
+    ],
     "categoria_code": "DJ"
   }
 ]

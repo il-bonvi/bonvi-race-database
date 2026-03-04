@@ -1,16 +1,37 @@
 ---
 import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon } from '../lib/gare.js';
 const { gara } = Astro.props;
-const color = categoriaColor(gara.categoria);
 const icon  = disciplinaIcon(gara.disciplina);
 const base  = import.meta.env.BASE_URL.replace(/\/$/, '');
-const categorieText = Array.isArray(gara.categoria) ? gara.categoria.join(' / ') : gara.categoria;
+const categorie = Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria];
+// Mappa colori per categorie
+const catColorMap = {
+  'Elite':    '#C8A951',
+  'U23':      '#4A7FA5',
+  'Junior':   '#5C9E6E',
+  'Allievi':  '#A0522D',
+};
+
+// Genera il colore/gradiente per il bordo
+let borderStyle = '';
+if (categorie.length === 1) {
+  // Singola categoria: colore solido
+  borderStyle = catColorMap[categorie[0]] ?? '#888';
+} else {
+  // Multiple categorie: gradiente
+  const colors = categorie.map(cat => catColorMap[cat] ?? '#888');
+  borderStyle = `linear-gradient(90deg, ${colors.join(', ')})`;
+}
 ---
 
-<a href={`${base}/gare/${gara.slug}/`} class="card" style={`--cat-color: ${color}`}>
+<a href={`${base}/gare/${gara.slug}/`} class="card" style={`--cat-color: ${borderStyle}`}>
 
   <div class="card-top">
-    <span class="cat-badge">{categorieText ?? '—'}</span>
+    <div class="cat-badges">
+      {categorie.map((cat) => (
+        <span class="cat-badge" style={`--badge-color: ${catColorMap[cat] ?? '#888'}`}>{cat}</span>
+      ))}
+    </div>
     <span class="disc-badge">{icon} {gara.disciplina ?? '—'}</span>
     <span class="genere-badge">{gara.genere === 'Femminile' ? '♀' : '♂'}</span>
   </div>
@@ -51,24 +72,39 @@ const categorieText = Array.isArray(gara.categoria) ? gara.categoria.join(' / ')
     display: flex; flex-direction: column; gap: 0.5rem;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-top: 3px solid var(--cat-color, var(--border));
+    border-top: none;
     padding: 1.25rem 1.5rem 1rem;
     cursor: pointer; position: relative;
-    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--cat-color);
   }
 
   .card:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 24px rgba(0,0,0,0.1);
-    border-color: var(--cat-color, var(--border));
   }
 
   .card-top { display: flex; align-items: center; gap: 0.5rem; }
 
+  .cat-badges {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+
   .cat-badge {
     font-family: var(--font-mono); font-size: 0.65rem;
     text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--cat-color);
+    color: var(--badge-color);
     background: rgba(0,0,0,0.04);
     border: 1px solid rgba(0,0,0,0.12);
     padding: 0.2rem 0.55rem; border-radius: 2px;

@@ -2757,12 +2757,23 @@ let map;
                         if (indexRes.ok) {
                             const allRaces = await indexRes.json();
                             
+                            // Helper per normalizzare categorie (stringa o array)
+                            const normalizeCategoria = (cat) => 
+                                Array.isArray(cat) ? cat : (cat ? [cat] : []);
+                            
+                            // Helper per confrontare categorie
+                            const categorieMatch = (cat1, cat2) => {
+                                const c1 = normalizeCategoria(cat1);
+                                const c2 = normalizeCategoria(cat2);
+                                return JSON.stringify(c1.sort()) === JSON.stringify(c2.sort());
+                            };
+                            
                             // Raggruppa per anno con la stessa categoria/genere della gara attuale
                             const racesByYear = {};
                             allRaces
                                 .filter(r => 
                                     r.race_series === gara.race_series && 
-                                    r.categoria === gara.categoria?.[0] &&
+                                    categorieMatch(r.categoria, gara.categoria) &&
                                     r.genere === gara.genere
                                 )
                                 .forEach(r => {
@@ -2799,7 +2810,7 @@ let map;
                             // Carica navigazione tra categorie della stessa gara/anno
                             const currentYear = gara.data.split('-')[0];
                             const currentGenere = gara.genere || '';
-                            const currentCategory = gara.categoria?.[0] || '';
+                            const currentCategories = normalizeCategoria(gara.categoria);
                             
                             // Trova tutte le gare con la stessa serie, anno, e genere ma categorie diverse
                             const categoryRaces = allRaces
@@ -2810,8 +2821,11 @@ let map;
                                 )
                                 .sort((a, b) => {
                                     const ordine = { 'Allievi': 0, 'Junior': 1, 'U23': 2, 'Elite': 3 };
-                                    const catA = ordine[a.categoria] ?? 99;
-                                    const catB = ordine[b.categoria] ?? 99;
+                                    // Per l'ordinamento, usa il valore minimo della categoria (se sono multiple)
+                                    const catsA = normalizeCategoria(a.categoria);
+                                    const catsB = normalizeCategoria(b.categoria);
+                                    const catA = Math.min(...catsA.map(c => ordine[c] ?? 99));
+                                    const catB = Math.min(...catsB.map(c => ordine[c] ?? 99));
                                     return catA - catB;
                                 });
                             
@@ -2827,8 +2841,10 @@ let map;
                                 categoryRaces.forEach((race) => {
                                     const link = document.createElement('a');
                                     link.href = `?gara=${race.slug}`;
-                                    link.className = race.categoria === currentCategory ? 'category-link current' : 'category-link';
-                                    link.textContent = race.categoria || '?';
+                                    const raceCategories = normalizeCategoria(race.categoria);
+                                    const isCurrentCategory = categorieMatch(raceCategories, currentCategories);
+                                    link.className = isCurrentCategory ? 'category-link current' : 'category-link';
+                                    link.textContent = raceCategories.join(' / ') || '?';
                                     categoryNavLinks.appendChild(link);
                                 });
                                 

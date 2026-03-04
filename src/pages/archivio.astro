@@ -180,6 +180,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
                           data-anno={year}
                           data-genere={g.genere ?? ''}
                           data-categoria={g.categoria ?? ''}
+                          data-categorie-json={JSON.stringify(Array.isArray(g.categoria) ? g.categoria : (g.categoria ? [g.categoria] : []))}
                           data-disciplina={g.disciplina ?? ''}
                           data-titolo={(g.titolo ?? '').toLowerCase()}
                           data-luogo={(g.luogo ?? '').toLowerCase()}
@@ -249,10 +250,21 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   function applyAll() {
     let visibleCount = 0, visibleKm = 0, visibleDislivello = 0;
     cards.forEach((c: HTMLElement) => {
+      // Filtro categoria: se selezionato, controlla se è incluso nell'array di categorie
+      let categoriaMatch = state.categoria === 'all';
+      if (!categoriaMatch) {
+        try {
+          const categorie = JSON.parse(c.dataset.categorieJson || '[]');
+          categoriaMatch = categorie.includes(state.categoria);
+        } catch (e) {
+          categoriaMatch = c.dataset.categoria === state.categoria;
+        }
+      }
+      
       const match =
         (state.anno === 'all' || c.dataset.anno === state.anno) &&
         (state.genere === 'all' || c.dataset.genere === state.genere) &&
-        (state.categoria === 'all' || c.dataset.categoria === state.categoria) &&
+        categoriaMatch &&
         (state.disciplina === 'all' || c.dataset.disciplina === state.disciplina) &&
         (!state.q || (c.dataset.titolo ?? '').includes(state.q.toLowerCase()) || (c.dataset.luogo ?? '').includes(state.q.toLowerCase()));
       c.style.display = match ? '' : 'none';

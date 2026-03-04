@@ -1,5 +1,5 @@
 ---
-import { formatData, formatDistanza, formatDislivello, categoriaColor } from '../../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello } from '../../lib/gare.js';
 
 export async function getStaticPaths() {
   const garaFiles = import.meta.glob('../../../gare-sorgenti/dettagli/*.json', { eager: true });
@@ -17,11 +17,30 @@ let gara = Object.values(garaFiles).map(m => m.default ?? m).find(g => g.slug ==
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 if (!gara) return Astro.redirect(`${base}/`);
 
-// Controlla se esiste un file GPX per questa gara
+// Controlla se esiste un file GPX per questa gara (non più necessario ma manteniamo per futurità)
 const gpxFiles = import.meta.glob('../../../gare-sorgenti/gpx/*-gpx.json', { eager: false });
 const gpxSlug = (gara.gpx_reference ?? slug);
-const hasGpxData = Object.keys(gpxFiles).some(k => k.endsWith(`/${gpxSlug}-gpx.json`));
-const color = categoriaColor(gara.categoria);
+
+// Per il colore della top bar, genera colore solido o gradiente
+const catColorMap = {
+  'Elite':    '#C8A951',
+  'U23':      '#4A7FA5',
+  'Junior':   '#5C9E6E',
+  'Allievi':  '#A0522D',
+};
+const categorie = Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria];
+
+// Colore del testo: sempre il primo (solido)
+const textColor = catColorMap[categorie[0]] ?? '#888';
+
+// Colore del bordo: solido se singola categoria, gradiente se multiple
+let borderColor = '';
+if (categorie.length === 1) {
+  borderColor = catColorMap[categorie[0]] ?? '#888';
+} else {
+  const colors = categorie.map(cat => catColorMap[cat] ?? '#888');
+  borderColor = `linear-gradient(90deg, ${colors.join(', ')})`;
+}
 ---
 
 <!DOCTYPE html>
@@ -76,11 +95,21 @@ const color = categoriaColor(gara.categoria);
     .top-bar {
       position: sticky; top: 0; z-index: 100;
       background: var(--bg2);
-      border-bottom: 2px solid var(--cat-color, #888);
+      border-bottom: none;
       display: flex; align-items: center;
       padding: 0 1.25rem; height: 52px; gap: 1rem;
       box-shadow: 0 1px 8px rgba(0,0,0,0.06);
       flex-shrink: 0;
+    }
+
+    .top-bar::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--cat-color, #888);
     }
 
     .back {
@@ -137,13 +166,17 @@ const color = categoriaColor(gara.categoria);
   </style>
 </head>
 <body>
-  <div class="top-bar" style={{ "--cat-color": color }}>
+  <div class="top-bar" style={{ "--cat-color": borderColor }}>
     <a href={`${base}/`} class="back">← Race DB</a>
     <div class="bar-divider"></div>
-    <span class="bar-cat" style={{ color: color }}>
+    <span class="bar-cat">
       <span class="bar-cat-label">
-        {Array.isArray(gara.categoria) ? gara.categoria.join(' / ') : gara.categoria} 
-        {gara.genere === 'Femminile' ? '♀' : '♂'} · {gara.disciplina}
+        {categorie.map((cat, idx) => (
+          <span key={idx} style={{ color: catColorMap[cat] ?? '#888', fontWeight: 500 }}>
+            {cat}{idx < categorie.length - 1 ? ' / ' : ''}
+          </span>
+        ))}
+        {' '}{gara.genere === 'Femminile' ? '♀' : '♂'} · {gara.disciplina}
       </span>
     </span>
     <div class="bar-divider"></div>
@@ -170,8 +203,4 @@ const color = categoriaColor(gara.categoria);
     </div>
   </div>
 
-  {hasGpxData ? (
-    <iframe class="report-frame" src={`${base}/gara.html?gara=${slug}`} title={gara.titolo}></iframe>
-  ) : (
-    <iframe class="report-frame" src={`${base}/gare/${slug}.html`} title={gara.titolo}></iframe>
-  )}
+  <iframe class="report-frame" src={`${base}/gara.html?gara=${slug}`} title={gara.titolo}></iframe>

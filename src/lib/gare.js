@@ -53,14 +53,26 @@ export function getCategoriaCode(genere, categoria) {
 }
 
 export function categoriaColor(categoria) {
-  // Gestisci sia string che array
-  const cat = Array.isArray(categoria) ? categoria[0] : categoria;
-  return {
+  const colorMap = {
     'Elite':    '#C8A951',
     'U23':      '#4A7FA5',
     'Junior':   '#5C9E6E',
     'Allievi':  '#A0522D',
-  }[cat] ?? '#888';
+  };
+  
+  // Gestisci sia string che array
+  if (!Array.isArray(categoria)) {
+    return colorMap[categoria] ?? '#888';
+  }
+  
+  // Se è un array singolo, returna il colore diretto
+  if (categoria.length === 1) {
+    return colorMap[categoria[0]] ?? '#888';
+  }
+  
+  // Se sono multiple categorie, crea un gradiente
+  const colors = categoria.map(cat => colorMap[cat] ?? '#888');
+  return `linear-gradient(90deg, ${colors.join(', ')})`;
 }
 
 export function disciplinaIcon(disciplina) {
