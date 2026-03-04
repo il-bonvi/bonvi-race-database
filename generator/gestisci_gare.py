@@ -1313,6 +1313,10 @@ GPX FILE:     {gpx_info}"""
                             val = float(val) if val else None
                     except:
                         val = None
+                elif key == "race_series":
+                    # Rendi case-insensitive: converti a minuscolo
+                    val = val.lower() if val else ""
+                               
                 data[key] = val
             
             # Se è nuova gara, genera slug automaticamente
