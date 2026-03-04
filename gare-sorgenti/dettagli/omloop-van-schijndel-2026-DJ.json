@@ -1,0 +1,16 @@
+{
+  "titolo": "Omloop van Schijndel",
+  "race_series": "omloop van schijndel",
+  "data": "2026-03-01",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 15,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 49.65,
+  "dislivello_m": 75.0,
+  "luogo": "Noord-Brabant, IT",
+  "slug": "omloop-van-schijndel-2026-DJ"
+}

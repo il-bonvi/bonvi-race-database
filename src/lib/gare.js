@@ -18,6 +18,40 @@ export const GENERI = ['Maschile', 'Femminile'];
 export const CATEGORIE = ['Elite', 'U23', 'Junior', 'Allievi'];
 export const DISCIPLINE = ['Strada', 'Criterium', 'Cronometro'];
 
+export function getCategoriaCode(genere, categoria) {
+  /**
+   * Genera il codice categoria combinando genere e categoria.
+   * 
+   * Genere:
+   *   - "Maschile" → M
+   *   - "Femminile" → D
+   * 
+   * Categoria:
+   *   - "Elite" → PRO
+   *   - "U23" → U
+   *   - "Junior" → J
+   *   - "Allievi" → A
+   * 
+   * Esempio: getCategoriaCode("Femminile", "Elite") → "DPRO"
+   */
+  const genereMap = {
+    'Maschile': 'M',
+    'Femminile': 'D'
+  };
+  
+  const categoriaMap = {
+    'Elite': 'PRO',
+    'U23': 'U',
+    'Junior': 'J',
+    'Allievi': 'A'
+  };
+  
+  const genereCode = genereMap[genere] || '';
+  const catCode = categoriaMap[categoria] || '';
+  
+  return genereCode && catCode ? `${genereCode}${catCode}` : '';
+}
+
 export function categoriaColor(categoria) {
   // Gestisci sia string che array
   const cat = Array.isArray(categoria) ? categoria[0] : categoria;

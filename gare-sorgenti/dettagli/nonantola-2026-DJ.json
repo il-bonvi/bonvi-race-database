@@ -1,0 +1,16 @@
+{
+  "titolo": "Nonantola",
+  "race_series": "Nonantola",
+  "data": "2026-03-08",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Criterium",
+  "giri": 8,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 74.0,
+  "dislivello_m": 72.0,
+  "luogo": "Modena, Emilia-Romagna, IT",
+  "slug": "nonantola-2026-DJ"
+}

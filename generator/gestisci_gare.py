@@ -28,8 +28,18 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 
 ARCHIVIO_DIR = Path(__file__).parent.parent
-GARE_DIR = ARCHIVIO_DIR / "gare-sorgenti"
+
+# Cartelle sorgenti
+GARE_DIR    = ARCHIVIO_DIR / "gare-sorgenti" / "dettagli"   # dettagli gara
+GPX_DIR     = ARCHIVIO_DIR / "gare-sorgenti" / "gpx"        # file gpx separati
 GARE_DIR.mkdir(parents=True, exist_ok=True)
+GPX_DIR.mkdir(parents=True, exist_ok=True)
+
+# Mirror pubblici (serviti dal browser)
+PUBLIC_GARE_DIR = ARCHIVIO_DIR / "public" / "gare-sorgenti" / "dettagli"
+PUBLIC_GPX_DIR  = ARCHIVIO_DIR / "public" / "gare-sorgenti" / "gpx"
+PUBLIC_GARE_DIR.mkdir(parents=True, exist_ok=True)
+PUBLIC_GPX_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ── UTILITY FUNCTIONS ─────────────────────────────────────────────────────────
@@ -42,6 +52,40 @@ def slugify(s: str) -> str:
     s = s.lower()
     s = re.sub(r'[^a-z0-9]+', '-', s)
     return s.strip('-')
+
+
+def categoria_code(genere: str, categoria: str) -> str:
+    """
+    Genera il codice categoria combinando genere e categoria.
+    
+    Genere:
+      - "Maschile" → M
+      - "Femminile" → D
+    
+    Categoria:
+      - "Elite" → PRO
+      - "U23" → U
+      - "Junior" → J
+      - "Allievi" → A
+    
+    Esempio: categoria_code("Femminile", "Elite") → "DPRO"
+    """
+    genere_map = {
+        "Maschile": "M",
+        "Femminile": "D"
+    }
+    
+    categoria_map = {
+        "Elite": "PRO",
+        "U23": "U",
+        "Junior": "J",
+        "Allievi": "A"
+    }
+    
+    genere_code = genere_map.get(genere, "")
+    cat_code = categoria_map.get(categoria, "")
+    
+    return f"{genere_code}{cat_code}" if genere_code and cat_code else ""
 
 
 def reverse_geocode(lat: float, lon: float) -> str | None:
@@ -178,12 +222,21 @@ def update_gares_index():
             data_str = gara.get("data", "")
             year = data_str.split("-")[0] if data_str else "unknown"
             
+            # Estrai genere e categoria per generare il codice categoria
+            genere = gara.get("genere", "")
+            categoria_list = gara.get("categoria", [])
+            categoria = categoria_list[0] if categoria_list else ""
+            cat_code = categoria_code(genere, categoria) if genere and categoria else ""
+            
             races.append({
                 "slug": slug,
                 "titolo": gara.get("titolo"),
                 "data": data_str,
                 "year": year,
                 "race_series": gara.get("race_series"),
+                "genere": genere,
+                "categoria": categoria,
+                "categoria_code": cat_code,
             })
             
         except Exception:
@@ -223,41 +276,51 @@ def load_all_races():
 
 
 def save_race(slug: str, data: dict):
-    """Salva race JSON nella root (source of truth) e sincronizza in public/.
+    """Salva i dettagli gara in gare-sorgenti/dettagli/ e, se presenti, i punti
+    GPX in gare-sorgenti/gpx/{slug}-gpx.json. Sincronizza in public/.
     """
-    # Imposta race_series automaticamente dal titolo
-    if 'titolo' in data:
-        data['race_series'] = data['titolo']
-    
+    # Imposta race_series automaticamente dal titolo solo se mancante/vuota
+    if not data.get('race_series'):
+        titolo = data.get('titolo')
+        if titolo:
+            data['race_series'] = titolo
+
+    # ── Estrai gpx_points (vanno nel file separato) ──────────────────────────
+    gpx_points = data.pop('gpx_points', None)
+
+    # ── Salva dettagli ────────────────────────────────────────────────────────
     json_path = GARE_DIR / f"{slug}.json"
     data_clean = {k: v for k, v in data.items() if v is not None}
     json_str = json.dumps(data_clean, ensure_ascii=False, indent=2)
-    
     json_path.write_text(json_str, encoding='utf-8')
-    
-    # Sincronizza anche in public/gare-sorgenti/ per il browser
-    public_json_dir = ARCHIVIO_DIR / "public" / "gare-sorgenti"
-    public_json_dir.mkdir(parents=True, exist_ok=True)
-    public_json_path = public_json_dir / f"{slug}.json"
-    public_json_path.write_text(json_str, encoding='utf-8')
-    
+    PUBLIC_GARE_DIR.mkdir(parents=True, exist_ok=True)
+    (PUBLIC_GARE_DIR / f"{slug}.json").write_text(json_str, encoding='utf-8')
+
+    # ── Salva GPX separato (solo se fornito) ──────────────────────────────────
+    if gpx_points:
+        gpx_data = {"slug": slug, "gpx_points": gpx_points}
+        gpx_str = json.dumps(gpx_data, ensure_ascii=False, indent=2)
+        GPX_DIR.mkdir(parents=True, exist_ok=True)
+        (GPX_DIR / f"{slug}-gpx.json").write_text(gpx_str, encoding='utf-8')
+        PUBLIC_GPX_DIR.mkdir(parents=True, exist_ok=True)
+        (PUBLIC_GPX_DIR / f"{slug}-gpx.json").write_text(gpx_str, encoding='utf-8')
+
     # Aggiorna l'indice per la navigazione tra serie
     update_gares_index()
 
 
 def delete_race(slug: str):
-    """Elimina race dalla root (source of truth) e sincronizza in public/.
-    """
-    json_path = GARE_DIR / f"{slug}.json"
-    if json_path.exists():
-        json_path.unlink()
-    
-    # Sincronizza eliminazione anche in public/gare-sorgenti/
-    public_json_dir = ARCHIVIO_DIR / "public" / "gare-sorgenti"
-    public_json_path = public_json_dir / f"{slug}.json"
-    if public_json_path.exists():
-        public_json_path.unlink()
-    
+    """Elimina dettagli e file GPX dalla sorgente e da public/."""
+    # Dettagli
+    for p in [GARE_DIR / f"{slug}.json", PUBLIC_GARE_DIR / f"{slug}.json"]:
+        if p.exists():
+            p.unlink()
+
+    # File GPX separato
+    for p in [GPX_DIR / f"{slug}-gpx.json", PUBLIC_GPX_DIR / f"{slug}-gpx.json"]:
+        if p.exists():
+            p.unlink()
+
     # Aggiorna l'indice per la navigazione tra serie
     update_gares_index()
 
@@ -583,7 +646,18 @@ class RaceManagerApp:
         
         slug, data = self.filtered_races[idx[0]]
         
-        gpx_count = len(data.get('gpx_points', []))
+        # Determina quale file GPX verrà usato per questa gara
+        gpx_ref  = data.get('gpx_reference', '')
+        gpx_slug = gpx_ref if gpx_ref else slug
+        gpx_file = GPX_DIR / f"{gpx_slug}-gpx.json"
+        if gpx_file.exists():
+            if gpx_ref and gpx_ref != slug:
+                gpx_info = f"{gpx_slug}-gpx.json  [da gpx_reference]"
+            else:
+                gpx_info = f"{gpx_slug}-gpx.json"
+        else:
+            gpx_info = "nessuno"
+
         info = f"""TITOLO:       {data.get('titolo', '—')}
 SLUG:         {slug}
 DATA:         {data.get('data', '—')}
@@ -594,7 +668,7 @@ DISTANZA:     {data.get('distanza_km', '—')} km
 DISLIVELLO:   {data.get('dislivello_m', '—')} m
 LUOGO:        {data.get('luogo', '—')}
 NOTE:         {(data.get('note', '') or '')[:100]}
-GPX POINTS:   {gpx_count} punti"""
+GPX FILE:     {gpx_info}"""
         
         self.info_text.config(state="normal")
         self.info_text.delete(1.0, tk.END)
@@ -674,11 +748,13 @@ GPX POINTS:   {gpx_count} punti"""
         # Prepara dati iniziali
         new_data = {
             'titolo': gpx_path.stem,
+            'race_series': gpx_path.stem,
             'data': date.today().isoformat(),
             'genere': 'Femminile',
             'categoria': ['Junior'],
             'disciplina': 'Strada',
             'giri': 1,
+            'velocita_media_kmh': 40,
         }
         
         if gpx_data.get('distanza_km'):
@@ -699,15 +775,26 @@ GPX POINTS:   {gpx_count} punti"""
         self.open_add_race_form(new_data, is_new=True)
     
     def new_race_with_existing_gpx(self):
-        """Aggiunge gara referenziando GPX di una gara esistente"""
-        # Dialog per scegliere quale gara
-        existing_races = [(s, d.get('titolo', s), d.get('data', '')) 
-                         for s, d in self.all_races 
-                         if d.get('gpx_points')]
-        existing_races.sort(key=lambda x: x[2], reverse=True)
-        
+        """Aggiunge gara referenziando un file GPX esistente (da gare-sorgenti/gpx/)"""
+        # Scansiona i file GPX disponibili
+        existing_races = []
+        for gpx_file in sorted(GPX_DIR.glob("*-gpx.json"), reverse=True):
+            gpx_slug = gpx_file.stem[:-4]   # rimuove '-gpx'
+            # Prova a trovare il titolo dal file dettagli corrispondente
+            details_file = GARE_DIR / f"{gpx_slug}.json"
+            titolo = gpx_slug
+            data_gara = ""
+            if details_file.exists():
+                try:
+                    d = json.loads(details_file.read_text(encoding='utf-8'))
+                    titolo = d.get('titolo', gpx_slug)
+                    data_gara = d.get('data', '')
+                except Exception:
+                    pass
+            existing_races.append((gpx_slug, titolo, data_gara))
+
         if not existing_races:
-            messagebox.showwarning("Attenzione", "Non ci sono gare con GPX nel database")
+            messagebox.showwarning("Attenzione", "Non ci sono file GPX nel database (cartella gare-sorgenti/gpx/ vuota)")
             return
         
         select_win = tk.Toplevel(self.root)
@@ -767,30 +854,41 @@ GPX POINTS:   {gpx_count} punti"""
             if not sel:
                 messagebox.showwarning("Attenzione", "Seleziona una gara prima")
                 return
-            
+
             # Recupera il vero indice dalla lista originale
             displayed_idx = sel[0]
             actual_idx = displayed_indices[displayed_idx]
-            slug_ref, titolo_ref, data_ref = existing_races[actual_idx]
-            _, ref_data = next((s, d) for s, d in self.all_races if s == slug_ref)
-            
-            # Crea nuova gara con riferimento
+            gpx_slug, titolo_ref, data_gara = existing_races[actual_idx]
+
+            # Carica info dai dettagli se disponibili
+            ref_distanza = None
+            ref_dislivello = None
+            ref_luogo = None
+            details_file = GARE_DIR / f"{gpx_slug}.json"
+            if details_file.exists():
+                try:
+                    d = json.loads(details_file.read_text(encoding='utf-8'))
+                    ref_distanza  = d.get('distanza_km')
+                    ref_dislivello = d.get('dislivello_m')
+                    ref_luogo     = d.get('luogo')
+                except Exception:
+                    pass
+
+            # Crea nuova gara con riferimento GPX
             new_data = {
-                'titolo': titolo_ref,
-                'data': date.today().isoformat(),
-                'genere': 'Femminile',
-                'categoria': ['Junior'],
-                'disciplina': 'Strada',
-                'giri': 1,
-                'gpx_reference': slug_ref,
-                'distanza_km': ref_data.get('distanza_km'),
-                'dislivello_m': ref_data.get('dislivello_m'),
+                'titolo':       titolo_ref,
+                'data':         date.today().isoformat(),
+                'genere':       'Femminile',
+                'categoria':    ['Junior'],
+                'disciplina':   'Strada',
+                'giri':         1,
+                'gpx_reference': gpx_slug,
+                'distanza_km':  ref_distanza,
+                'dislivello_m': ref_dislivello,
             }
-            
-            # Aggiungi il luogo della gara di riferimento se esiste
-            if ref_data.get('luogo'):
-                new_data['luogo'] = ref_data.get('luogo')
-            
+            if ref_luogo:
+                new_data['luogo'] = ref_luogo
+
             select_win.destroy()
             self.open_add_race_form(new_data, is_new=True)
         
@@ -832,17 +930,20 @@ GPX POINTS:   {gpx_count} punti"""
         km_raw = km_iniziale / giri_iniziali if giri_iniziali > 0 else 0
         dislivello_raw = dislivello_iniziale / giri_iniziali if giri_iniziali > 0 else 0
         
-        # Ottieni lista di tutte le gare per il riferimento GPX
-        tutte_le_gare = [(s, d.get('titolo', s)) for s, d in self.all_races 
-                        if d.get('gpx_points') and (not is_new or True)]
-        tutte_le_gare.sort(key=lambda x: x[1])
-        opzioni_gare = ["[Nessun riferimento]"] + [f"{titolo} ({s})" for s, titolo in tutte_le_gare]
-        opzioni_gare_vals = [""] + [s for s, titolo in tutte_le_gare]
+        # Ottieni lista dei file GPX disponibili per il riferimento
+        gpx_files_list = sorted(GPX_DIR.glob("*-gpx.json"))
+        gpx_slugs = []
+        for gpx_f in gpx_files_list:
+            gs = gpx_f.stem[:-4]  # rimuove '-gpx'
+            gpx_slugs.append(gs)
+        opzioni_gare = ["[GPX Caricato]"] + [f"{gs} ({gs}-gpx.json)" for gs in gpx_slugs]
+        opzioni_gare_vals = [""] + gpx_slugs
         
         fields = [
             ("slug", "Slug", "entry"),
             ("titolo", "Titolo", "entry"),
-            ("data", "Data (AAAA-MM-GG)", "entry"),
+            ("race_series", "Serie", "entry"),
+            ("data", "Data (AAAA-MM-GG)", "date_with_calendar"),
             ("luogo", "Luogo", "entry"),
             ("giri", "Giri del circuito", "spinner"),
             ("distanza_km", "Distanza (km)", "entry"),
@@ -851,7 +952,7 @@ GPX POINTS:   {gpx_count} punti"""
             ("genere", "Genere", "combo", GENERI),
             ("categoria", "Categorie", "categoria_checkboxes", CATEGORIE),
             ("disciplina", "Disciplina", "combo", DISCIPLINE),
-            ("gpx_reference", "Usa GPX da gara precedente", "combo_gare", opzioni_gare, opzioni_gare_vals),
+            ("gpx_reference", "GPX di riferimento (slug)", "combo_gare", opzioni_gare, opzioni_gare_vals),
         ]
         
         entries = {}
@@ -918,6 +1019,127 @@ GPX POINTS:   {gpx_count} punti"""
                     cat_vars[cat] = var
                 
                 entries[key] = cat_vars
+            
+            elif widget_type == "date_with_calendar":
+                # Entry data + bottone calendario popup
+                from datetime import date as date_cls
+                import calendar as cal_mod
+                
+                f_row = tk.Frame(edit_win, bg=BG)
+                f_row.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
+                f_row.grid_columnconfigure(0, weight=1)
+                
+                date_entry = tk.Entry(f_row, font=("Helvetica", 10), fg=FG, relief="solid", bd=1)
+                date_entry.grid(row=0, column=0, sticky="ew")
+                date_entry.insert(0, str(data.get(key, "") or ""))
+                
+                def open_cal(de=date_entry, parent=edit_win):
+                    # Leggi data iniziale
+                    try:
+                        parts = de.get().split("-")
+                        cur_year, cur_month = int(parts[0]), int(parts[1])
+                    except Exception:
+                        today = date_cls.today()
+                        cur_year, cur_month = today.year, today.month
+                    
+                    top = tk.Toplevel(parent)
+                    top.title("Seleziona data")
+                    top.resizable(False, False)
+                    top.attributes("-topmost", True)
+                    top.configure(bg=BG)
+                    top.grab_set()
+                    
+                    state = {"year": cur_year, "month": cur_month}
+                    
+                    # Header navigazione
+                    nav = tk.Frame(top, bg=BG)
+                    nav.pack(fill="x", padx=10, pady=(10,4))
+                    
+                    lbl_month = tk.Label(nav, text="", font=("Helvetica", 11, "bold"),
+                                        bg=BG, fg=FG, width=16)
+                    lbl_month.pack(side="left", expand=True)
+                    
+                    def prev_month():
+                        if state["month"] == 1:
+                            state["month"] = 12; state["year"] -= 1
+                        else:
+                            state["month"] -= 1
+                        refresh()
+                    
+                    def next_month():
+                        if state["month"] == 12:
+                            state["month"] = 1; state["year"] += 1
+                        else:
+                            state["month"] += 1
+                        refresh()
+                    
+                    tk.Button(nav, text="◀", font=("Helvetica", 10), bg=BG, fg=FG,
+                             relief="flat", bd=0, cursor="hand2",
+                             command=prev_month).pack(side="left")
+                    tk.Button(nav, text="▶", font=("Helvetica", 10), bg=BG, fg=FG,
+                             relief="flat", bd=0, cursor="hand2",
+                             command=next_month).pack(side="right")
+                    
+                    # Griglia giorni
+                    grid_frame = tk.Frame(top, bg=BG)
+                    grid_frame.pack(padx=10, pady=(0,10))
+                    
+                    GIORNI = ["Lu", "Ma", "Me", "Gi", "Ve", "Sa", "Do"]
+                    for col, g in enumerate(GIORNI):
+                        tk.Label(grid_frame, text=g, font=("Helvetica", 9, "bold"),
+                                bg=BG, fg="#7a746b", width=3).grid(row=0, column=col, pady=(0,4))
+                    
+                    day_buttons = []
+                    
+                    def refresh():
+                        for btn in day_buttons:
+                            btn.destroy()
+                        day_buttons.clear()
+                        
+                        y, m = state["year"], state["month"]
+                        lbl_month.config(text=f"{cal_mod.month_name[m]} {y}")
+                        
+                        first_wd = cal_mod.weekday(y, m, 1)
+                        days_in_month = cal_mod.monthrange(y, m)[1]
+                        today = date_cls.today()
+                        
+                        cell = 0
+                        for blank in range(first_wd):
+                            tk.Label(grid_frame, text="", bg=BG, width=3).grid(
+                                row=1 + cell // 7, column=cell % 7)
+                            cell += 1
+                        
+                        for day in range(1, days_in_month + 1):
+                            d = day
+                            is_today = (y == today.year and m == today.month and d == today.day)
+                            bg_col = ACCENT if is_today else BG
+                            fg_col = "white" if is_today else FG
+                            
+                            btn = tk.Button(
+                                grid_frame, text=str(d), font=("Helvetica", 10),
+                                bg=bg_col, fg=fg_col, relief="flat", bd=0,
+                                width=3, cursor="hand2",
+                                activebackground=ACCENT, activeforeground="white",
+                            )
+                            btn.config(command=lambda dd=d: select_day(dd))
+                            btn.grid(row=1 + cell // 7, column=cell % 7, pady=1)
+                            day_buttons.append(btn)
+                            cell += 1
+                    
+                    def select_day(day):
+                        chosen = f"{state['year']:04d}-{state['month']:02d}-{day:02d}"
+                        de.delete(0, tk.END)
+                        de.insert(0, chosen)
+                        top.destroy()
+                    
+                    refresh()
+                
+                tk.Button(f_row, text="📅", font=("Helvetica", 11), bg=BG, fg=FG,
+                         relief="flat", bd=0, cursor="hand2",
+                         command=open_cal).grid(row=0, column=1, padx=(4,0))
+                
+                entries[key] = date_entry
+            
             else:
                 entry = tk.Entry(edit_win, width=35, font=("Helvetica", 10))
                 entry.insert(0, str(data.get(key, "") or ""))
@@ -928,26 +1150,61 @@ GPX POINTS:   {gpx_count} punti"""
         slug_manual = tk.BooleanVar(value=False)
         
         def update_slug(*args):
-            """Aggiorna slug automaticamente dal titolo e data se non modificato manualmente"""
+            """Aggiorna slug automaticamente dal titolo, data, genere e categoria se non modificato manualmente"""
             if not slug_manual.get():
                 try:
                     titolo = entries['titolo'].get().strip()
                     data_str = entries['data'].get().strip()
                     year = data_str.split('-')[0] if data_str and len(data_str) >= 4 else "2026"
-                    new_auto_slug = slugify(titolo) + f"-{year}" if titolo else ""
+                    
+                    # Aggiungi il codice categoria allo slug
+                    genere = entries['genere'].get() if isinstance(entries['genere'], tk.StringVar) else ""
+                    
+                    # Estrai TUTTE le categorie selezionate e ordinale
+                    categoria_order = ['Allievi', 'Junior', 'U23', 'Elite']
+                    categorie_selezionate = []
+                    if isinstance(entries['categoria'], dict):
+                        for cat in categoria_order:
+                            if cat in entries['categoria'] and entries['categoria'][cat].get():
+                                categorie_selezionate.append(cat)
+                    
+                    # Genera i codici categoria per ogni categoria selezionata
+                    cat_codes = []
+                    for categoria in categorie_selezionate:
+                        cat_code = categoria_code(genere, categoria)
+                        if cat_code:
+                            cat_codes.append(cat_code)
+                    
+                    if titolo:
+                        new_auto_slug = slugify(titolo) + f"-{year}"
+                        if cat_codes:
+                            new_auto_slug += f"-{'-'.join(cat_codes)}"
+                    else:
+                        new_auto_slug = ""
                     
                     entries['slug'].delete(0, tk.END)
                     entries['slug'].insert(0, new_auto_slug)
                 except:
                     pass
         
-        # Collega i binding per titolo e data
-        if isinstance(entries['titolo'], tk.Entry):
-            entries['titolo'].bind("<KeyRelease>", update_slug)
-        
-        if isinstance(entries['data'], tk.Entry):
-            entries['data'].bind("<KeyRelease>", update_slug)
-            entries['data'].bind("<FocusOut>", update_slug)
+        # Collega i binding SOLO per gare nuove
+        if is_new:
+            # Collega i binding per titolo e data
+            if isinstance(entries['titolo'], tk.Entry):
+                entries['titolo'].bind("<KeyRelease>", update_slug)
+            
+            if isinstance(entries['data'], tk.Entry):
+                entries['data'].bind("<KeyRelease>", update_slug)
+                entries['data'].bind("<FocusOut>", update_slug)
+            
+            # Collega binding per genere (StringVar)
+            if isinstance(entries['genere'], tk.StringVar):
+                entries['genere'].trace_add("write", update_slug)
+            
+            # Collega binding per categoria (dict di BooleanVar)
+            if isinstance(entries['categoria'], dict):
+                for cat, var in entries['categoria'].items():
+                    var.trace_add("write", update_slug)
         
         # Quando l'utente modifica lo slug manualmente, disabilita l'auto-update
         if isinstance(entries['slug'], tk.Entry):
@@ -955,8 +1212,9 @@ GPX POINTS:   {gpx_count} punti"""
                 slug_manual.set(True)
             entries['slug'].bind("<KeyPress>", on_slug_edit)
         
-        # Genera slug iniziale
-        update_slug()
+        # Genera slug iniziale SOLO per gare nuove
+        if is_new:
+            update_slug()
         
         def load_gpx_file():
             """Carica file GPX e aggiorna i dati della gara"""
@@ -987,8 +1245,14 @@ GPX POINTS:   {gpx_count} punti"""
                     entries['dislivello_m'].delete(0, tk.END)
                     entries['dislivello_m'].insert(0, str(gpx_data['dislivello_m']))
                 
-                # Salva i punti GPX nei dati
+                # Salva i punti GPX nei dati (save_race() li sposterà nel file separato)
                 data['gpx_points'] = gpx_data['gpx_points']
+                # Pulisci gpx_reference se si carica un gpx proprio
+                if 'gpx_reference' in data:
+                    del data['gpx_reference']
+                # Aggiorna anche il widget del combo GPX reference
+                if isinstance(entries.get('gpx_reference'), tk.StringVar):
+                    entries['gpx_reference'].set(opzioni_gare[0])  # Imposta a "[GPX Caricato]"
                 
                 # Reverse geocoding per il luogo (se non è stato ancora impostato)
                 if gpx_data.get('center_lat') and gpx_data.get('center_lon'):
@@ -1002,6 +1266,11 @@ GPX POINTS:   {gpx_count} punti"""
                             entries['luogo'].insert(0, luogo)
                 
                 messagebox.showinfo("Successo", "GPX caricato con successo!\nDistanza e dislivello sono stati aggiornati.")
+                
+                # Porta la finestra di modifica in primo piano
+                edit_win.lift()
+                edit_win.attributes("-topmost", True)
+                edit_win.after(500, lambda: edit_win.attributes("-topmost", False))
             
             except Exception as e:
                 messagebox.showerror("Errore", f"Errore nel caricamento del GPX:\n{str(e)}")
@@ -1019,13 +1288,14 @@ GPX POINTS:   {gpx_count} punti"""
                 
                 if key == "gpx_reference":
                     current_val = widget.get()
-                    if not current_val or current_val == "[Nessun riferimento]":
+                    if not current_val or current_val == "[GPX Caricato]":
                         if key in data:
                             del data[key]
                     else:
-                        if "(" in current_val and current_val.endswith(")"):
-                            slug_ref = current_val.split("(")[-1].rstrip(")")
-                            data[key] = slug_ref
+                        # Formato: "gpx-slug (gpx-slug-gpx.json)" → prendi la parte prima del spazio
+                        gpx_ref_slug = current_val.split(" (")[0].strip()
+                        if gpx_ref_slug:
+                            data[key] = gpx_ref_slug
                     continue
                 
                 val = widget.get() if hasattr(widget, 'get') else widget
@@ -1043,6 +1313,10 @@ GPX POINTS:   {gpx_count} punti"""
                             val = float(val) if val else None
                     except:
                         val = None
+                elif key == "race_series":
+                    # Rendi case-insensitive: converti a minuscolo
+                    val = val.lower() if val else ""
+                               
                 data[key] = val
             
             # Se è nuova gara, genera slug automaticamente
@@ -1056,6 +1330,10 @@ GPX POINTS:   {gpx_count} punti"""
             # Validazioni
             if not data.get('titolo', '').strip():
                 messagebox.showerror("Errore", "Titolo obbligatorio")
+                return
+            
+            if not data.get('race_series', '').strip():
+                messagebox.showerror("Errore", "Serie obbligatoria")
                 return
             
             if not data.get('slug', '').strip():
@@ -1072,8 +1350,15 @@ GPX POINTS:   {gpx_count} punti"""
         button_frame = tk.Frame(edit_win, bg=BG)
         button_frame.grid(row=row_button, column=0, columnspan=2, sticky="ew", padx=12, pady=12)
         
+        def regenerate_slug():
+            """Forza la rigenerazione dello slug automatico"""
+            slug_manual.set(False)
+            update_slug()
+        
         tk.Button(button_frame, text="📁 Carica GPX", bg="#8b5cf6", fg="white", padx=12, pady=6,
                  relief="flat", bd=0, cursor="hand2", command=load_gpx_file).pack(side="left", padx=(0, 6))
+        tk.Button(button_frame, text="🔧 Rigenera slug", bg="#06b6d4", fg="white", padx=12, pady=6,
+                 relief="flat", bd=0, cursor="hand2", command=regenerate_slug).pack(side="left", padx=(0, 6))
         tk.Button(button_frame, text="Salva", bg=ACCENT, fg="white", padx=16, pady=6,
                  relief="flat", bd=0, cursor="hand2", command=save_changes).pack(side="left", padx=(0, 6))
         tk.Button(button_frame, text="Annulla", bg="#d1d5db", fg=FG, padx=16, pady=6,

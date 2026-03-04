@@ -1,18 +1,5 @@
 {
-  "slug": "piccolo-trofeo-alfredo-binda-2026",
-  "titolo": "Piccolo Trofeo Alfredo Binda",
-  "data": "2026-03-15",
-  "genere": "Femminile",
-  "categoria": [
-    "Junior"
-  ],
-  "disciplina": "Strada",
-  "giri": 1,
-  "distanza_km": 74.25,
-  "dislivello_m": 1002.0,
-  "velocita_media_kmh": 36.5,
-  "luogo": "Varese, IT",
-  "race_series": "Piccolo Trofeo Alfredo Binda",
+  "slug": "piccolo-trofeo-alfredo-binda-2026-DJ",
   "gpx_points": [
     {
       "lat": 46.00141,
