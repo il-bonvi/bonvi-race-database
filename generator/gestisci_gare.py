@@ -279,9 +279,11 @@ def save_race(slug: str, data: dict):
     """Salva i dettagli gara in gare-sorgenti/dettagli/ e, se presenti, i punti
     GPX in gare-sorgenti/gpx/{slug}-gpx.json. Sincronizza in public/.
     """
-    # Imposta race_series automaticamente dal titolo
-    if 'titolo' in data:
-        data['race_series'] = data['titolo']
+    # Imposta race_series automaticamente dal titolo solo se mancante/vuota
+    if not data.get('race_series'):
+        titolo = data.get('titolo')
+        if titolo:
+            data['race_series'] = titolo
 
     # ── Estrai gpx_points (vanno nel file separato) ──────────────────────────
     gpx_points = data.pop('gpx_points', None)
@@ -1250,7 +1252,7 @@ GPX FILE:     {gpx_info}"""
                     del data['gpx_reference']
                 # Aggiorna anche il widget del combo GPX reference
                 if isinstance(entries.get('gpx_reference'), tk.StringVar):
-                    entries['gpx_reference'].set(opzioni_gare[0])  # Imposta a "[Nessun GPX]"
+                    entries['gpx_reference'].set(opzioni_gare[0])  # Imposta a "[GPX Caricato]"
                 
                 # Reverse geocoding per il luogo (se non è stato ancora impostato)
                 if gpx_data.get('center_lat') and gpx_data.get('center_lon'):
@@ -1314,7 +1316,7 @@ GPX FILE:     {gpx_info}"""
                 elif key == "race_series":
                     # Rendi case-insensitive: converti a minuscolo
                     val = val.lower() if val else ""
-                
+                               
                 data[key] = val
             
             # Se è nuova gara, genera slug automaticamente

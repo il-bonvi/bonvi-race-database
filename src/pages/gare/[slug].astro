@@ -1,5 +1,5 @@
 ---
-import { formatData, formatDistanza, formatDislivello, categoriaColor, getCategoriaCode } from '../../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, categoriaColor } from '../../lib/gare.js';
 
 export async function getStaticPaths() {
   const garaFiles = import.meta.glob('../../../gare-sorgenti/dettagli/*.json', { eager: true });

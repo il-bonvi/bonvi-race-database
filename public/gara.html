@@ -715,7 +715,6 @@
             font-size: 0.9rem;
             color: #6b7280;
             margin-bottom: 0.35rem;
-            display: none;
         }
         
         #category-nav-links {
@@ -2747,7 +2746,7 @@ let map;
                     velInput.value = gara.velocita_media_kmh;
                 }
                 
-                // Carica navigazione tra versioni della stessa serie
+                // Carica navigazione tra versioni della stessa serie e tra categorie
                 if (gara.race_series) {
                     try {
                         const indexRes = await fetch('gare-index.json');
@@ -2792,18 +2791,8 @@ let map;
                                 
                                 seriesNavDiv.classList.add('active');
                             }
-                        }
-                    } catch (e) {
-                        console.warn('Errore caricamento index gare:', e);
-                    }
-                }
-                
-                // Carica navigazione tra categorie della stessa gara/anno
-                if (gara.race_series) {
-                    try {
-                        const indexRes = await fetch('gare-index.json');
-                        if (indexRes.ok) {
-                            const allRaces = await indexRes.json();
+                            
+                            // Carica navigazione tra categorie della stessa gara/anno
                             const currentYear = gara.data.split('-')[0];
                             const currentGenere = gara.genere || '';
                             const currentCategory = gara.categoria?.[0] || '';
