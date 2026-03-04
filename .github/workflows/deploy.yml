@@ -36,7 +36,10 @@ jobs:
 
       - name: Copy gares to public
         run: |
-          mkdir -p public/gare-sorgenti
+          mkdir -p public/gare-sorgenti/dettagli
+          mkdir -p public/gare-sorgenti/gpx
+          cp gare-sorgenti/dettagli/*.json public/gare-sorgenti/dettagli/ 2>/dev/null || true
+          cp gare-sorgenti/gpx/*.json public/gare-sorgenti/gpx/ 2>/dev/null || true
           cp gare-sorgenti/*.json public/gare-sorgenti/ 2>/dev/null || true
 
       - name: Build (reports + Astro)
