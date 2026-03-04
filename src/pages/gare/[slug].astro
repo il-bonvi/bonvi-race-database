@@ -2,7 +2,7 @@
 import { formatData, formatDistanza, formatDislivello, categoriaColor, getCategoriaCode } from '../../lib/gare.js';
 
 export async function getStaticPaths() {
-  const garaFiles = import.meta.glob('../../../gare-sorgenti/*.json', { eager: true });
+  const garaFiles = import.meta.glob('../../../gare-sorgenti/dettagli/*.json', { eager: true });
   // @ts-ignore
   return Object.values(garaFiles).map(m => {
     const data = m.default ?? m;
@@ -11,23 +11,17 @@ export async function getStaticPaths() {
 }
 
 const { slug } = Astro.params;
-const garaFiles = import.meta.glob('../../../gare-sorgenti/*.json', { eager: true });
+const garaFiles = import.meta.glob('../../../gare-sorgenti/dettagli/*.json', { eager: true });
 // @ts-ignore
 let gara = Object.values(garaFiles).map(m => m.default ?? m).find(g => g.slug === slug);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 if (!gara) return Astro.redirect(`${base}/`);
 
-// Se la gara ha un riferimento a un'altra gara per il GPX, carica i punti da quella
-if (gara.gpx_reference && !gara.gpx_points) {
-  // @ts-ignore
-  const garaRiferita = Object.values(garaFiles).map(m => m.default ?? m).find(g => g.slug === gara.gpx_reference);
-  if (garaRiferita && garaRiferita.gpx_points) {
-    gara = { ...gara, gpx_points: garaRiferita.gpx_points };
-  }
-}
-
+// Controlla se esiste un file GPX per questa gara
+const gpxFiles = import.meta.glob('../../../gare-sorgenti/gpx/*-gpx.json', { eager: false });
+const gpxSlug = (gara.gpx_reference ?? slug);
+const hasGpxData = Object.keys(gpxFiles).some(k => k.endsWith(`/${gpxSlug}-gpx.json`));
 const color = categoriaColor(gara.categoria);
-const hasGpxData = gara.gpx_points && Array.isArray(gara.gpx_points) && gara.gpx_points.length > 0;
 ---
 
 <!DOCTYPE html>

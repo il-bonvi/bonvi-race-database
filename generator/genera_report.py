@@ -54,7 +54,7 @@ DISCIPLINE = ["Strada", "Criterium", "Cronometro"]
 
 def update_gares_index():
     """Genera automaticamente gare-index.json per la navigazione tra serie."""
-    gare_dir = ARCHIVIO_DIR / "gare-sorgenti"
+    gare_dir = ARCHIVIO_DIR / "gare-sorgenti" / "dettagli"
     
     if not gare_dir.exists():
         return
@@ -519,7 +519,7 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
         return e
 
     lbl("Nome gara *", 0);       e_titolo   = ent(0, default_title)
-    lbl("Serie *", 1);           e_race_series = ent(1)
+    lbl("Serie *", 1);           e_race_series = ent(1, default_title)
     lbl("Slug URL *", 2);        e_slug     = ent(2)
     
     # Crea placeholder per data (sarà sostituito dopo update_slug)
@@ -624,7 +624,7 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
     e_luogo = ent2(1, 0, val=luogo_iniziale, colspan=2)
 
     lbl2("Velocità media prevista (km/h)", 2, 0, colspan=1)
-    e_velocita = ent2(2, 0, val="")
+    e_velocita = ent2(2, 0, val="40")
     
     # Suggerimenti velocità per disciplina
     def suggest_velocity(*_):
@@ -650,21 +650,25 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
     use_existing_gpx_var = tk.BooleanVar(value=False)
     
     def load_existing_races():
-        """Carica lista gare precedenti per rilascio GPX"""
-        gare_dir = ARCHIVIO_DIR / "gare-sorgenti"
+        """Carica lista file GPX disponibili in gare-sorgenti/gpx/"""
+        gpx_dir = ARCHIVIO_DIR / "gare-sorgenti" / "gpx"
         race_options = []
-        if gare_dir.exists():
-            for json_file in sorted(gare_dir.glob("*.json")):
-                try:
-                    with open(json_file, 'r', encoding='utf-8') as f:
-                        gara = json.load(f)
-                    if gara.get('gpx_points'):  # Solo gare che hanno GPX
-                        slug = gara.get("slug", "")
-                        titolo = gara.get("titolo", "")
-                        data = gara.get("data", "")
-                        race_options.append((slug, f"{titolo} ({data})"))
-                except:
-                    pass
+        if gpx_dir.exists():
+            for gpx_file in sorted(gpx_dir.glob("*-gpx.json"), reverse=True):
+                gpx_slug = gpx_file.stem[:-4]   # rimuove '-gpx'
+                # Prova a leggere il titolo dal file dettagli
+                details_file = ARCHIVIO_DIR / "gare-sorgenti" / "dettagli" / f"{gpx_slug}.json"
+                label = gpx_slug
+                if details_file.exists():
+                    try:
+                        with open(details_file, 'r', encoding='utf-8') as f:
+                            d = json.load(f)
+                        titolo = d.get('titolo', gpx_slug)
+                        data_g = d.get('data', '')
+                        label = f"{titolo} ({data_g})"
+                    except Exception:
+                        pass
+                race_options.append((gpx_slug, label))
         return race_options
     
     existing_races = load_existing_races()
@@ -843,8 +847,10 @@ def main():
         print(f"  {len(gpx_data['gpx_points'])} punti estratti")
 
     # 4. Cartelle destinazione
-    out_json_dir = ARCHIVIO_DIR / "gare-sorgenti"
+    out_json_dir = ARCHIVIO_DIR / "gare-sorgenti" / "dettagli"
     out_json_dir.mkdir(parents=True, exist_ok=True)
+    out_gpx_dir  = ARCHIVIO_DIR / "gare-sorgenti" / "gpx"
+    out_gpx_dir.mkdir(parents=True, exist_ok=True)
 
     json_path = out_json_dir / f"{slug}.json"
 
@@ -861,22 +867,35 @@ def main():
             print("Operazione annullata.")
             sys.exit(0)
 
-    # 6. Aggiungi dati GPX ai metadati
-    if gpx_data.get('gpx_points'):
-        meta['gpx_points'] = gpx_data['gpx_points']
+    # 6. Separa gpx_points dai metadati
+    gpx_points = gpx_data.get('gpx_points')
+    # NON aggiungere gpx_points ai metadati: vanno nel file -gpx.json separato
 
-    # 7. Salva JSON (rimuovi None)
-    meta_clean = {k: v for k, v in meta.items() if v is not None}
+    # 7. Salva dettagli JSON (rimuovi None)
+    meta_clean = {k: v for k, v in meta.items() if v is not None and k != 'gpx_points'}
     json_str = json.dumps(meta_clean, ensure_ascii=False, indent=2)
     json_path.write_text(json_str, encoding='utf-8')
-    print(f"[OK] JSON  -> {json_path}")
+    print(f"[OK] Dettagli  -> {json_path}")
 
-    # 7b. Copia anche in public/gare-sorgenti/ (servito dal browser per gara.html)
-    public_json_dir = ARCHIVIO_DIR / "public" / "gare-sorgenti"
+    # 7b. Salva GPX separato
+    if gpx_points:
+        gpx_file_data = {"slug": slug, "gpx_points": gpx_points}
+        gpx_str = json.dumps(gpx_file_data, ensure_ascii=False, indent=2)
+        gpx_path_out = out_gpx_dir / f"{slug}-gpx.json"
+        gpx_path_out.write_text(gpx_str, encoding='utf-8')
+        print(f"[OK] GPX       -> {gpx_path_out}")
+        # Mirror in public/
+        public_gpx_dir = ARCHIVIO_DIR / "public" / "gare-sorgenti" / "gpx"
+        public_gpx_dir.mkdir(parents=True, exist_ok=True)
+        (public_gpx_dir / f"{slug}-gpx.json").write_text(gpx_str, encoding='utf-8')
+        print(f"[OK] GPX       -> {public_gpx_dir / (slug + '-gpx.json')}")
+
+    # 7c. Mirror dettagli in public/gare-sorgenti/dettagli/ (servito dal browser per gara.html)
+    public_json_dir = ARCHIVIO_DIR / "public" / "gare-sorgenti" / "dettagli"
     public_json_dir.mkdir(parents=True, exist_ok=True)
     public_json_path = public_json_dir / f"{slug}.json"
     public_json_path.write_text(json_str, encoding='utf-8')
-    print(f"[OK] JSON  -> {public_json_path}")
+    print(f"[OK] Dettagli  -> {public_json_path}")
 
     # Aggiorna l'indice per la navigazione tra serie
     update_gares_index()
@@ -892,10 +911,12 @@ def main():
         import tkinter as tk
         from tkinter import messagebox
         root = tk.Tk(); root.withdraw(); root.attributes('-topmost', True)
+        gpx_line = f"  gare-sorgenti/gpx/{slug}-gpx.json" if gpx_points else "  (nessun GPX caricato)"
         msg = (
             f'"{title}" aggiunta al database!\n\n'
             f'File creati:\n'
-            f'  gare-sorgenti/{slug}.json\n\n'
+            f'  gare-sorgenti/dettagli/{slug}.json\n'
+            f'{gpx_line}\n\n'
             f'Per pubblicare sul sito:\n'
             f'  git add .\n'
             f'  git commit -m "Aggiungi gara: {title}"\n'

@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import GaraCard from '../components/GaraCard.astro';
 import { GENERI, CATEGORIE, DISCIPLINE } from '../lib/gare.js';
 
-const garaFiles = import.meta.glob('../../gare-sorgenti/*.json', { eager: true });
+const garaFiles = import.meta.glob('../../gare-sorgenti/dettagli/*.json', { eager: true });
 let gare = Object.values(garaFiles).map((m: any) => m.default ?? m);
 
 // Filtra solo gare future (da oggi in poi)

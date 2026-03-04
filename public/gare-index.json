@@ -1,6 +1,6 @@
 [
   {
-    "slug": "nonantola-2026",
+    "slug": "nonantola-2026-DJ",
     "titolo": "Nonantola",
     "data": "2026-03-08",
     "year": "2026",
@@ -10,7 +10,7 @@
     "categoria_code": "DJ"
   },
   {
-    "slug": "omloop-van-schijndel-2026",
+    "slug": "omloop-van-schijndel-2026-DJ",
     "titolo": "Omloop van Schijndel",
     "data": "2026-03-01",
     "year": "2026",
@@ -20,51 +20,11 @@
     "categoria_code": "DJ"
   },
   {
-    "slug": "piccolo-trofeo-alfredo-binda-2026",
+    "slug": "piccolo-trofeo-alfredo-binda-2026-DJ",
     "titolo": "Piccolo Trofeo Alfredo Binda",
     "data": "2026-03-15",
     "year": "2026",
     "race_series": "Piccolo Trofeo Alfredo Binda",
-    "genere": "Femminile",
-    "categoria": "Junior",
-    "categoria_code": "DJ"
-  },
-  {
-    "slug": "test-2025-DJ",
-    "titolo": "TEST",
-    "data": "2025-03-04",
-    "year": "2025",
-    "race_series": "TEST",
-    "genere": "Femminile",
-    "categoria": "Junior",
-    "categoria_code": "DJ"
-  },
-  {
-    "slug": "test-2026-DJ",
-    "titolo": "TEST",
-    "data": "2026-03-04",
-    "year": "2026",
-    "race_series": "TEST",
-    "genere": "Femminile",
-    "categoria": "Junior",
-    "categoria_code": "DJ"
-  },
-  {
-    "slug": "test-2026-DU",
-    "titolo": "TEST",
-    "data": "2026-03-04",
-    "year": "2026",
-    "race_series": "TEST",
-    "genere": "Femminile",
-    "categoria": "U23",
-    "categoria_code": "DU"
-  },
-  {
-    "slug": "testbonus-2026-DJ",
-    "titolo": "TESTBONUS",
-    "data": "2026-03-04",
-    "year": "2026",
-    "race_series": "TESTBONUS",
     "genere": "Femminile",
     "categoria": "Junior",
     "categoria_code": "DJ"

@@ -2724,7 +2724,7 @@ let map;
             if (us) us.style.display = 'none';
 
             try {
-                const res = await fetch('gare-sorgenti/' + slug + '.json');
+                const res = await fetch('gare-sorgenti/dettagli/' + slug + '.json');
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const gara = await res.json();
 
@@ -2847,18 +2847,17 @@ let map;
                     }
                 }
 
-                // Se la gara ha un riferimento a un'altra gara per il GPX, carica i punti da quella
-                let gpxPoints = gara.gpx_points;
-                if (!gpxPoints && gara.gpx_reference) {
-                    try {
-                        const garaRifRes = await fetch('gare-sorgenti/' + gara.gpx_reference + '.json');
-                        if (garaRifRes.ok) {
-                            const garaRif = await garaRifRes.json();
-                            gpxPoints = garaRif.gpx_points;
-                        }
-                    } catch (e) {
-                        console.warn('Errore caricamento gara referenziata:', e);
+                // Carica i punti GPX dal file separato ({slug}-gpx.json o gpx_reference-gpx.json)
+                let gpxPoints = null;
+                const gpxSlug = gara.gpx_reference || slug;
+                try {
+                    const gpxRes = await fetch('gare-sorgenti/gpx/' + gpxSlug + '-gpx.json');
+                    if (gpxRes.ok) {
+                        const gpxFile = await gpxRes.json();
+                        gpxPoints = gpxFile.gpx_points;
                     }
+                } catch (e) {
+                    console.warn('Errore caricamento GPX:', e);
                 }
 
                 // Avvia elaborazione con i punti GPX dal JSON
