@@ -645,14 +645,13 @@
         
         #series-nav {
             text-align: center;
-            padding: 1.5rem 1rem;
-            border-top: 1px solid #e5e7eb;
+            padding: 0.25rem 1rem;
             background: #fafafa;
-            margin-top: 2rem;
             display: none;
             width: 100%;
             box-sizing: border-box;
             font-family: 'Inter', sans-serif;
+            margin-bottom: 0.15rem;
         }
         
         #series-nav.active {
@@ -662,7 +661,7 @@
         #series-nav-text {
             font-size: 0.9rem;
             color: #6b7280;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.35rem;
         }
         
         #series-nav-links {
@@ -692,6 +691,60 @@
         }
         
         .series-link.current {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+            cursor: default;
+        }
+        
+        #category-nav {
+            text-align: center;
+            padding: 0.5rem 1rem;
+            background: #fafafa;
+            display: none;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        #category-nav.active {
+            display: block;
+        }
+        
+        #category-nav-text {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-bottom: 0.35rem;
+            display: none;
+        }
+        
+        #category-nav-links {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .category-link {
+            padding: 0.5rem 1rem;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #3b82f6;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .category-link:hover {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .category-link.current {
             background: #3b82f6;
             color: white;
             border-color: #3b82f6;
@@ -819,6 +872,12 @@
         <div id="series-nav">
             <div id="series-nav-text"></div>
             <div id="series-nav-links"></div>
+        </div>
+        
+        <!-- Navigazione tra categorie della stessa gara/anno -->
+        <div id="category-nav">
+            <div id="category-nav-text"></div>
+            <div id="category-nav-links"></div>
         </div>
         
         <footer>
@@ -2694,55 +2753,93 @@ let map;
                         const indexRes = await fetch('gare-index.json');
                         if (indexRes.ok) {
                             const allRaces = await indexRes.json();
-                            const seriesRaces = allRaces
-                                .filter(r => r.race_series === gara.race_series)
-                                .sort((a, b) => a.data.localeCompare(b.data));
                             
-                            if (seriesRaces.length > 1) {
-                                const currentRaceIdx = seriesRaces.findIndex(r => r.slug === slug);
+                            // Raggruppa per anno con la stessa categoria/genere della gara attuale
+                            const racesByYear = {};
+                            allRaces
+                                .filter(r => 
+                                    r.race_series === gara.race_series && 
+                                    r.categoria === gara.categoria?.[0] &&
+                                    r.genere === gara.genere
+                                )
+                                .forEach(r => {
+                                    const year = r.data.split('-')[0];
+                                    if (!racesByYear[year]) racesByYear[year] = r;
+                                });
+                            
+                            const years = Object.keys(racesByYear).sort((a, b) => parseInt(a) - parseInt(b));
+                            
+                            if (years.length > 1) {
                                 const seriesNavDiv = document.getElementById('series-nav');
                                 const seriesNavText = document.getElementById('series-nav-text');
                                 const seriesNavLinks = document.getElementById('series-nav-links');
                                 
                                 // Estrai anno dalla data della gara attuale
                                 const currentYear = gara.data.split('-')[0];
-                                seriesNavText.innerHTML = `<strong>${gara.race_series}</strong> &mdash; ${currentYear}`;
+                                seriesNavText.innerHTML = 'Versione:';
                                 
                                 seriesNavLinks.innerHTML = '';
                                 
-                                // Link alla versione precedente
-                                if (currentRaceIdx > 0) {
-                                    const prevRace = seriesRaces[currentRaceIdx - 1];
-                                    const prevYear = prevRace.data.split('-')[0];
-                                    const prevLink = document.createElement('a');
-                                    prevLink.href = `?gara=${prevRace.slug}`;
-                                    prevLink.className = 'series-link';
-                                    prevLink.innerHTML = `← ${prevYear}`;
-                                    seriesNavLinks.appendChild(prevLink);
-                                }
-                                
-                                // Link alle altre versioni
-                                seriesRaces.forEach((race, idx) => {
-                                    const year = race.data.split('-')[0];
+                                // Link a tutti gli anni in ordine
+                                years.forEach((year) => {
+                                    const race = racesByYear[year];
                                     const link = document.createElement('a');
                                     link.href = `?gara=${race.slug}`;
-                                    link.className = idx === currentRaceIdx ? 'series-link current' : 'series-link';
+                                    link.className = year === currentYear ? 'series-link current' : 'series-link';
                                     link.textContent = year;
                                     seriesNavLinks.appendChild(link);
                                 });
                                 
-                                // Link alla versione successiva
-                                if (currentRaceIdx < seriesRaces.length - 1) {
-                                    const nextRace = seriesRaces[currentRaceIdx + 1];
-                                    const nextYear = nextRace.data.split('-')[0];
-                                    const nextLink = document.createElement('a');
-                                    nextLink.href = `?gara=${nextRace.slug}`;
-                                    nextLink.className = 'series-link';
-                                    nextLink.innerHTML = `${nextYear} →`;
-                                    seriesNavLinks.appendChild(nextLink);
-                                }
-                                
                                 seriesNavDiv.classList.add('active');
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Errore caricamento index gare:', e);
+                    }
+                }
+                
+                // Carica navigazione tra categorie della stessa gara/anno
+                if (gara.race_series) {
+                    try {
+                        const indexRes = await fetch('gare-index.json');
+                        if (indexRes.ok) {
+                            const allRaces = await indexRes.json();
+                            const currentYear = gara.data.split('-')[0];
+                            const currentGenere = gara.genere || '';
+                            const currentCategory = gara.categoria?.[0] || '';
+                            
+                            // Trova tutte le gare con la stessa serie, anno, e genere ma categorie diverse
+                            const categoryRaces = allRaces
+                                .filter(r => 
+                                    r.race_series === gara.race_series && 
+                                    r.data.startsWith(currentYear) &&
+                                    r.genere === currentGenere
+                                )
+                                .sort((a, b) => {
+                                    const ordine = { 'Allievi': 0, 'Junior': 1, 'U23': 2, 'Elite': 3 };
+                                    const catA = ordine[a.categoria] ?? 99;
+                                    const catB = ordine[b.categoria] ?? 99;
+                                    return catA - catB;
+                                });
+                            
+                            if (categoryRaces.length > 1) {
+                                const categoryNavDiv = document.getElementById('category-nav');
+                                const categoryNavText = document.getElementById('category-nav-text');
+                                const categoryNavLinks = document.getElementById('category-nav-links');
+                                
+                                categoryNavText.innerHTML = `<strong>Categorie</strong> &mdash; ${gara.race_series}`;
+                                categoryNavLinks.innerHTML = '';
+                                
+                                // Crea link per tutte le categorie
+                                categoryRaces.forEach((race) => {
+                                    const link = document.createElement('a');
+                                    link.href = `?gara=${race.slug}`;
+                                    link.className = race.categoria === currentCategory ? 'category-link current' : 'category-link';
+                                    link.textContent = race.categoria || '?';
+                                    categoryNavLinks.appendChild(link);
+                                });
+                                
+                                categoryNavDiv.classList.add('active');
                             }
                         }
                     } catch (e) {

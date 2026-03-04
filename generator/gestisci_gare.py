@@ -44,6 +44,40 @@ def slugify(s: str) -> str:
     return s.strip('-')
 
 
+def categoria_code(genere: str, categoria: str) -> str:
+    """
+    Genera il codice categoria combinando genere e categoria.
+    
+    Genere:
+      - "Maschile" → M
+      - "Femminile" → D
+    
+    Categoria:
+      - "Elite" → PRO
+      - "U23" → U
+      - "Junior" → J
+      - "Allievi" → A
+    
+    Esempio: categoria_code("Femminile", "Elite") → "DPRO"
+    """
+    genere_map = {
+        "Maschile": "M",
+        "Femminile": "D"
+    }
+    
+    categoria_map = {
+        "Elite": "PRO",
+        "U23": "U",
+        "Junior": "J",
+        "Allievi": "A"
+    }
+    
+    genere_code = genere_map.get(genere, "")
+    cat_code = categoria_map.get(categoria, "")
+    
+    return f"{genere_code}{cat_code}" if genere_code and cat_code else ""
+
+
 def reverse_geocode(lat: float, lon: float) -> str | None:
     """Ritorna 'Provincia, Regione, IT' tramite Nominatim (OpenStreetMap)."""
     import urllib.request
@@ -178,12 +212,21 @@ def update_gares_index():
             data_str = gara.get("data", "")
             year = data_str.split("-")[0] if data_str else "unknown"
             
+            # Estrai genere e categoria per generare il codice categoria
+            genere = gara.get("genere", "")
+            categoria_list = gara.get("categoria", [])
+            categoria = categoria_list[0] if categoria_list else ""
+            cat_code = categoria_code(genere, categoria) if genere and categoria else ""
+            
             races.append({
                 "slug": slug,
                 "titolo": gara.get("titolo"),
                 "data": data_str,
                 "year": year,
                 "race_series": gara.get("race_series"),
+                "genere": genere,
+                "categoria": categoria,
+                "categoria_code": cat_code,
             })
             
         except Exception:
@@ -842,6 +885,7 @@ GPX POINTS:   {gpx_count} punti"""
         fields = [
             ("slug", "Slug", "entry"),
             ("titolo", "Titolo", "entry"),
+            ("race_series", "Serie", "entry"),
             ("data", "Data (AAAA-MM-GG)", "entry"),
             ("luogo", "Luogo", "entry"),
             ("giri", "Giri del circuito", "spinner"),
@@ -928,26 +972,61 @@ GPX POINTS:   {gpx_count} punti"""
         slug_manual = tk.BooleanVar(value=False)
         
         def update_slug(*args):
-            """Aggiorna slug automaticamente dal titolo e data se non modificato manualmente"""
+            """Aggiorna slug automaticamente dal titolo, data, genere e categoria se non modificato manualmente"""
             if not slug_manual.get():
                 try:
                     titolo = entries['titolo'].get().strip()
                     data_str = entries['data'].get().strip()
                     year = data_str.split('-')[0] if data_str and len(data_str) >= 4 else "2026"
-                    new_auto_slug = slugify(titolo) + f"-{year}" if titolo else ""
+                    
+                    # Aggiungi il codice categoria allo slug
+                    genere = entries['genere'].get() if isinstance(entries['genere'], tk.StringVar) else ""
+                    
+                    # Estrai TUTTE le categorie selezionate e ordinale
+                    categoria_order = ['Allievi', 'Junior', 'U23', 'Elite']
+                    categorie_selezionate = []
+                    if isinstance(entries['categoria'], dict):
+                        for cat in categoria_order:
+                            if cat in entries['categoria'] and entries['categoria'][cat].get():
+                                categorie_selezionate.append(cat)
+                    
+                    # Genera i codici categoria per ogni categoria selezionata
+                    cat_codes = []
+                    for categoria in categorie_selezionate:
+                        cat_code = categoria_code(genere, categoria)
+                        if cat_code:
+                            cat_codes.append(cat_code)
+                    
+                    if titolo:
+                        new_auto_slug = slugify(titolo) + f"-{year}"
+                        if cat_codes:
+                            new_auto_slug += f"-{'-'.join(cat_codes)}"
+                    else:
+                        new_auto_slug = ""
                     
                     entries['slug'].delete(0, tk.END)
                     entries['slug'].insert(0, new_auto_slug)
                 except:
                     pass
         
-        # Collega i binding per titolo e data
-        if isinstance(entries['titolo'], tk.Entry):
-            entries['titolo'].bind("<KeyRelease>", update_slug)
-        
-        if isinstance(entries['data'], tk.Entry):
-            entries['data'].bind("<KeyRelease>", update_slug)
-            entries['data'].bind("<FocusOut>", update_slug)
+        # Collega i binding SOLO per gare nuove
+        if is_new:
+            # Collega i binding per titolo e data
+            if isinstance(entries['titolo'], tk.Entry):
+                entries['titolo'].bind("<KeyRelease>", update_slug)
+            
+            if isinstance(entries['data'], tk.Entry):
+                entries['data'].bind("<KeyRelease>", update_slug)
+                entries['data'].bind("<FocusOut>", update_slug)
+            
+            # Collega binding per genere (StringVar)
+            if isinstance(entries['genere'], tk.StringVar):
+                entries['genere'].trace_add("write", update_slug)
+            
+            # Collega binding per categoria (dict di BooleanVar)
+            if isinstance(entries['categoria'], dict):
+                for cat, var in entries['categoria'].items():
+                    var.trace_add("write", update_slug)
         
         # Quando l'utente modifica lo slug manualmente, disabilita l'auto-update
         if isinstance(entries['slug'], tk.Entry):
@@ -955,8 +1034,9 @@ GPX POINTS:   {gpx_count} punti"""
                 slug_manual.set(True)
             entries['slug'].bind("<KeyPress>", on_slug_edit)
         
-        # Genera slug iniziale
-        update_slug()
+        # Genera slug iniziale SOLO per gare nuove
+        if is_new:
+            update_slug()
         
         def load_gpx_file():
             """Carica file GPX e aggiorna i dati della gara"""
@@ -1058,6 +1138,10 @@ GPX POINTS:   {gpx_count} punti"""
                 messagebox.showerror("Errore", "Titolo obbligatorio")
                 return
             
+            if not data.get('race_series', '').strip():
+                messagebox.showerror("Errore", "Serie obbligatoria")
+                return
+            
             if not data.get('slug', '').strip():
                 messagebox.showerror("Errore", "Slug obbligatorio")
                 return
@@ -1072,8 +1156,15 @@ GPX POINTS:   {gpx_count} punti"""
         button_frame = tk.Frame(edit_win, bg=BG)
         button_frame.grid(row=row_button, column=0, columnspan=2, sticky="ew", padx=12, pady=12)
         
+        def regenerate_slug():
+            """Forza la rigenerazione dello slug automatico"""
+            slug_manual.set(False)
+            update_slug()
+        
         tk.Button(button_frame, text="📁 Carica GPX", bg="#8b5cf6", fg="white", padx=12, pady=6,
                  relief="flat", bd=0, cursor="hand2", command=load_gpx_file).pack(side="left", padx=(0, 6))
+        tk.Button(button_frame, text="🔧 Rigenera slug", bg="#06b6d4", fg="white", padx=12, pady=6,
+                 relief="flat", bd=0, cursor="hand2", command=regenerate_slug).pack(side="left", padx=(0, 6))
         tk.Button(button_frame, text="Salva", bg=ACCENT, fg="white", padx=16, pady=6,
                  relief="flat", bd=0, cursor="hand2", command=save_changes).pack(side="left", padx=(0, 6))
         tk.Button(button_frame, text="Annulla", bg="#d1d5db", fg=FG, padx=16, pady=6,

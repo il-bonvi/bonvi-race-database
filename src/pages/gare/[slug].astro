@@ -1,5 +1,5 @@
 ---
-import { formatData, formatDistanza, formatDislivello, categoriaColor } from '../../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, categoriaColor, getCategoriaCode } from '../../lib/gare.js';
 
 export async function getStaticPaths() {
   const garaFiles = import.meta.glob('../../../gare-sorgenti/*.json', { eager: true });
@@ -104,6 +104,15 @@ const hasGpxData = gara.gpx_points && Array.isArray(gara.gpx_points) && gara.gpx
       font-family: var(--font-mono); font-size: 0.65rem;
       text-transform: uppercase; letter-spacing: 0.1em;
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .bar-cat-label {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
     }
 
     .bar-title {
@@ -138,8 +147,10 @@ const hasGpxData = gara.gpx_points && Array.isArray(gara.gpx_points) && gara.gpx
     <a href={`${base}/`} class="back">← Race DB</a>
     <div class="bar-divider"></div>
     <span class="bar-cat" style={{ color: color }}>
-      {Array.isArray(gara.categoria) ? gara.categoria.join(' / ') : gara.categoria} 
-      {gara.genere === 'Femminile' ? '♀' : '♂'} · {gara.disciplina}
+      <span class="bar-cat-label">
+        {Array.isArray(gara.categoria) ? gara.categoria.join(' / ') : gara.categoria} 
+        {gara.genere === 'Femminile' ? '♀' : '♂'} · {gara.disciplina}
+      </span>
     </span>
     <div class="bar-divider"></div>
     <span class="bar-title">{gara.titolo}</span>
