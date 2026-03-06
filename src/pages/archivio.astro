@@ -6,11 +6,6 @@ import { GENERI, CATEGORIE, DISCIPLINE } from '../lib/gare.js';
 const garaFiles = import.meta.glob('../../gare-sorgenti/dettagli/*.json', { eager: true });
 let gare = Object.values(garaFiles).map((m: any) => m.default ?? m);
 
-// Filtra solo gare passate (prima di oggi)
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-gare = gare.filter((g: any) => new Date(g.data) < today);
-
 gare.sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
 const anni = [...new Set(gare.map(g => new Date(g.data).getFullYear()))].sort((a,b) => b-a);
