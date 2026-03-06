@@ -1,6 +1,7 @@
 ---
 import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon } from '../lib/gare.js';
 const { gara } = Astro.props;
+const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
 const icon  = disciplinaIcon(gara.disciplina);
 const base  = import.meta.env.BASE_URL.replace(/\/$/, '');
 const categorie = Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria];
@@ -27,7 +28,7 @@ const genereColor = gara.genere === 'Femminile'
   : 'radial-gradient(ellipse at 100% 0%, rgba(80,150,215,0.22) 0%, rgba(80,150,215,0.08) 35%, transparent 65%)';
 ---
 
-<a href={`${base}/gare/${gara.slug}/`} class="card" style={`--cat-color: ${borderStyle}; --genere-shade: ${genereColor}`}>
+<a href={`${base}/gare/${gara.slug}/`} class={`card${isCorsaATappe ? ' card--tappe' : ''}`} style={`--cat-color: ${borderStyle}; --genere-shade: ${genereColor}`}>
 
   <div class="card-top">
     <div class="cat-badges">
@@ -35,7 +36,10 @@ const genereColor = gara.genere === 'Femminile'
         <span class="cat-badge" style={`--badge-color: ${catColorMap[cat] ?? '#888'}`}>{cat}</span>
       ))}
     </div>
-    <span class="disc-badge">{icon} {gara.disciplina ?? '—'}</span>
+    {isCorsaATappe
+      ? <span class="disc-badge tappe-badge">⛰ {gara.n_tappe} tappe</span>
+      : <span class="disc-badge">{icon} {gara.disciplina ?? '—'}</span>
+    }
     <span class="genere-badge">{gara.genere === 'Femminile' ? '♀' : '♂'}</span>
   </div>
 
@@ -50,24 +54,29 @@ const genereColor = gara.genere === 'Femminile'
     {gara.distanza_km && (
       <div class="stat">
         <span class="stat-v">{formatDistanza(gara.distanza_km)}</span>
-        <span class="stat-l">dist</span>
+        <span class="stat-l">{isCorsaATappe ? 'tot dist' : 'dist'}</span>
       </div>
     )}
     {gara.dislivello_m && (
       <div class="stat">
         <span class="stat-v">{formatDislivello(gara.dislivello_m)}</span>
-        <span class="stat-l">D+</span>
+        <span class="stat-l">{isCorsaATappe ? 'tot D+' : 'D+'}</span>
       </div>
     )}
-    {gara.data && (
+    {(isCorsaATappe ? (gara.data_inizio || gara.data) : gara.data) && (
       <div class="stat stat-date">
-        <span class="stat-v">{formatData(gara.data)}</span>
+        <span class="stat-v">
+          {isCorsaATappe && gara.data_fine && gara.data_fine !== gara.data_inizio
+            ? `${formatData(gara.data_inizio || gara.data)} – ${formatData(gara.data_fine)}`
+            : formatData(isCorsaATappe ? (gara.data_inizio || gara.data) : gara.data)
+          }
+        </span>
         <span class="stat-l">data</span>
       </div>
     )}
   </div>
 
-  <span class="card-cta">Apri percorso →</span>
+  <span class="card-cta">{isCorsaATappe ? 'Vedi tappe →' : 'Apri percorso →'}</span>
 </a>
 
 <style>
@@ -165,4 +174,15 @@ const genereColor = gara.genere === 'Femminile'
     transition: color 0.15s;
   }
   .card:hover .card-cta { color: var(--accent); }
+
+  .tappe-badge {
+    background: rgba(212, 64, 26, 0.08);
+    border-color: rgba(212, 64, 26, 0.25);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .card--tappe {
+    border-left: 2px solid var(--accent);
+  }
 </style>

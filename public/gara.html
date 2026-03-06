@@ -2751,7 +2751,8 @@ let map;
                 }
                 
                 // Carica navigazione tra versioni della stessa serie e tra categorie
-                if (gara.race_series) {
+                // SKIP per corse a tappe e singole tappe: la navigazione è solo in Astro
+                if (gara.race_series && gara.tipo === null) {
                     try {
                         const indexRes = await fetch('gare-index.json');
                         if (indexRes.ok) {
