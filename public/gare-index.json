@@ -9,6 +9,7 @@
     "categoria": [
       "Junior"
     ],
+    "categoria_code": "DJ",
     "tipo": null,
     "n_tappe": null
   },
@@ -22,6 +23,7 @@
     "categoria": [
       "Junior"
     ],
+    "categoria_code": "DJ",
     "tipo": null,
     "n_tappe": null
   },
@@ -35,38 +37,9 @@
     "categoria": [
       "Junior"
     ],
+    "categoria_code": "DJ",
     "tipo": null,
     "n_tappe": null
-  },
-  {
-    "slug": "tappatest-2026-DJ",
-    "titolo": "TEST",
-    "data": "2026-03-06",
-    "year": "2026",
-    "race_series": "TEST",
-    "genere": "Femminile",
-    "categoria": [
-      "Elite",
-      "U23",
-      "Junior"
-    ],
-    "tipo": "corsa_a_tappe",
-    "n_tappe": 2
-  },
-  {
-    "slug": "test-2025-DJ-DU-DPRO",
-    "titolo": "TEST",
-    "data": "2025-11-01",
-    "year": "2025",
-    "race_series": "TEST",
-    "genere": "Femminile",
-    "categoria": [
-      "Elite",
-      "U23",
-      "Junior"
-    ],
-    "tipo": "corsa_a_tappe",
-    "n_tappe": 2
   },
   {
     "slug": "trofeo-alfredo-binda-2026-DU-DPRO",
@@ -79,6 +52,7 @@
       "Elite",
       "U23"
     ],
+    "categoria_code": "DPRO",
     "tipo": null,
     "n_tappe": null
   }
