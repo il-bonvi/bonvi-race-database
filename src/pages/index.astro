@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import GaraCard from '../components/GaraCard.astro';
+import LangSwitcher from '../components/LangSwitcher.astro';
 import { GENERI, CATEGORIE, DISCIPLINE } from '../lib/gare.js';
 
 const garaFiles = import.meta.glob('../../gare-sorgenti/dettagli/*.json', { eager: true });
@@ -65,24 +66,24 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <div class="db-stats">
         <div class="db-stat">
           <span class="db-n" id="count-visible">{gare.length}</span>
-          <span class="db-l">percorsi</span>
+          <span class="db-l" data-i18n="stat_routes">percorsi</span>
         </div>
         <div class="db-stat">
           <span class="db-n" id="km-visible">{totKm.toFixed(0)}</span>
-          <span class="db-l">km totali</span>
+          <span class="db-l" data-i18n="stat_km">km totali</span>
         </div>
         <div class="db-stat">
           <span class="db-n" id="dislivello-visible">{gare.reduce((s, g) => s + (Number(g.dislivello_m) || 0), 0).toFixed(0)}</span>
-          <span class="db-l">m dislivello totali</span>
+          <span class="db-l" data-i18n="stat_elev">m dislivello totali</span>
         </div>
       </div>
 
       <div class="filters">
 
         <div class="filter-group">
-          <div class="filter-label">Anno</div>
+          <div class="filter-label" data-i18n="filter_year">Anno</div>
           <div class="filter-pills">
-            <button class="pill active" data-group="anno" data-val="all">Tutti</button>
+            <button class="pill active" data-group="anno" data-val="all" data-i18n="filter_all_y">Tutti</button>
             {anni.map(a => (
               <button class="pill" data-group="anno" data-val={String(a)}>{a}</button>
             ))}
@@ -90,43 +91,43 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         </div>
 
         <div class="filter-group">
-          <div class="filter-label">Genere</div>
+          <div class="filter-label" data-i18n="filter_gender">Genere</div>
           <div class="filter-pills">
-            <button class="pill active" data-group="genere" data-val="all">Tutti</button>
+            <button class="pill active" data-group="genere" data-val="all" data-i18n="filter_all_g">Tutti</button>
             {GENERI.map(g => (
-              <button class="pill" data-group="genere" data-val={g}>{g}</button>
+              <button class="pill" data-group="genere" data-val={g} data-i18n-gen={g}>{g}</button>
             ))}
           </div>
         </div>
 
         <div class="filter-group">
-          <div class="filter-label">Categoria</div>
+          <div class="filter-label" data-i18n="filter_cat">Categoria</div>
           <div class="filter-pills">
-            <button class="pill active" data-group="categoria" data-val="all">Tutte</button>
+            <button class="pill active" data-group="categoria" data-val="all" data-i18n="filter_all_c">Tutte</button>
             {CATEGORIE.map(c => (
-              <button class="pill" data-group="categoria" data-val={c}>{c}</button>
+              <button class="pill" data-group="categoria" data-val={c} data-i18n-cat={c}>{c}</button>
             ))}
           </div>
         </div>
 
         <div class="filter-group">
-          <div class="filter-label">Disciplina</div>
+          <div class="filter-label" data-i18n="filter_disc">Disciplina</div>
           <div class="filter-pills">
-            <button class="pill active" data-group="disciplina" data-val="all">Tutte</button>
+            <button class="pill active" data-group="disciplina" data-val="all" data-i18n="filter_all_d">Tutte</button>
             {DISCIPLINE.map(d => (
-              <button class="pill" data-group="disciplina" data-val={d}>{d}</button>
+              <button class="pill" data-group="disciplina" data-val={d} data-i18n-disc={d}>{d}</button>
             ))}
           </div>
         </div>
 
-        <button class="reset-filters" id="reset-filters">Azzera filtri</button>
+        <button class="reset-filters" id="reset-filters" data-i18n="filter_reset">Azzera filtri</button>
       </div>
 
       <div class="sidebar-footer">
-        <a href={`${base}/archivio`} class="sidebar-page-btn">Archivio</a>
-        <a href={`${base}/progetto`} class="sidebar-page-btn">Il Progetto</a>
-        <a href={`${base}/faq`} class="sidebar-page-btn">FAQ</a>
-        <a href={`${base}/contattami`} class="sidebar-page-btn">Contattami</a>
+        <a href={`${base}/archivio`} class="sidebar-page-btn" data-i18n="nav_archive">Archivio</a>
+        <a href={`${base}/progetto`} class="sidebar-page-btn" data-i18n="nav_project">Il Progetto</a>
+        <a href={`${base}/faq`} class="sidebar-page-btn" data-i18n="nav_faq">FAQ</a>
+        <a href={`${base}/contattami`} class="sidebar-page-btn" data-i18n="nav_contact">Contattami</a>
       </div>
 
     </div>
@@ -138,26 +139,27 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <button class="mobile-menu-btn" id="menu-btn" aria-label="Apri menu">☰</button>
       <div class="search-wrap">
         <span class="search-icon">⌕</span>
-        <input type="text" id="search-input" class="search-input" placeholder="Cerca per nome, luogo..." autocomplete="off" />
+        <input type="text" id="search-input" class="search-input" placeholder="Cerca per nome, luogo..." data-i18n-placeholder="search_placeholder" autocomplete="off" />
       </div>
       <div class="sort-wrap">
-        <label class="sort-label">Ordina</label>
+        <label class="sort-label" data-i18n="sort_label">Ordina</label>
         <select id="sort-select" class="sort-select">
-          <option value="data-asc" selected>Data ↑</option>
-          <option value="data-desc">Data ↓</option>
-          <option value="km-desc">Km ↓</option>
-          <option value="km-asc">Km ↑</option>
-          <option value="nome">Nome A→Z</option>
+          <option value="data-asc" selected data-i18n-option="sort_date_asc">Data ↑</option>
+          <option value="data-desc" data-i18n-option="sort_date_desc">Data ↓</option>
+          <option value="km-desc" data-i18n-option="sort_km_desc">Km ↓</option>
+          <option value="km-asc" data-i18n-option="sort_km_asc">Km ↑</option>
+          <option value="nome" data-i18n-option="sort_name">Nome A→Z</option>
         </select>
       </div>
+      <LangSwitcher />
     </div>
 
     <div class="timeline" id="gare-timeline">
       {gare.length === 0 ? (
         <div class="empty">
           <div class="empty-icon">◎</div>
-          <div class="empty-title">Database vuoto</div>
-          <div class="empty-sub">Aggiungi il primo percorso seguendo le istruzioni nel README</div>
+          <div class="empty-title" data-i18n="empty_title">Database vuoto</div>
+          <div class="empty-sub" data-i18n="empty_sub">Aggiungi il primo percorso seguendo le istruzioni nel README</div>
         </div>
       ) : (
         yearMonthStructure.map(({ year, months }: any) => {
@@ -177,7 +179,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
                     <div class={`month-group ${isCurrentMonth ? 'expanded' : 'collapsed'}`} data-month={monthKey}>
                       <button class="month-header" data-month-toggle={monthKey}>
                         <span class="month-chevron">▼</span>
-                        <span class="month-label">{MONTH_NAMES[month]}</span>
+                        <span class="month-label" data-i18n-month={month}>{MONTH_NAMES[month]}</span>
                         <span class="month-count">({races.length})</span>
                       </button>
                       <div class="month-races" style={`display: ${isCurrentMonth ? 'grid' : 'none'}`}>
@@ -211,14 +213,14 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
     <div class="no-results" id="no-results" style="display:none">
       <div class="empty-icon">◎</div>
-      <div class="empty-title">Nessun risultato</div>
-      <div class="empty-sub">Prova a modificare i filtri</div>
+      <div class="empty-title" data-i18n="no_results">Nessun risultato</div>
+      <div class="empty-sub" data-i18n="no_results_sub">Prova a modificare i filtri</div>
     </div>
 
   </main>
 
   <footer>
-    <a href="https://linktr.ee/bonvicin.coaching" target="_blank">
+    <a href="https://linktr.ee/bonvicin.coaching" target="_blank" data-i18n="footer_copy">
       &copy; 2026 Andrea Bonvicin — RaceArchive — Licenza AGPL v3
     </a>
   </footer>
@@ -256,61 +258,67 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   });
 
   function applyAll() {
-    let visibleCount = 0;
-    let visibleKm = 0;
-    let visibleDislivello = 0;
-    cards.forEach((c: HTMLElement) => {
-      // Filtro categoria: se selezionato, controlla se è incluso nell'array di categorie
-      let categoriaMatch = state.categoria === 'all';
-      if (!categoriaMatch) {
-        try {
-          const categorie = JSON.parse(c.dataset.categorieJson || '[]');
-          categoriaMatch = categorie.includes(state.categoria);
-        } catch (e) {
-          categoriaMatch = c.dataset.categoria === state.categoria;
-        }
+    let visible = 0;
+    let totalKm = 0;
+    let totalDislivello = 0;
+
+    cards.forEach((card: HTMLElement) => {
+      const anno = card.dataset.anno ?? '';
+      const genere = card.dataset.genere ?? '';
+      const categorieJson = card.dataset.categorieJson ?? '[]';
+      const categorie: string[] = JSON.parse(categorieJson);
+      const disciplina = card.dataset.disciplina ?? '';
+      const titolo = card.dataset.titolo ?? '';
+      const luogo = card.dataset.luogo ?? '';
+
+      const matchAnno = state.anno === 'all' || anno === state.anno;
+      const matchGenere = state.genere === 'all' || genere === state.genere;
+      const matchCategoria = state.categoria === 'all' || categorie.includes(state.categoria);
+      const matchDisciplina = state.disciplina === 'all' || disciplina === state.disciplina;
+      const q = state.q.toLowerCase();
+      const matchQ = !q || titolo.includes(q) || luogo.includes(q);
+
+      const show = matchAnno && matchGenere && matchCategoria && matchDisciplina && matchQ;
+      card.style.display = show ? '' : 'none';
+      if (show) {
+        visible++;
+        totalKm += parseFloat(card.dataset.km ?? '0') || 0;
+        totalDislivello += parseFloat(card.dataset.dislivello ?? '0') || 0;
       }
-      
-      const match =
-        (state.anno === 'all' || c.dataset.anno === state.anno) &&
-        (state.genere === 'all' || c.dataset.genere === state.genere) &&
-        categoriaMatch &&
-        (state.disciplina === 'all' || c.dataset.disciplina === state.disciplina) &&
-        (!state.q || (c.dataset.titolo ?? '').includes(state.q.toLowerCase()) || (c.dataset.luogo ?? '').includes(state.q.toLowerCase()));
-      c.style.display = match ? '' : 'none';
-      if (match) {
-        visibleCount++;
-        visibleKm += parseFloat(c.dataset.km ?? '0') || 0;
-        visibleDislivello += parseFloat(c.dataset.dislivello ?? '0') || 0;
+    });
+
+    counter.textContent = String(visible);
+    kmCounter.textContent = totalKm.toFixed(0);
+    dislivelloCounter.textContent = totalDislivello.toFixed(0);
+
+    // Show/hide month groups and year groups
+    document.querySelectorAll('.month-group').forEach((mg: Element) => {
+      const mgEl = mg as HTMLElement;
+      const visibleInMonth = Array.from(mgEl.querySelectorAll('.card-wrap')).some(c => (c as HTMLElement).style.display !== 'none');
+      if (!visibleInMonth) {
+        mgEl.style.display = 'none';
+      } else {
+        mgEl.style.display = '';
       }
     });
-    counter.textContent = String(visibleCount);
-    kmCounter.textContent = visibleKm.toFixed(0);
-    dislivelloCounter.textContent = visibleDislivello.toFixed(0);
 
-    document.querySelectorAll('.month-group').forEach((group: Element) => {
-      const monthRaces = group.querySelector('.month-races') as HTMLElement;
-      if (!monthRaces) return;
-      const hasVisible = Array.from(monthRaces.querySelectorAll('.card-wrap')).some(
-        (c: Element) => (c as HTMLElement).style.display !== 'none'
-      );
-      (group as HTMLElement).style.display = hasVisible ? '' : 'none';
+    document.querySelectorAll('.year-group').forEach((yg: Element) => {
+      const ygEl = yg as HTMLElement;
+      const visibleInYear = Array.from(ygEl.querySelectorAll('.card-wrap')).some(c => (c as HTMLElement).style.display !== 'none');
+      ygEl.style.display = visibleInYear ? '' : 'none';
     });
 
-    document.querySelectorAll('.year-group').forEach((group: Element) => {
-      const hasVisible = Array.from(group.querySelectorAll('.month-group')).some(
-        (g: Element) => (g as HTMLElement).style.display !== 'none'
-      );
-      (group as HTMLElement).style.display = hasVisible ? '' : 'none';
-    });
+    const hasVisible = visible > 0;
+    timeline.style.display = hasVisible || gare_length === 0 ? '' : 'none';
+    noRes.style.display = !hasVisible && gare_length > 0 ? '' : 'none';
 
-    noRes.style.display = visibleCount === 0 ? '' : 'none';
-
-    applySorting();
+    sortCards();
   }
 
-  function applySorting() {
-    const sorted = [...cards].filter((c: HTMLElement) => c.style.display !== 'none').sort((a: HTMLElement, b: HTMLElement) => {
+  const gare_length = cards.length;
+
+  function sortCards() {
+    const sorted = [...cards].filter(c => c.style.display !== 'none').sort((a, b) => {
       if (state.sort === 'data-asc') return Number(a.dataset.date ?? 0) - Number(b.dataset.date ?? 0);
       if (state.sort === 'data-desc') return Number(b.dataset.date ?? 0) - Number(a.dataset.date ?? 0);
       if (state.sort === 'km-desc') return Number(b.dataset.km ?? 0) - Number(a.dataset.km ?? 0);
@@ -318,24 +326,19 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       if (state.sort === 'nome') return (a.dataset.titolo ?? '').localeCompare(b.dataset.titolo ?? '');
       return 0;
     });
-
     const rankMap = new Map(sorted.map((c, i) => [c, i]));
     document.querySelectorAll('.month-races').forEach((racesContainer: Element) => {
-      const cardsInContainer = Array.from(racesContainer.querySelectorAll('.card-wrap')) as HTMLElement[];
-      const visibleCards = cardsInContainer.filter((c: HTMLElement) => c.style.display !== 'none');
-      visibleCards.sort((a: HTMLElement, b: HTMLElement) => (rankMap.get(a) ?? 0) - (rankMap.get(b) ?? 0));
-      visibleCards.forEach((c: HTMLElement) => racesContainer.appendChild(c));
+      const visible = Array.from(racesContainer.querySelectorAll('.card-wrap')).filter(c => (c as HTMLElement).style.display !== 'none') as HTMLElement[];
+      visible.sort((a, b) => (rankMap.get(a) ?? 0) - (rankMap.get(b) ?? 0));
+      visible.forEach(c => racesContainer.appendChild(c));
     });
   }
 
   document.querySelectorAll('.pill').forEach((btn: Element) => {
     btn.addEventListener('click', () => {
-      const filterPills = (btn as HTMLElement).closest('.filter-pills') as HTMLElement;
-      filterPills.querySelectorAll('.pill').forEach((b: Element) => b.classList.remove('active'));
+      (btn as HTMLElement).closest('.filter-pills')!.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
       (btn as HTMLElement).classList.add('active');
-      const group = (btn as HTMLElement).dataset.group as string;
-      const val = (btn as HTMLElement).dataset.val as string;
-      state[group as keyof typeof state] = val;
+      state[(btn as HTMLElement).dataset.group as keyof typeof state] = (btn as HTMLElement).dataset.val as string;
       applyAll();
     });
   });
@@ -356,8 +359,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     (document.getElementById('search-input') as HTMLInputElement).value = '';
     (document.getElementById('sort-select') as HTMLSelectElement).value = 'data-asc';
     document.querySelectorAll('.pill').forEach((b: Element) => {
-      const val = (b as HTMLElement).dataset.val;
-      b.classList.toggle('active', val === 'all');
+      b.classList.toggle('active', (b as HTMLElement).dataset.val === 'all');
     });
     applyAll();
   });
@@ -367,11 +369,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const overlay = document.getElementById('sidebar-overlay') as HTMLElement;
   const sidebar = document.getElementById('sidebar') as HTMLElement;
 
-  function openDrawer() {
-    sidebar.classList.add('open');
-    overlay.classList.add('open');
-    document.body.style.overflow = 'hidden';
-  }
+  function openDrawer() { sidebar.classList.add('open'); overlay.classList.add('open'); document.body.style.overflow = 'hidden'; }
   function closeDrawer() {
     sidebar.classList.remove('open');
     overlay.classList.remove('open');
@@ -381,10 +379,85 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   menuBtn?.addEventListener('click', openDrawer);
   overlay?.addEventListener('click', closeDrawer);
 
-  // Chiudi drawer quando si clicca su un filtro pill (UX mobile)
   document.querySelectorAll('.sidebar-page-btn').forEach(btn => {
     btn.addEventListener('click', closeDrawer);
   });
+
+  // ── i18n runtime ──────────────────────────────
+  // Inline minimal i18n to avoid ES module import issues with Astro scripts
+  (function() {
+    const lang = localStorage.getItem('brd-lang') || 'it';
+    if (lang === 'it') return;
+    const T = (window as any).__brdTranslations?.[lang];
+    if (!T) return;
+
+    document.querySelectorAll('[data-i18n]').forEach((el: Element) => {
+      const key = (el as HTMLElement).getAttribute('data-i18n')!;
+      if (T[key] !== undefined) el.textContent = T[key];
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el: Element) => {
+      const key = (el as HTMLElement).getAttribute('data-i18n-placeholder')!;
+      if (T[key] !== undefined) (el as HTMLInputElement).placeholder = T[key];
+    });
+    document.querySelectorAll('[data-i18n-month]').forEach((el: Element) => {
+      const idx = parseInt((el as HTMLElement).getAttribute('data-i18n-month')!, 10);
+      if (!isNaN(idx) && T.months?.[idx]) el.textContent = T.months[idx];
+    });
+    document.querySelectorAll('[data-i18n-cat]').forEach((el: Element) => {
+      const val = (el as HTMLElement).getAttribute('data-i18n-cat')!;
+      const key = 'cat_' + val;
+      if (T[key] !== undefined) el.textContent = T[key];
+    });
+    document.querySelectorAll('[data-i18n-gen]').forEach((el: Element) => {
+      const val = (el as HTMLElement).getAttribute('data-i18n-gen')!;
+      const key = 'gen_' + val;
+      if (T[key] !== undefined) el.textContent = T[key];
+    });
+    document.querySelectorAll('[data-i18n-disc]').forEach((el: Element) => {
+      const val = (el as HTMLElement).getAttribute('data-i18n-disc')!;
+      const key = 'disc_' + val;
+      if (T[key] !== undefined) el.textContent = T[key];
+    });
+    document.querySelectorAll('[data-i18n-option]').forEach((el: Element) => {
+      const key = (el as HTMLElement).getAttribute('data-i18n-option')!;
+      if (T[key] !== undefined) el.textContent = T[key];
+    });
+    document.querySelectorAll('.cat-badge[data-cat]').forEach((el: Element) => {
+      const val = (el as HTMLElement).getAttribute('data-cat')!;
+      const key = 'cat_' + val;
+      if (T[key] !== undefined) el.textContent = T[key];
+    });
+    document.querySelectorAll('.stat-l[data-i18n-stat]').forEach((el: Element) => {
+      const key = (el as HTMLElement).getAttribute('data-i18n-stat')!;
+      if (T[key] !== undefined) el.textContent = T[key];
+    });
+  })();
+</script>
+
+<!-- Translations data for runtime -->
+<script>
+  (window as any).__brdTranslations = {
+    en: {
+      nav_upcoming: 'Upcoming Races', nav_archive: 'Archive', nav_project: 'The Project',
+      nav_faq: 'FAQ', nav_contact: 'Contact',
+      stat_routes: 'routes', stat_km: 'total km', stat_elev: 'total elevation m',
+      filter_year: 'Year', filter_gender: 'Gender', filter_cat: 'Category',
+      filter_disc: 'Discipline', filter_reset: 'Reset filters',
+      filter_all_y: 'All', filter_all_g: 'All', filter_all_c: 'All', filter_all_d: 'All',
+      search_placeholder: 'Search by name, location...',
+      sort_label: 'Sort', sort_date_asc: 'Date ↑', sort_date_desc: 'Date ↓',
+      sort_km_desc: 'Km ↓', sort_km_asc: 'Km ↑', sort_name: 'Name A→Z',
+      card_cta: 'View route →',
+      empty_title: 'Empty database', empty_sub: 'Add the first route following the README instructions',
+      no_results: 'No races found', no_results_sub: 'Try changing the filters or search query',
+      footer_copy: '© 2026 Andrea Bonvicin — RaceArchive — AGPL v3 License',
+      cat_Allievi: 'U16', cat_Allieve: 'U16', cat_Junior: 'Junior', cat_U23: 'U23', cat_Elite: 'Elite',
+      gen_Maschile: 'Men', gen_Femminile: 'Women',
+      disc_Strada: 'Road Race', disc_Criterium: 'Criterium', disc_Cronometro: 'Time Trial',
+      stat_dist: 'Distance', stat_elev_c: 'Elevation', stat_date: 'Date', stat_speed: 'Est. avg speed',
+      months: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+    }
+  };
 </script>
 
 <style>
@@ -509,7 +582,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     border: 1px solid var(--border); border-radius: 3px;
     background: transparent; transition: all 0.15s; display: block;
   }
-  .sidebar-page-btn:hover { color: var(--text); border-color: var(--text2); background: var(--bg3); }
+  .sidebar-page-btn:hover { color: var(--text); border-color: var(--text2); }
 
   /* ── MOBILE MENU BTN (hidden on desktop) ── */
   .mobile-menu-btn {
@@ -613,30 +686,31 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   .month-group.collapsed .month-chevron { transform: rotate(-90deg); }
   .month-label { flex: 1; }
   .month-count { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text3); flex-shrink: 0; }
-  .month-races { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; padding: 0.75rem; }
+  .month-races {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem; padding: 0.75rem;
+  }
 
   .empty, .no-results {
-    grid-column: 1 / -1; text-align: center; padding: 5rem 2rem; color: var(--text3);
+    grid-column: 1 / -1; text-align: center;
+    padding: 5rem 2rem; color: var(--text3);
   }
   .empty-icon { font-size: 2.5rem; margin-bottom: 1rem; color: var(--border2); }
   .empty-title { font-family: var(--font-display); font-size: 1.25rem; color: var(--text2); margin-bottom: 0.5rem; }
   .empty-sub { font-size: 0.82rem; line-height: 1.6; }
-  .empty-sub a { color: var(--accent); }
 
   footer {
     grid-column: 1 / -1; grid-row: 2;
     text-align: center; padding: 1rem 1.25rem;
-    background: var(--bg2); color: var(--text2); margin-top: 0;
-    font-size: 0.8rem; width: 100%; box-sizing: border-box;
-    border-top: 1px solid var(--border); flex-shrink: 0;
+    background: var(--bg2); color: var(--text2);
+    font-size: 0.8rem; border-top: 1px solid var(--border); flex-shrink: 0;
   }
   footer a { color: var(--text2); text-decoration: none; font-weight: 500; transition: color 0.2s; }
   footer a:hover { color: var(--accent); }
 
-  /* ── MOBILE ── */
   @media (max-width: 768px) {
     .layout { grid-template-columns: 1fr; }
-
     .mobile-menu-btn { display: flex; align-items: center; }
 
     .sidebar {
@@ -649,17 +723,12 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       box-shadow: none;
       overflow-y: auto;
     }
-    .sidebar.open {
-      transform: translateX(0);
-      box-shadow: 4px 0 32px rgba(0,0,0,0.18);
-    }
-
-    .sidebar-inner { padding: 1.25rem 1rem; padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 1rem)); height: auto; min-height: 100%; }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 32px rgba(0,0,0,0.18); }
+    .sidebar-inner { height: auto; min-height: 100%; padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 1rem)); }
 
     .main { padding: 1rem; padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0.5rem)); grid-column: 1; overflow-y: auto; }
     .month-races { grid-template-columns: 1fr; }
     .db-stats { display: none; }
-
     footer { grid-column: 1; }
   }
 </style>

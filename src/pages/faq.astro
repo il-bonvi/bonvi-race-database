@@ -1,11 +1,16 @@
 ---
 import Base from '../layouts/Base.astro';
+import LangSwitcher from '../components/LangSwitcher.astro';
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
-const faqs = [
+const faqs_it = [
   {
     q: "Come si aggiunge una gara al database?",
-    a: "Scrivimi allegando il file .gpx della gara. Includi nel messaggio più info possibili: nome della gara, data, luogo, categoria (Elite / U23 / Junior / Allievi), disciplina (Strada / Criterium / Cronometro) e genere (Maschile / Femminile). Provvedo ad aggiungerla il prima possibile."
+    a: "Scrivimi allegando il file .gpx della gara. Includi nel messaggio più info possibili: nome della gara, data, luogo, categoria (Elite / U23 / Junior / Allievi), disciplina e genere. Provvedo ad aggiungerla il prima possibile."
+  },
+  {
+    q: "I dati sono ufficiali?",
+    a: "No. I dati vengono estratti automaticamente dai file .gpx, raccolti da fonti pubbliche o contribuiti da utenti. Quindi potrebbero esserci errori o imprecisioni. Se noti qualcosa che non va, segnalami e vedo di correggerlo."
   },
   {
     q: "Come funziona Street View?",
@@ -52,6 +57,61 @@ const faqs = [
     a: "Perché sono due cose diverse. E perché mi piace arrangiarmi e poter modificare i tool come voglio."
   },
 ];
+
+const faqs_en = [
+  {
+    q: "How do I add a race to the database?",
+    a: "Write to me attaching the .gpx file of the race. Include as much info as possible: race name, date, location, category, discipline. I'll add it as soon as possible."
+  },
+  {
+    q: "Are the data official?",
+    a: "No. The data is automatically extracted from .gpx files, collected from public sources or contributed by users. Therefore, there might be errors or inaccuracies. If you notice anything that's wrong, let me know and I'll look into fixing it."
+  },
+  {
+    q: "How does Street View work?",
+    a: "Right-clicking on any point of the route opens Google Street View in a new tab, centred exactly on that GPS coordinate. It's not an embedded integration — that would require paid Google APIs — but it works perfectly for exploring the route in advance. On mobile you need to long-press on the map instead."
+  },
+  {
+    q: "It doesn't work that well on mobile",
+    a: "True... it's generally usable, but I recommend viewing everything on a PC."
+  },
+  {
+    q: "How are climbs detected?",
+    a: "Climbs are detected automatically using an algorithm based on: gradient, length, elevation gain and continuity. It's not perfect, being an automatic detection, but it generally works well enough. If you notice obvious errors, let me know and I'll look into fixing them."
+  },
+  {
+    q: "Is the site free?",
+    a: "Yes, completely. No paid access, no registration, no ads. If you find it useful and want to support the project, you can buy me a coffee on Ko-fi, but it's in no way required."
+  },
+  {
+    q: "How do I report an error on a race?",
+    a: "Write to me indicating the race name and the incorrect data — distance, elevation, date, category or anything else. I'll fix it as soon as possible."
+  },
+  {
+    q: "Why are there only youth races?",
+    a: "For Elite and Pro categories there's already plenty online, PCS etc. For youth cycling there's practically nothing organised. The archive was created precisely to fill this gap, although races from other categories may be added over time."
+  },
+  {
+    q: "Can I download the GPX file of a race?",
+    a: "No. If you need the file for a specific race, contact me and we'll figure out how to proceed."
+  },
+  {
+    q: "Can I get coached by you?",
+    a: "Yes. I'm a cycling coach and sport scientist, I work with cyclists across different categories. If you're interested, write to bonvicin.coaching@gmail.com or check the Linktree. Then, we'll evaluate together."
+  },
+  {
+    q: "Do you have other tools or online services?",
+    a: "Sure, you'll find much more on my Linktree. Bear in mind I'm a coach, not a software developer."
+  },
+  {
+    q: "Is this archive under a licence?",
+    a: "Yes, AGPL-3.0. If you want to contribute or use the data in any way, contact me and we'll talk."
+  },
+  {
+    q: "Why not use Veloviewer?",
+    a: "Because they're two different things. And because I like figuring things out myself and being able to modify the tools however I want."
+  },
+];
 ---
 
 <Base title="FAQ — Race Database by Bonvi">
@@ -62,7 +122,7 @@ const faqs = [
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-inner">
       <div class="brand">
-        <div class="brand-mark">RDB</div>
+        <div class="brand-mark">BRD</div>
         <div>
           <div class="brand-name">Race Database</div>
           <div class="brand-sub">Easy</div>
@@ -82,19 +142,35 @@ const faqs = [
 
     <div class="mobile-topbar">
       <button class="mobile-menu-btn" id="menu-btn" aria-label="Apri menu">☰</button>
+      <LangSwitcher />
     </div>
 
     <div class="page-content">
 
       <header class="page-header">
-        <div class="page-tag">Domande frequenti</div>
+        <div class="page-tag" data-i18n="tag">Domande frequenti</div>
         <h1 class="page-title">FAQ</h1>
-        <p class="page-lead">Le domande che mi vengono fatte più spesso — se non trovi quello che cerchi, <a href={`${base}/contattami`}>scrivimi</a>.</p>
+        <p class="page-lead" id="page-lead">Le domande che mi vengono fatte più spesso — se non trovi quello che cerchi, <a href={`${base}/contattami`}>scrivimi</a>.</p>
       </header>
 
-      <div class="faq-list">
-        {faqs.map((item, i) => (
-          <details class="faq-item" name="faq">
+      <div class="faq-list" id="faq-list-it">
+        {faqs_it.map((item, i) => (
+          <details class="faq-item" name="faq-it">
+            <summary class="faq-question">
+              <span class="faq-n">{String(i + 1).padStart(2, '0')}</span>
+              <span class="faq-q-text">{item.q}</span>
+              <span class="faq-chevron">▼</span>
+            </summary>
+            <div class="faq-answer">
+              <p>{item.a}</p>
+            </div>
+          </details>
+        ))}
+      </div>
+
+      <div class="faq-list" id="faq-list-en" style="display:none">
+        {faqs_en.map((item, i) => (
+          <details class="faq-item" name="faq-en">
             <summary class="faq-question">
               <span class="faq-n">{String(i + 1).padStart(2, '0')}</span>
               <span class="faq-q-text">{item.q}</span>
@@ -108,8 +184,8 @@ const faqs = [
       </div>
 
       <div class="faq-cta">
-        <p>Non hai trovato risposta?</p>
-        <a href={`${base}/contattami`} class="cta-btn">Contattami →</a>
+        <p data-i18n="cta_text">Non hai trovato risposta?</p>
+        <a href={`${base}/contattami`} class="cta-btn" data-i18n="cta_btn">Contattami →</a>
       </div>
 
     </div>
@@ -135,6 +211,24 @@ const faqs = [
   menuBtn?.addEventListener('click', openDrawer);
   overlay?.addEventListener('click', closeDrawer);
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', closeDrawer));
+
+  // i18n
+  const lang = localStorage.getItem('brd-lang') || 'it';
+  if (lang === 'en') {
+    (document.getElementById('faq-list-it') as HTMLElement).style.display = 'none';
+    (document.getElementById('faq-list-en') as HTMLElement).style.display = '';
+    const t: Record<string, string> = {
+      tag: 'Frequently asked questions',
+      cta_text: "Didn't find an answer?",
+      cta_btn: 'Contact me →',
+    };
+    document.querySelectorAll<HTMLElement>('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n!;
+      if (t[key]) el.textContent = t[key];
+    });
+    const lead = document.getElementById('page-lead');
+    if (lead) lead.innerHTML = `The questions I get asked most often — if you can't find what you're looking for, <a href="${window.location.pathname.replace('/faq','')}/contattami">write to me</a>.`;
+  }
 </script>
 
 <style>
@@ -160,14 +254,10 @@ const faqs = [
     border-right: 1px solid var(--border);
     position: sticky; top: 0;
     height: 100vh; overflow-y: auto;
-    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    grid-row: 1 / 2;
   }
 
-  .sidebar-inner {
-    display: flex; flex-direction: column;
-    padding: 1.75rem 1.25rem;
-    height: 100%; gap: 1.5rem;
-  }
+  .sidebar-inner { display: flex; flex-direction: column; padding: 1.75rem 1.25rem; height: 100%; gap: 1.5rem; }
 
   .brand { display: flex; align-items: center; gap: 0.85rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
   .brand-mark { font-family: var(--font-display); font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em; background: var(--text); color: var(--bg); padding: 0.3rem 0.5rem; border-radius: 2px; flex-shrink: 0; }

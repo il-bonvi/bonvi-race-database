@@ -1,0 +1,52 @@
+---
+// LangSwitcher.astro
+// Posizionamento: src/components/LangSwitcher.astro
+---
+
+<div class="lang-switcher">
+  <button class="lang-btn" id="lang-it" aria-label="Italiano">🇮🇹</button>
+  <button class="lang-btn" id="lang-en" aria-label="English">🇬🇧</button>
+</div>
+
+<script>
+  const lang = localStorage.getItem('brd-lang') || 'it';
+  const btnIt = document.getElementById('lang-it') as HTMLElement;
+  const btnEn = document.getElementById('lang-en') as HTMLElement;
+
+  if (lang === 'it') btnIt.classList.add('active');
+  else btnEn.classList.add('active');
+
+  btnIt.addEventListener('click', () => {
+    if (localStorage.getItem('brd-lang') !== 'it') {
+      localStorage.setItem('brd-lang', 'it');
+      location.reload();
+    }
+  });
+  btnEn.addEventListener('click', () => {
+    if (localStorage.getItem('brd-lang') !== 'en') {
+      localStorage.setItem('brd-lang', 'en');
+      location.reload();
+    }
+  });
+</script>
+
+<style>
+  .lang-switcher {
+    display: flex;
+    gap: 0.25rem;
+    margin-left: auto;
+  }
+  .lang-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 0.25rem 0.4rem;
+    font-size: 1rem;
+    line-height: 1;
+    transition: all 0.15s;
+    opacity: 0.5;
+  }
+  .lang-btn:hover { opacity: 0.8; border-color: var(--text2); }
+  .lang-btn.active { opacity: 1; background: var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,0.15); border-color: var(--text2); }
+</style>

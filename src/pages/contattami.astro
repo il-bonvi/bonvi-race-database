@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import LangSwitcher from '../components/LangSwitcher.astro';
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
@@ -11,7 +12,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-inner">
       <div class="brand">
-        <div class="brand-mark">RDB</div>
+        <div class="brand-mark">BRD</div>
         <div>
           <div class="brand-name">Race Database</div>
           <div class="brand-sub">Easy</div>
@@ -31,56 +32,57 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
     <div class="mobile-topbar">
       <button class="mobile-menu-btn" id="menu-btn" aria-label="Apri menu">☰</button>
+      <LangSwitcher />
     </div>
 
     <div class="page-content">
 
       <header class="page-header">
-        <div class="page-tag">Contatti</div>
-        <h1 class="page-title">Contattami</h1>
-        <p class="page-lead">Scrivi a <a href="mailto:bonvicin.coaching@gmail.com">bonvicin.coaching@gmail.com</a> — trovi qui sotto cosa includere a seconda del motivo.</p>
+        <div class="page-tag" data-i18n="tag">Contatti</div>
+        <h1 class="page-title" data-i18n="title">Contattami</h1>
+        <p class="page-lead" id="page-lead">Scrivi a <a href="mailto:bonvicin.coaching@gmail.com">bonvicin.coaching@gmail.com</a> — trovi qui sotto cosa includere a seconda del motivo.</p>
       </header>
 
       <section class="section">
-        <h2 class="section-title">Perché scrivere</h2>
+        <h2 class="section-title" data-i18n="why_title">Perché scrivere</h2>
         <div class="reasons-grid">
 
           <div class="reason-card">
             <div class="reason-icon">⊕</div>
-            <div class="reason-title">Aggiungi una gara</div>
-            <p class="reason-desc">Allega il file <strong>.gpx</strong> e indica: nome della gara, data, luogo, categoria (Elite / U23 / Junior / Allievi), disciplina (Strada / Criterium / Cronometro) e genere (Maschile / Femminile).</p>
+            <div class="reason-title" data-i18n="r1_title">Aggiungi una gara</div>
+            <p class="reason-desc" data-i18n="r1_desc">Allega il file <strong>.gpx</strong> e indica: nome della gara, data, luogo, categoria (Elite / U23 / Junior / Allievi), disciplina (Strada / Criterium / Cronometro) e genere (Maschile / Femminile).</p>
           </div>
 
           <div class="reason-card">
             <div class="reason-icon">✎</div>
-            <div class="reason-title">Segnala un errore</div>
-            <p class="reason-desc">Indica il nome della gara e il dato errato — distanza, dislivello, data o altro. Correggo il prima possibile. Considera che distanze e dislivelli sono calcolati automaticamente, quindi potrebbero non essere perfettamente corretti.</p>
+            <div class="reason-title" data-i18n="r2_title">Segnala un errore</div>
+            <p class="reason-desc" data-i18n="r2_desc">Indica il nome della gara e il dato errato — distanza, dislivello, data o altro. Correggo il prima possibile. Considera che distanze e dislivelli sono calcolati automaticamente, quindi potrebbero non essere perfettamente corretti.</p>
           </div>
 
           <div class="reason-card">
             <div class="reason-icon">◎</div>
-            <div class="reason-title">Farsi allenare</div>
-            <p class="reason-desc">Sono un preparatore atletico e sport scientist. Raccontami il tuo livello, i tuoi obiettivi e il calendario che hai in mente — vediamo se possiamo lavorare insieme.</p>
+            <div class="reason-title" data-i18n="r3_title">Farsi allenare</div>
+            <p class="reason-desc" data-i18n="r3_desc">Sono un preparatore atletico e sport scientist. Raccontami il tuo livello, i tuoi obiettivi e il calendario che hai in mente — vediamo se possiamo lavorare insieme.</p>
           </div>
 
           <div class="reason-card">
             <div class="reason-icon">◇</div>
-            <div class="reason-title">Qualsiasi altra cosa</div>
-            <p class="reason-desc">Suggerimenti, feedback, domande, o semplicemente vuoi parlare di ciclismo e preparazione. Va bene tutto.</p>
+            <div class="reason-title" data-i18n="r4_title">Qualsiasi altra cosa</div>
+            <p class="reason-desc" data-i18n="r4_desc">Suggerimenti, feedback, domande, o semplicemente vuoi parlare di ciclismo e preparazione. Va bene tutto.</p>
           </div>
 
         </div>
       </section>
 
       <div class="mail-cta">
-        <a href="mailto:bonvicin.coaching@gmail.com" class="mail-btn">
+        <a href="mailto:bonvicin.coaching@gmail.com" class="mail-btn" data-i18n="mail_btn">
           Scrivi una mail →
         </a>
         <a href="https://linktr.ee/bonvicin.coaching" target="_blank" rel="noopener" class="mail-btn mail-btn--secondary">
           Linktree
         </a>
         <a href="https://ko-fi.com/andreabonvicin" target="_blank" rel="noopener" class="mail-btn mail-btn--kofi">
-          ☕ Sostieni
+          ☕ <span data-i18n="kofi_btn">Sostieni</span>
         </a>
       </div>
 
@@ -107,6 +109,32 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   menuBtn?.addEventListener('click', openDrawer);
   overlay?.addEventListener('click', closeDrawer);
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', closeDrawer));
+
+  // i18n
+  const lang = localStorage.getItem('brd-lang') || 'it';
+  if (lang === 'en') {
+    const t: Record<string, string> = {
+      tag: 'Contact',
+      title: 'Contact me',
+      why_title: 'Why write',
+      r1_title: 'Add a race',
+      r1_desc: 'Attach the <strong>.gpx</strong> file and include: race name, date, location, category (Elite / U23 / Junior / Allievi), discipline (Strada / Criterium / Cronometro) and gender (Maschile / Femminile).',
+      r2_title: 'Report an error',
+      r2_desc: 'Indicate the race name and the incorrect data — distance, elevation, date or anything else. I\'ll fix it as soon as possible. Bear in mind that distances and elevation gains are calculated automatically, so they may not be perfectly accurate.',
+      r3_title: 'Get coached',
+      r3_desc: 'I\'m an athletic trainer and sport scientist. Tell me about your level, your goals and the calendar you have in mind — let\'s see if we can work together.',
+      r4_title: 'Anything else',
+      r4_desc: 'Suggestions, feedback, questions, or you simply want to talk about cycling and training. Everything is welcome.',
+      mail_btn: 'Send an email →',
+      kofi_btn: 'Support',
+    };
+    document.querySelectorAll<HTMLElement>('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n!;
+      if (t[key]) el.innerHTML = t[key];
+    });
+    const lead = document.getElementById('page-lead');
+    if (lead) lead.innerHTML = `Write to <a href="mailto:bonvicin.coaching@gmail.com">bonvicin.coaching@gmail.com</a> — below you'll find what to include depending on the reason.`;
+  }
 </script>
 
 <style>
@@ -132,7 +160,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     border-right: 1px solid var(--border);
     position: sticky; top: 0;
     height: 100vh; overflow-y: auto;
-    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    grid-row: 1 / 2;
   }
 
   .sidebar-inner { display: flex; flex-direction: column; padding: 1.75rem 1.25rem; height: 100%; gap: 1.5rem; }

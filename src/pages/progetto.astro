@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import LangSwitcher from '../components/LangSwitcher.astro';
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
@@ -11,7 +12,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-inner">
       <div class="brand">
-        <div class="brand-mark">RDB</div>
+        <div class="brand-mark">BRD</div>
         <div>
           <div class="brand-name">Race Database</div>
           <div class="brand-sub">Easy</div>
@@ -31,75 +32,76 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
     <div class="mobile-topbar">
       <button class="mobile-menu-btn" id="menu-btn" aria-label="Apri menu">☰</button>
+      <LangSwitcher />
     </div>
 
     <div class="page-content">
 
       <header class="page-header">
         <div class="page-tag">About</div>
-        <h1 class="page-title">Il Progetto</h1>
-        <p class="page-lead">Un archivio digitale di gare ciclistiche — per esplorare percorsi nel dettaglio, conoscere ogni salita e "vedere" la strada prima ancora di percorrerla.</p>
+        <h1 class="page-title" data-i18n="title">Il Progetto</h1>
+        <p class="page-lead" data-i18n="lead">Un archivio digitale di gare ciclistiche — per esplorare percorsi nel dettaglio, conoscere ogni salita e "vedere" la strada prima ancora di percorrerla.</p>
       </header>
 
       <section class="section">
-        <h2 class="section-title">Chi c'è dietro</h2>
-        <p>
+        <h2 class="section-title" data-i18n="who_title">Chi c'è dietro</h2>
+        <p data-i18n="who_p1">
           Mi chiamo Andrea Bonvicin, sono preparatore atletico e sport scientist. Lavoro con ciclisti di diverse categorie e da sempre ho avuto una passione per i percorsi: sapere dove si trova ogni strappo, conoscere il fondo stradale, capire il profilo prima di arrivarci.
         </p>
-        <p>
+        <p id="who_p2_el">
           L'idea è nata da una mancanza concreta: per le categorie Elite e Pro esiste già di tutto, ma per il ciclismo giovanile — Allievi/e e Junior soprattutto — non c'è praticamente nulla di organizzato. Niente mappe, niente profili, niente a cui fare riferimento per preparare una gara. Ho iniziato a raccogliere i file GPX per colmare questo vuoto, e col tempo è diventato un archivio vero e proprio. Se vuoi contribuire aggiungendo una gara, trovi tutto nella pagina <a href={`${base}/contattami`}>Contattami</a>.
         </p>
       </section>
 
       <section class="section">
-        <h2 class="section-title">Cosa trovi qui</h2>
+        <h2 class="section-title" data-i18n="what_title">Cosa trovi qui</h2>
         <div class="features-grid">
           <div class="feature-card">
             <div class="feature-icon">◈</div>
-            <div class="feature-title">Mappa interattiva</div>
-            <p class="feature-desc">Il tracciato GPX disegnato sulla mappa con partenza e arrivo segnati. Zoomabile ed esplorabile.</p>
+            <div class="feature-title" data-i18n="f1_title">Mappa interattiva</div>
+            <p class="feature-desc" data-i18n="f1_desc">Il tracciato GPX disegnato sulla mappa con partenza e arrivo segnati. Zoomabile ed esplorabile.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">△</div>
-            <div class="feature-title">Profilo altimetrico 3D</div>
-            <p class="feature-desc">Il grafico dell'altitudine con rendering tridimensionale e gradiente colorato in base alla pendenza.</p>
+            <div class="feature-title" data-i18n="f2_title">Profilo altimetrico 3D</div>
+            <p class="feature-desc" data-i18n="f2_desc">Il grafico dell'altitudine con rendering tridimensionale e gradiente colorato in base alla pendenza.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">⊘</div>
-            <div class="feature-title">Salite rilevate</div>
-            <p class="feature-desc">Ogni salita significativa viene rilevata automaticamente dal GPX e classificata per difficoltà, lunghezza e pendenza media.</p>
+            <div class="feature-title" data-i18n="f3_title">Salite rilevate</div>
+            <p class="feature-desc" data-i18n="f3_desc">Ogni salita significativa viene rilevata automaticamente dal GPX e classificata per difficoltà, lunghezza e pendenza media.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">◉</div>
-            <div class="feature-title">Street View</div>
-            <p class="feature-desc">Un link diretto a Google Street View posizionato all'inizio di ogni salita. Puoi esplorare virtualmente il percorso prima di arrivarci.</p>
+            <div class="feature-title" data-i18n="f4_title">Street View</div>
+            <p class="feature-desc" data-i18n="f4_desc">Un link diretto a Google Street View posizionato all'inizio di ogni salita. Puoi esplorare virtualmente il percorso prima di arrivarci.</p>
           </div>
         </div>
-        <div class="example-note">
+        <div class="example-note" data-i18n="example_note">
           ↑ Mappa · Profilo 3D · Salite rilevate · Street View — tutto da un singolo file GPX
         </div>
       </section>
 
       <section class="section">
-        <h2 class="section-title">Sostieni il progetto</h2>
-        <p>
+        <h2 class="section-title" data-i18n="support_title">Sostieni il progetto</h2>
+        <p data-i18n="support_p1">
           Questo archivio è gratuito, senza pubblicità e mantenuto nel tempo libero. Aggiungere gare, mantenere il server, migliorare il visualizzatore — tutto ha un costo. Se lo trovi utile e vuoi contribuire, puoi offrire un caffè su Ko-fi. Non è obbligatorio, ma fa sempre piacere.
         </p>
-        <p>
+        <p data-i18n="support_p2">
           In futuro, con un po' di supporto, sarebbe bello poter integrare Street View direttamente nella pagina — senza aprire una nuova scheda — usando le API ufficiali Google. Per ora il link funziona egregiamente, ma è uno degli obiettivi.
         </p>
         <div class="kofi-wrap">
           <a href="https://ko-fi.com/andreabonvicin" target="_blank" rel="noopener" class="kofi-btn">
             <span class="kofi-icon">☕</span>
-            Offrimi un caffè su Ko-fi
+            <span data-i18n="kofi_btn">Offrimi un caffè su Ko-fi</span>
           </a>
         </div>
       </section>
 
       <section class="section section-cta">
-        <a href={`${base}/`} class="cta-btn">Esplora il database →</a>
-        <a href={`${base}/contattami`} class="cta-btn cta-secondary">Contattami</a>
-        <a href="https://ko-fi.com/andreabonvicin" target="_blank" rel="noopener" class="cta-btn cta-kofi">☕ Sostieni</a>
+        <a href={`${base}/`} class="cta-btn" data-i18n="cta_explore">Esplora il database →</a>
+        <a href={`${base}/contattami`} class="cta-btn cta-secondary" data-i18n="cta_contact">Contattami</a>
+        <a href="https://ko-fi.com/andreabonvicin" target="_blank" rel="noopener" class="cta-btn cta-kofi">☕ <span data-i18n="cta_support">Sostieni</span></a>
       </section>
 
     </div>
@@ -114,10 +116,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 </div>
 </Base>
 
-<script>
-  const menuBtn = document.getElementById('menu-btn') as HTMLElement;
-  const overlay = document.getElementById('sidebar-overlay') as HTMLElement;
-  const sidebar = document.getElementById('sidebar') as HTMLElement;
+<script define:vars={{ base }}>
+  const menuBtn = document.getElementById('menu-btn');
+  const overlay = document.getElementById('sidebar-overlay');
+  const sidebar = document.getElementById('sidebar');
 
   function openDrawer() { sidebar.classList.add('open'); overlay.classList.add('open'); document.body.style.overflow = 'hidden'; }
   function closeDrawer() { sidebar.classList.remove('open'); overlay.classList.remove('open'); document.body.style.overflow = ''; }
@@ -125,6 +127,41 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   menuBtn?.addEventListener('click', openDrawer);
   overlay?.addEventListener('click', closeDrawer);
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', closeDrawer));
+
+  // i18n
+  const lang = localStorage.getItem('brd-lang') || 'it';
+  if (lang === 'en') {
+    const t = {
+      title: 'The Project',
+      lead: 'A digital archive of cycling races — to explore routes in detail, discover every climb and "see" the road before you even ride it.',
+      who_title: "Who's behind it",
+      who_p1: "My name is Andrea Bonvicin, I'm an athletic trainer and sport scientist. I work with cyclists across different categories and have always had a passion for routes: knowing where every steep section is, what the road surface is like, understanding the profile before getting there.",
+      what_title: 'What you find here',
+      f1_title: 'Interactive map',
+      f1_desc: 'The GPX track drawn on the map with start and finish marked. Zoomable and explorable.',
+      f2_title: '3D elevation profile',
+      f2_desc: 'The altitude chart with three-dimensional rendering and a colour gradient based on gradient.',
+      f3_title: 'Detected climbs',
+      f3_desc: 'Every significant climb is automatically detected from the GPX and classified by difficulty, length and average gradient.',
+      f4_title: 'Street View',
+      f4_desc: 'A direct link to Google Street View positioned at the start of each climb. You can virtually explore the route before you get there.',
+      example_note: '↑ Map · 3D profile · Detected climbs · Street View — all from a single GPX file',
+      support_title: 'Support the project',
+      support_p1: 'This archive is free, ad-free and maintained in my spare time. Adding races, maintaining the server, improving the visualiser — everything has a cost. If you find it useful and want to contribute, you can buy me a coffee on Ko-fi. It\'s not required, but it\'s always appreciated.',
+      support_p2: 'In the future, with a bit of support, it would be great to integrate Street View directly into the page — without opening a new tab — using the official Google APIs. For now the link works perfectly, but that\'s one of the goals.',
+      kofi_btn: 'Buy me a coffee on Ko-fi',
+      cta_explore: 'Explore the database →',
+      cta_contact: 'Contact me',
+      cta_support: 'Support',
+    };
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if (t[key]) el.textContent = t[key];
+    });
+    // who_p2 has a link inside — handle separately
+    const p2 = document.getElementById('who_p2_el');
+    if (p2) p2.innerHTML = `The idea came from a concrete gap: for Elite and Pro categories there's already everything online, but for youth cycling — especially U16 and Junior — there's practically nothing organised. No maps, no profiles, nothing to reference when preparing for a race. I started collecting GPX files to fill this gap, and over time it became a proper archive. If you want to contribute by adding a race, you'll find everything on the <a href="${base}/contattami">Contact me</a> page.`;
+  }
 </script>
 
 <style>
@@ -150,7 +187,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     border-right: 1px solid var(--border);
     position: sticky; top: 0;
     height: 100vh; overflow-y: auto;
-    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    grid-row: 1 / 2;
   }
 
   .sidebar-inner { display: flex; flex-direction: column; padding: 1.75rem 1.25rem; height: 100%; gap: 1.5rem; }
@@ -196,14 +233,14 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   .cta-btn { font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.75rem 1.25rem; border-radius: 3px; text-decoration: none; transition: all 0.15s; background: var(--text); color: var(--bg); border: 1px solid var(--text); }
   .cta-btn:hover { background: var(--accent); border-color: var(--accent); }
   .cta-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
-  .cta-secondary:hover { border-color: var(--text2); background: var(--bg3); color: var(--text); }
+  .cta-secondary:hover { background: var(--bg3); border-color: var(--text2); color: var(--text); }
+  .cta-kofi { background: #FF5E5B; color: #fff; border-color: #FF5E5B; }
+  .cta-kofi:hover { background: #e54c49; border-color: #e54c49; color: #fff; }
 
-  .kofi-wrap { margin-top: 0.5rem; }
-  .kofi-btn { display: inline-flex; align-items: center; gap: 0.6rem; font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.75rem 1.25rem; border-radius: 3px; text-decoration: none; background: #FF5E5B; color: #fff; border: 1px solid #FF5E5B; transition: all 0.15s; }
+  .kofi-wrap { padding-top: 0.5rem; }
+  .kofi-btn { display: inline-flex; align-items: center; gap: 0.6rem; font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.8rem 1.5rem; border-radius: 3px; text-decoration: none; background: #FF5E5B; color: #fff; border: 1px solid #FF5E5B; transition: all 0.15s; }
   .kofi-btn:hover { background: #e54c49; border-color: #e54c49; }
-  .kofi-icon { font-size: 1rem; line-height: 1; }
-  .cta-kofi { background: #FF5E5B; color: #fff; border: 1px solid #FF5E5B; }
-  .cta-kofi:hover { background: #e54c49; border-color: #e54c49; }
+  .kofi-icon { font-size: 1rem; }
 
   footer { grid-column: 1 / -1; grid-row: 2; text-align: center; padding: 1rem 1.25rem; background: var(--bg2); color: var(--text2); font-size: 0.8rem; border-top: 1px solid var(--border); flex-shrink: 0; }
   footer a { color: var(--text2); text-decoration: none; font-weight: 500; transition: color 0.2s; }
@@ -228,8 +265,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     .sidebar-inner { height: auto; min-height: 100%; padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 1rem)); }
 
     .main { padding: 0 1rem calc(1.5rem + env(safe-area-inset-bottom, 0.5rem)); }
-    .features-grid { grid-template-columns: 1fr; }
-    .section-cta { flex-direction: column; }
     .page-title { font-size: 2rem; }
+    .features-grid { grid-template-columns: 1fr; }
+    .section-cta { flex-wrap: wrap; }
   }
 </style>
