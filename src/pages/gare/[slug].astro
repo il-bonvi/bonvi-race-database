@@ -41,6 +41,13 @@ if (categorie.length === 1) {
   const colors = categorie.map(cat => catColorMap[cat] ?? '#888');
   borderColor = `linear-gradient(90deg, ${colors.join(', ')})`;
 }
+
+// Shade genere — identica a GaraCard: radiale dall'angolo alto-dx
+// Centrata sull'area del badge (dopo "← Race DB | "), picco a ~250px dal left
+const genereR = gara.genere === 'Femminile' ? '225,0,100' : '80,150,215';
+const genereA1 = gara.genere === 'Femminile' ? '0.14' : '0.22';
+const genereA2 = gara.genere === 'Femminile' ? '0.05' : '0.08';
+const genereShade = `radial-gradient(ellipse 140px 52px at 260px 0%, rgba(${genereR},${genereA1}) 0%, rgba(${genereR},${genereA2}) 35%, transparent 65%)`;
 ---
 
 <!DOCTYPE html>
@@ -138,6 +145,13 @@ if (categorie.length === 1) {
       gap: 0.25rem;
     }
 
+    .genere-symbol {
+      font-size: 0.75rem;
+      color: var(--text3);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
     .bar-title {
       font-family: var(--font-display);
       font-size: 1.1rem; font-weight: 700; letter-spacing: 0.01em;
@@ -166,7 +180,11 @@ if (categorie.length === 1) {
   </style>
 </head>
 <body>
-  <div class="top-bar" style={{ "--cat-color": borderColor }}>
+  <div class="top-bar" style={{
+    "--cat-color": borderColor,
+    "backgroundImage": genereShade,
+    "backgroundColor": "var(--bg2)"
+  }}>
     <a href={`${base}/`} class="back">← Race DB</a>
     <div class="bar-divider"></div>
     <span class="bar-cat">
@@ -176,8 +194,9 @@ if (categorie.length === 1) {
             {cat}{idx < categorie.length - 1 ? ' / ' : ''}
           </span>
         ))}
-        {' '}{gara.genere === 'Femminile' ? '♀' : '♂'} · {gara.disciplina}
+        {' · '}{gara.disciplina}
       </span>
+      <span class="genere-symbol">{gara.genere === 'Femminile' ? '♀' : '♂'}</span>
     </span>
     <div class="bar-divider"></div>
     <span class="bar-title">{gara.titolo}</span>
@@ -204,3 +223,5 @@ if (categorie.length === 1) {
   </div>
 
   <iframe class="report-frame" src={`${base}/gara.html?gara=${slug}`} title={gara.titolo}></iframe>
+</body>
+</html>

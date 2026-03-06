@@ -15,16 +15,19 @@ const catColorMap = {
 // Genera il colore/gradiente per il bordo
 let borderStyle = '';
 if (categorie.length === 1) {
-  // Singola categoria: colore solido
   borderStyle = catColorMap[categorie[0]] ?? '#888';
 } else {
-  // Multiple categorie: gradiente
   const colors = categorie.map(cat => catColorMap[cat] ?? '#888');
   borderStyle = `linear-gradient(90deg, ${colors.join(', ')})`;
 }
+
+// Shade colore genere
+const genereColor = gara.genere === 'Femminile'
+  ? 'radial-gradient(ellipse at 100% 0%, rgba(225,0,100,0.14) 0%, rgba(225,0,100,0.05) 35%, transparent 65%)'
+  : 'radial-gradient(ellipse at 100% 0%, rgba(80,150,215,0.22) 0%, rgba(80,150,215,0.08) 35%, transparent 65%)';
 ---
 
-<a href={`${base}/gare/${gara.slug}/`} class="card" style={`--cat-color: ${borderStyle}`}>
+<a href={`${base}/gare/${gara.slug}/`} class="card" style={`--cat-color: ${borderStyle}; --genere-shade: ${genereColor}`}>
 
   <div class="card-top">
     <div class="cat-badges">
@@ -76,8 +79,10 @@ if (categorie.length === 1) {
     padding: 1.25rem 1.5rem 1rem;
     cursor: pointer; position: relative;
     transition: transform 0.15s, box-shadow 0.15s;
+    overflow: hidden;
   }
 
+  /* Striscia categoria in cima */
   .card::before {
     content: '';
     position: absolute;
@@ -88,12 +93,24 @@ if (categorie.length === 1) {
     background: var(--cat-color);
   }
 
+  /* Shade genere — angolo alto destra, si dissolve */
+  .card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 60%;
+    height: 60%;
+    background: var(--genere-shade);
+    pointer-events: none;
+  }
+
   .card:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 24px rgba(0,0,0,0.1);
   }
 
-  .card-top { display: flex; align-items: center; gap: 0.5rem; }
+  .card-top { display: flex; align-items: center; gap: 0.5rem; position: relative; z-index: 1; }
 
   .cat-badges {
     display: flex;
