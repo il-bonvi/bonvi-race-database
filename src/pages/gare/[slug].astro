@@ -131,6 +131,9 @@ const discIconMap: Record<string, string> = {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  {isCorsaATappe && <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />}
+  {isCorsaATappe && <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>}
+  {isCorsaATappe && <script is:inline src="https://unpkg.com/d3@7/dist/d3.min.js"></script>}
   
   <style>
     :root {
@@ -615,17 +618,6 @@ const discIconMap: Record<string, string> = {
     <!-- ── GPX VIEWER (gara normale o singola tappa) ─────────────────────── -->
     <>
       <iframe class="report-frame" src={`${base}/gara.html?gara=${slug}&base=${base}`} title={gara.titolo}></iframe>
-    </>
-  )}
-
-  {isCorsaATappe && (
-    <>
-      {/* Leaflet CSS/JS */}
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></link>
-      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-      {/* D3 JS */}
-      <script src="https://unpkg.com/d3@7/dist/d3.min.js"></script>
     </>
   )}
 
