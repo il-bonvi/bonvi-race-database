@@ -34,5 +34,18 @@
       "Junior"
     ],
     "categoria_code": "DJ"
+  },
+  {
+    "slug": "trofeo-alfredo-binda-2026-DU-DPRO",
+    "titolo": "Trofeo Alfredo Binda",
+    "data": "2026-03-15",
+    "year": "2026",
+    "race_series": "cittiglio",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23"
+    ],
+    "categoria_code": "DPRO"
   }
 ]
