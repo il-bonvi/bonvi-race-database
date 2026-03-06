@@ -88,39 +88,6 @@ def categoria_code(genere: str, categoria: str) -> str:
     return f"{genere_code}{cat_code}" if genere_code and cat_code else ""
 
 
-def reverse_geocode(lat: float, lon: float) -> str | None:
-    """Ritorna 'Provincia, Regione, CC' tramite Nominatim (OpenStreetMap)."""
-    import urllib.request
-    import urllib.parse
-    import json as _json
-    
-    try:
-        params = urllib.parse.urlencode({
-            "lat": round(lat, 5),
-            "lon": round(lon, 5),
-            "format": "json",
-            "zoom": 8,
-        })
-        url = f"https://nominatim.openstreetmap.org/reverse?{params}"
-        req = urllib.request.Request(url, headers={"User-Agent": "RaceDB/1.0"})
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = _json.loads(response.read())
-        
-        address = data.get("address", {})
-        provincia = address.get("county", address.get("province", ""))
-        regione = address.get("state", address.get("region", ""))
-        country_code = data.get("address", {}).get("country_code", "IT").upper()
-        
-        if provincia and regione:
-            return f"{provincia}, {regione}, {country_code}"
-        elif regione:
-            return f"{regione}, {country_code}"
-        return None
-        
-    except Exception:
-        return None
-
-
 def parse_gpx(gpx_path: Path) -> dict:
     """Estrae distanza (km), dislivello positivo (m) e punti GPX dal file GPX."""
     try:
@@ -1612,6 +1579,7 @@ GPX FILE:     {gpx_info}"""
                 })
 
         selected_stage = [None]  # indice tappa selezionata
+        orphaned_stage_slugs: set[str] = set()  # slug di tappe da eliminare dal disco al salvataggio
 
         # ── layout principale con Canvas scrollabile ────────────────────────
         main_frame = tk.Frame(win, bg=BG)
@@ -1638,6 +1606,7 @@ GPX FILE:     {gpx_info}"""
         def _on_mousewheel(e):
             canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        win.bind("<Destroy>", lambda e: canvas.unbind_all("<MouseWheel>"))
 
         # ── Sezione 1: dati corsa principale ──────────────────────────────
         tk.Frame(scroll_frame, bg=ACCENT, height=4).pack(fill="x")
@@ -1827,7 +1796,8 @@ GPX FILE:     {gpx_info}"""
         # Slug (auto-generato)
         tk.Label(race_frame, text="Slug corsa", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
             row=7, column=0, sticky="w", padx=(0, 8), pady=4)
-        slug_var = tk.StringVar(value=data.get('slug', ''))
+        original_slug = data.get('slug', '')
+        slug_var = tk.StringVar(value=original_slug)
         slug_entry = tk.Entry(race_frame, textvariable=slug_var, font=("Helvetica", 10), relief="solid", bd=1)
         slug_entry.grid(row=7, column=1, sticky="ew", pady=4)
         race_entries['slug'] = slug_var
@@ -2198,11 +2168,18 @@ GPX FILE:     {gpx_info}"""
             ok = messagebox.askyesno("Conferma", f"Rimuovere '{stages[idx].get('nome', '')}'?", parent=win)
             if not ok:
                 return
+            # Traccia lo slug della tappa rimossa come orfano
+            removed_slug = stages[idx].get('slug_tappa', '')
+            if removed_slug:
+                orphaned_stage_slugs.add(removed_slug)
             stages.pop(idx)
-            # Rinumera
+            # Rinumera: traccia i vecchi slug prima di sovrascriverli
             for i, s in enumerate(stages):
+                old_slug = s.get('slug_tappa', '')
                 s['numero'] = i + 1
                 s['slug_tappa'] = _stage_auto_slug(i + 1)
+                if old_slug and old_slug != s['slug_tappa']:
+                    orphaned_stage_slugs.add(old_slug)
             selected_stage[0] = None
             _refresh_stages_list()
             # svuota dettaglio
@@ -2265,6 +2242,34 @@ GPX FILE:     {gpx_info}"""
             }
 
             save_stage_race(race_slug, main, stages)
+
+            # In edit mode, se lo slug della corsa è cambiato, elimina i vecchi file principali
+            if not is_new and original_slug and original_slug != race_slug:
+                for p in [
+                    GARE_DIR / f"{original_slug}.json",
+                    PUBLIC_GARE_DIR / f"{original_slug}.json",
+                ]:
+                    if p.exists():
+                        p.unlink()
+                # Segna tutte le tappe con il vecchio slug come orfane
+                if data.get('tappe'):
+                    for old_tappa in data['tappe']:
+                        old_stage_slug = old_tappa.get('slug', '')
+                        if old_stage_slug:
+                            orphaned_stage_slugs.add(old_stage_slug)
+
+            # Elimina file orfani (tappe rimosse o rinumerate con slug diverso)
+            current_stage_slugs = {s['slug_tappa'] for s in stages}
+            for orphan_slug in orphaned_stage_slugs - current_stage_slugs:
+                for p in [
+                    GARE_DIR / f"{orphan_slug}.json",
+                    PUBLIC_GARE_DIR / f"{orphan_slug}.json",
+                    GPX_DIR / f"{orphan_slug}-gpx.json",
+                    PUBLIC_GPX_DIR / f"{orphan_slug}-gpx.json",
+                ]:
+                    if p.exists():
+                        p.unlink()
+
             messagebox.showinfo("Salvato", "Corsa a tappe salvata con successo!", parent=win)
             win.destroy()
             self.refresh_list()

@@ -22,14 +22,12 @@ const isTappa = gara.tipo === 'tappa';
 
 // Per navigazione tra tappe: carica la corsa a tappe parent se necessario
 let tappeDelleGara: any[] = [];
-let indiceTappaCorrente = -1;
 if (isTappa && gara.corsa_a_tappe_slug) {
-  const corsaATabpeParent = Object.values(garaFiles)
+  const corsaATappeParent = Object.values(garaFiles)
     .map((m: any) => m.default ?? m)
     .find((g: any) => g.slug === gara.corsa_a_tappe_slug);
-  if (corsaATabpeParent && corsaATabpeParent.tappe) {
-    tappeDelleGara = [...corsaATabpeParent.tappe].sort((a: any, b: any) => (a.numero ?? 0) - (b.numero ?? 0));
-    indiceTappaCorrente = tappeDelleGara.findIndex((t: any) => t.slug === slug);
+  if (corsaATappeParent && corsaATappeParent.tappe) {
+    tappeDelleGara = [...corsaATappeParent.tappe].sort((a: any, b: any) => (a.numero ?? 0) - (b.numero ?? 0));
   }
 }
 
@@ -124,10 +122,12 @@ const discIconMap: Record<string, string> = {
   <!-- Open Graph -->
   <meta property="og:title" content={`${gara.titolo} — Race DB`} />
   <meta property="og:type" content="website" />
+  <meta property="og:description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isCorsaATappe ? gara.n_tappe + ' tappe' : (gara.distanza_km + 'km')}`} />
   
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content={`${gara.titolo} — Race DB`} />
+  <meta name="twitter:description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isCorsaATappe ? gara.n_tappe + ' tappe' : (gara.distanza_km + 'km')}`} />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -546,7 +546,6 @@ const discIconMap: Record<string, string> = {
         <div class="stages-heading">Tappe</div>
         <div class="stages-list">
           {tappe.map((tappa: any) => {
-            const hasGpx = true; // Il link è sempre attivo; senza GPX il viewer non mostrerà la mappa
             return (
               <a
                 href={`${base}/gare/${tappa.slug}/`}
@@ -619,12 +618,16 @@ const discIconMap: Record<string, string> = {
     </>
   )}
 
-  {/* Leaflet CSS/JS */}
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></link>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  
-  {/* D3 JS */}
-  <script src="https://unpkg.com/d3@7/dist/d3.min.js"></script>
+  {isCorsaATappe && (
+    <>
+      {/* Leaflet CSS/JS */}
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></link>
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+      {/* D3 JS */}
+      <script src="https://unpkg.com/d3@7/dist/d3.min.js"></script>
+    </>
+  )}
 
   <script is:inline define:vars={{ 
     tappe, 
@@ -651,7 +654,6 @@ const discIconMap: Record<string, string> = {
     // Carica mappe e profili per corsa a tappe
     waitForLibraries().then(() => {
       if (isCorsaATappe && tappe && tappe.length > 0) {
-        console.log('Starting to load GPX data...');
         (async () => {
           // Carica GPX per tutte le tappe
           const stageGpxData = {};
@@ -661,17 +663,12 @@ const discIconMap: Record<string, string> = {
               const gpxRes = await fetch(gpxPath);
               if (gpxRes.ok) {
                 const gpxData = await gpxRes.json();
-                console.log(`Loaded GPX for ${tappa.slug}:`, gpxData);
                 stageGpxData[tappa.numero] = gpxData.gpx_points || [];
-              } else {
-                console.warn(`GPX not found for ${tappa.slug}`);
               }
             } catch (e) {
-              console.warn(`Error loading GPX for stage ${tappa.numero}:`, e);
+              // GPX non disponibile per questa tappa
             }
           }
-
-          console.log('All GPX loaded, stageGpxData:', Object.keys(stageGpxData), stageGpxData);
 
           // Inizializza mappa Leaflet
           initStageMap(tappe, stageGpxData, stageColors);
@@ -679,21 +676,12 @@ const discIconMap: Record<string, string> = {
           // Disegna profilo altimetrico
           drawElevationProfile(tappe, stageGpxData, stageColors);
         })();
-      } else {
-        console.log('Not a stage race:', { isCorsaATappe, tappeCount: tappe?.length });
       }
     });
 
     function initStageMap(tappe, stageGpxData, colors) {
-      console.log('initStageMap called with:', { 
-        tappe: tappe?.length, 
-        stageGpxData: typeof stageGpxData,
-        stageGpxDataKeys: Object.keys(stageGpxData || {})
-      });
-      
       const mapEl = document.getElementById('stage-map');
       if (!mapEl) {
-        console.error('Map element not found');
         return;
       }
 
@@ -702,7 +690,6 @@ const discIconMap: Record<string, string> = {
       let hasPoints = false;
 
       for (const [stageNum, points] of Object.entries(stageGpxData || {})) {
-        console.log(`Stage ${stageNum}: ${Array.isArray(points) ? points.length : '?'} points`);
         if (Array.isArray(points) && points.length > 0) {
           hasPoints = true;
           points.forEach((point, idx) => {
@@ -714,7 +701,6 @@ const discIconMap: Record<string, string> = {
               lat = point.lat;
               lon = point.lon;
             } else {
-              console.warn(`Invalid point at index ${idx}:`, point);
               return;
             }
             
@@ -816,12 +802,9 @@ const discIconMap: Record<string, string> = {
     }
 
     function drawElevationProfile(tappe, stageGpxData, colors) {
-      console.log('drawElevationProfile called with stages:', tappe?.length);
-      
       const svgEl = document.getElementById('elevation-chart');
       const legendEl = document.getElementById('elevation-legend');
       if (!svgEl) {
-        console.error('SVG element not found');
         return;
       }
 
@@ -831,7 +814,6 @@ const discIconMap: Record<string, string> = {
 
       for (const tappa of tappe) {
         const points = stageGpxData[tappa.numero] || [];
-        console.log(`Stage ${tappa.numero}: ${points.length} points`);
         if (points.length === 0) continue;
 
         // Calcola distanza cumulativa per questo tappa
@@ -847,7 +829,6 @@ const discIconMap: Record<string, string> = {
             lon = point.lon;
             ele = point.ele || 0;
           } else {
-            console.warn(`Invalid point at stage ${tappa.numero} index ${i}:`, point);
             continue;
           }
           
