@@ -88,39 +88,6 @@ def categoria_code(genere: str, categoria: str) -> str:
     return f"{genere_code}{cat_code}" if genere_code and cat_code else ""
 
 
-def reverse_geocode(lat: float, lon: float) -> str | None:
-    """Ritorna 'Provincia, Regione, CC' tramite Nominatim (OpenStreetMap)."""
-    import urllib.request
-    import urllib.parse
-    import json as _json
-    
-    try:
-        params = urllib.parse.urlencode({
-            "lat": round(lat, 5),
-            "lon": round(lon, 5),
-            "format": "json",
-            "zoom": 8,
-        })
-        url = f"https://nominatim.openstreetmap.org/reverse?{params}"
-        req = urllib.request.Request(url, headers={"User-Agent": "RaceDB/1.0"})
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = _json.loads(response.read())
-        
-        address = data.get("address", {})
-        provincia = address.get("county", address.get("province", ""))
-        regione = address.get("state", address.get("region", ""))
-        country_code = data.get("address", {}).get("country_code", "IT").upper()
-        
-        if provincia and regione:
-            return f"{provincia}, {regione}, {country_code}"
-        elif regione:
-            return f"{regione}, {country_code}"
-        return None
-        
-    except Exception:
-        return None
-
-
 def parse_gpx(gpx_path: Path) -> dict:
     """Estrae distanza (km), dislivello positivo (m) e punti GPX dal file GPX."""
     try:
@@ -203,6 +170,49 @@ def parse_gpx(gpx_path: Path) -> dict:
         return {'distanza_km': None, 'dislivello_m': None, 'gpx_points': None, 'center_lat': None, 'center_lon': None}
 
 
+# ── REVERSE GEOCODING (NOMINATIM/OSM) ────────────────────────────────────────
+
+def reverse_geocode(lat: float, lon: float) -> str | None:
+    """
+    Ritorna 'Provincia, IT' tramite Nominatim (OpenStreetMap).
+    Nessuna API key richiesta. Ritorna None se offline o in caso di errore.
+    """
+    import urllib.request
+    import urllib.parse
+    import json as _json
+
+    try:
+        params = urllib.parse.urlencode({
+            "lat": round(lat, 5),
+            "lon": round(lon, 5),
+            "format": "json",
+            "zoom": 8,
+            "addressdetails": 1,
+        })
+        url = f"https://nominatim.openstreetmap.org/reverse?{params}"
+        req = urllib.request.Request(url, headers={"User-Agent": "race-db-archivio/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = _json.loads(resp.read())
+
+        addr = data.get("address", {})
+        provincia = (
+            addr.get("county") or
+            addr.get("city") or
+            addr.get("town") or
+            addr.get("village") or
+            ""
+        )
+        for prefix in ("Provincia di ", "Province of ", "Distretto di "):
+            if provincia.startswith(prefix):
+                provincia = provincia[len(prefix):]
+
+        country_code = addr.get("country_code", "").upper()
+        parts = [p for p in [provincia, country_code] if p]
+        return ", ".join(parts) if parts else None
+    except Exception:
+        return None
+
+
 # ── AUTO-UPDATE INDICE GARE ──────────────────────────────────────────────────
 
 def update_gares_index():
@@ -232,6 +242,10 @@ def update_gares_index():
             categoria_first = categoria_list[0] if categoria_list else ""
             cat_code = categoria_code(genere, categoria_first) if genere and categoria_first else ""
             
+            # Salta le singole tappe (sono incluse nella scheda corsa a tappe)
+            if gara.get('tipo') == 'tappa':
+                continue
+
             races.append({
                 "slug": slug,
                 "titolo": gara.get("titolo"),
@@ -241,6 +255,8 @@ def update_gares_index():
                 "genere": genere,
                 "categoria": categoria_display,
                 "categoria_code": cat_code,
+                "tipo": gara.get("tipo"),
+                "n_tappe": gara.get("n_tappe"),
             })
             
         except Exception:
@@ -329,6 +345,112 @@ def delete_race(slug: str):
     update_gares_index()
 
 
+def save_stage_race(race_slug: str, main_data: dict, stages: list):
+    """Salva una corsa a tappe con le sue tappe.
+    
+    - race_slug: slug della corsa principale
+    - main_data: dati principali (titolo, data, genere, categoria, luogo, ...)
+    - stages: lista di dict con i dati di ogni tappa:
+        {numero, nome, slug_tappa, data, distanza_km, dislivello_m, disciplina, gpx_points (opz.)}
+    """
+    # Calcola totali dalle tappe
+    total_km  = sum(float(s.get('distanza_km') or 0) for s in stages)
+    total_elev = sum(float(s.get('dislivello_m') or 0) for s in stages)
+
+    # Array tappe (solo metadata per il JSON principale)
+    tappe_meta = []
+    for s in stages:
+        tappa_meta = {
+            "numero":       s['numero'],
+            "nome":         s['nome'],
+            "slug":         s['slug_tappa'],
+            "data":         s.get('data', ''),
+            "distanza_km":  s.get('distanza_km'),
+            "dislivello_m": s.get('dislivello_m'),
+            "disciplina":   s.get('disciplina', 'Strada'),
+            "giri":         s.get('giri', 1) if s.get('giri', 1) > 1 else None,
+        }
+        tappe_meta.append({k: v for k, v in tappa_meta.items() if v is not None})
+
+    # Aggiorna i campi del main_data
+    main_data['tipo']         = 'corsa_a_tappe'
+    main_data['n_tappe']      = len(stages)
+    main_data['distanza_km']  = round(total_km, 2) if total_km else None
+    main_data['dislivello_m'] = round(total_elev)  if total_elev else None
+    main_data['tappe']        = tappe_meta
+    main_data['slug']         = race_slug
+    if not main_data.get('race_series'):
+        main_data['race_series'] = slugify(main_data.get('titolo', ''))
+
+    # Salva JSON principale
+    main_clean = {k: v for k, v in main_data.items() if v is not None}
+    main_str = json.dumps(main_clean, ensure_ascii=False, indent=2)
+    (GARE_DIR / f"{race_slug}.json").write_text(main_str, encoding='utf-8')
+    PUBLIC_GARE_DIR.mkdir(parents=True, exist_ok=True)
+    (PUBLIC_GARE_DIR / f"{race_slug}.json").write_text(main_str, encoding='utf-8')
+
+    # Salva ogni tappa come JSON separato + GPX se disponibile
+    for s in stages:
+        stage_slug = s['slug_tappa']
+        stage_data = {
+            "titolo":               f"{main_data['titolo']} — Tappa {s['numero']}: {s['nome']}",
+            "tipo":                 "tappa",
+            "nome_tappa":           s['nome'],
+            "numero_tappa":         s['numero'],
+            "corsa_a_tappe_slug":   race_slug,
+            "corsa_a_tappe_titolo": main_data['titolo'],
+            "race_series":          main_data.get('race_series', ''),
+            "data":                 s.get('data', ''),
+            "genere":               main_data.get('genere', ''),
+            "categoria":            main_data.get('categoria', []),
+            "disciplina":           s.get('disciplina', 'Strada'),
+            "distanza_km":          s.get('distanza_km'),
+            "dislivello_m":         s.get('dislivello_m'),
+            "velocita_media_kmh":   s.get('velocita_media_kmh'),
+            "luogo":                s.get('luogo') or main_data.get('luogo'),
+            "slug":                 stage_slug,
+        }
+        stage_clean = {k: v for k, v in stage_data.items() if v is not None}
+        stage_str = json.dumps(stage_clean, ensure_ascii=False, indent=2)
+        (GARE_DIR / f"{stage_slug}.json").write_text(stage_str, encoding='utf-8')
+        (PUBLIC_GARE_DIR / f"{stage_slug}.json").write_text(stage_str, encoding='utf-8')
+
+        gpx_points = s.get('gpx_points')
+        if gpx_points:
+            gpx_data = {"slug": stage_slug, "gpx_points": gpx_points}
+            gpx_str  = json.dumps(gpx_data, ensure_ascii=False, indent=2)
+            GPX_DIR.mkdir(parents=True, exist_ok=True)
+            (GPX_DIR / f"{stage_slug}-gpx.json").write_text(gpx_str, encoding='utf-8')
+            PUBLIC_GPX_DIR.mkdir(parents=True, exist_ok=True)
+            (PUBLIC_GPX_DIR / f"{stage_slug}-gpx.json").write_text(gpx_str, encoding='utf-8')
+
+    update_gares_index()
+
+
+def delete_stage_race(slug: str, tappe: list):
+    """Elimina una corsa a tappe e tutte le sue tappe."""
+    # File principale
+    for p in [GARE_DIR / f"{slug}.json", PUBLIC_GARE_DIR / f"{slug}.json"]:
+        if p.exists():
+            p.unlink()
+
+    # Ogni tappa
+    for tappa in tappe:
+        stage_slug = tappa.get('slug', '')
+        if not stage_slug:
+            continue
+        for p in [
+            GARE_DIR / f"{stage_slug}.json",
+            PUBLIC_GARE_DIR / f"{stage_slug}.json",
+            GPX_DIR / f"{stage_slug}-gpx.json",
+            PUBLIC_GPX_DIR / f"{stage_slug}-gpx.json",
+        ]:
+            if p.exists():
+                p.unlink()
+
+    update_gares_index()
+
+
 def git_push_changes(message: str = None) -> tuple:
     """Esegue git add, commit e push automatico.
     
@@ -403,7 +525,7 @@ class RaceManagerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("📋 Gestore Gare")
-        self.root.geometry("1100x700")
+        self.root.state('zoomed')
         self.root.configure(bg=BG)
         
         self.root.option_add("*Background", BG)
@@ -528,9 +650,13 @@ class RaceManagerApp:
         button_frame = tk.Frame(self.root, bg=BG)
         button_frame.pack(side="bottom", fill="x", padx=12, pady=12)
         
-        tk.Button(button_frame, text="➕ Aggiungi nuova", font=("Helvetica", 10),
+        tk.Button(button_frame, text="➕ Aggiungi corsa", font=("Helvetica", 10),
                  bg=ACCENT, fg="white", padx=12, pady=8, relief="flat", bd=0,
                  cursor="hand2", command=self.add_race).pack(side="left", padx=(0, 6))
+        
+        tk.Button(button_frame, text="➕ Aggiungi corsa a tappe", font=("Helvetica", 10),
+                 bg="#059669", fg="white", padx=12, pady=8, relief="flat", bd=0,
+                 cursor="hand2", command=self.add_stage_race).pack(side="left", padx=(0, 6))
         
         tk.Button(button_frame, text="✏️ Modifica", font=("Helvetica", 10),
                  bg="#9ca3af", fg="white", padx=12, pady=8, relief="flat", bd=0,
@@ -629,7 +755,16 @@ class RaceManagerApp:
             data_gara = data.get('data', '—')
             km = data.get('distanza_km', '—')
             dislivello = data.get('dislivello_m', '—')
-            line = f"{titolo:30s} | {data_gara} | {km:6}km | {dislivello:6}m"
+            tipo = data.get('tipo', '')
+            if tipo == 'corsa_a_tappe':
+                n_tappe = data.get('n_tappe', '?')
+                prefix = f'[⛰ {n_tappe}T] '
+            elif tipo == 'tappa':
+                n = data.get('numero_tappa', '?')
+                prefix = f'  └ S{n}  '
+            else:
+                prefix = '       '
+            line = f"{prefix}{titolo:27s} | {data_gara} | {str(km):6}km | {str(dislivello):6}m"
             self.race_listbox.insert(tk.END, line)
     
     def reset_filters(self):
@@ -649,20 +784,50 @@ class RaceManagerApp:
             return
         
         slug, data = self.filtered_races[idx[0]]
+        tipo = data.get('tipo', '')
         
-        # Determina quale file GPX verrà usato per questa gara
-        gpx_ref  = data.get('gpx_reference', '')
-        gpx_slug = gpx_ref if gpx_ref else slug
-        gpx_file = GPX_DIR / f"{gpx_slug}-gpx.json"
-        if gpx_file.exists():
-            if gpx_ref and gpx_ref != slug:
-                gpx_info = f"{gpx_slug}-gpx.json  [da gpx_reference]"
-            else:
-                gpx_info = f"{gpx_slug}-gpx.json"
-        else:
-            gpx_info = "nessuno"
+        if tipo == 'corsa_a_tappe':
+            tappe_info = ""
+            for t in data.get('tappe', []):
+                gpx_exists = (GPX_DIR / f"{t.get('slug', '')}-gpx.json").exists()
+                gpx_mark = "\u2713" if gpx_exists else "\u2717"
+                tappe_info += f"\n  S{t.get('numero','?')}: {t.get('nome','—')} ({t.get('distanza_km','—')}km +{t.get('dislivello_m','—')}m) GPX:{gpx_mark}"
 
-        info = f"""TITOLO:       {data.get('titolo', '—')}
+            info = f"""TITOLO:       {data.get('titolo', '—')}
+SLUG:         {slug}
+TIPO:         ⛰ Corsa a tappe ({data.get('n_tappe','?')} tappe)
+DATA INIZIO:  {data.get('data_inizio') or data.get('data', '—')}
+DATA FINE:    {data.get('data_fine', '—')}
+GENERE:       {data.get('genere', '—')}
+CATEGORIE:    {', '.join(data.get('categoria', [])) if isinstance(data.get('categoria'), list) else data.get('categoria', '—')}
+DIST TOTALE:  {data.get('distanza_km', '—')} km
+D+ TOTALE:    {data.get('dislivello_m', '—')} m
+LUOGO:        {data.get('luogo', '—')}
+TAPPE:{tappe_info}"""
+        elif tipo == 'tappa':
+            info = f"""TITOLO:       {data.get('titolo', '—')}
+SLUG:         {slug}
+TIPO:         Singola Tappa (S{data.get('numero_tappa','?')})
+CORSA:        {data.get('corsa_a_tappe_titolo', '—')} ({data.get('corsa_a_tappe_slug', '—')})
+NOME TAPPA:   {data.get('nome_tappa', '—')}
+DATA:         {data.get('data', '—')}
+DISCIPLINA:   {data.get('disciplina', '—')}
+DISTANZA:     {data.get('distanza_km', '—')} km
+DISLIVELLO:  {data.get('dislivello_m', '—')} m"""
+        else:
+            # Determina quale file GPX verrà usato per questa gara
+            gpx_ref  = data.get('gpx_reference', '')
+            gpx_slug = gpx_ref if gpx_ref else slug
+            gpx_file = GPX_DIR / f"{gpx_slug}-gpx.json"
+            if gpx_file.exists():
+                if gpx_ref and gpx_ref != slug:
+                    gpx_info = f"{gpx_slug}-gpx.json  [da gpx_reference]"
+                else:
+                    gpx_info = f"{gpx_slug}-gpx.json"
+            else:
+                gpx_info = "nessuno"
+
+            info = f"""TITOLO:       {data.get('titolo', '—')}
 SLUG:         {slug}
 DATA:         {data.get('data', '—')}
 GENERE:       {data.get('genere', '—')}
@@ -1370,6 +1535,757 @@ GPX FILE:     {gpx_info}"""
         
         edit_win.columnconfigure(1, weight=1)
     
+    def add_stage_race(self):
+        """Apre il form per creare una nuova corsa a tappe"""
+        self.open_stage_race_form(initial_data=None, is_new=True)
+
+    def open_stage_race_form(self, initial_data: dict = None, is_new: bool = True):
+        """Form completo per creare/modificare una corsa a tappe"""
+        win = tk.Toplevel(self.root)
+        win.title("Nuova corsa a tappe" if is_new else f"Modifica: {(initial_data or {}).get('titolo', '')}")
+        win.configure(bg=BG)
+
+        # ── dati interni ───────────────────────────────────────────────────
+        data = (initial_data or {}).copy()
+        # Lista tappe: ognuna è un dict con chiavi:
+        #   numero, nome, slug_tappa, data, disciplina, distanza_km, dislivello_m, gpx_points
+        stages: list[dict] = []
+        if data.get('tappe'):
+            for t in data['tappe']:
+                # ricarica i gpx_points dal file, se esiste
+                gpx_pts = None
+                gpx_path = GPX_DIR / f"{t.get('slug', '')}-gpx.json"
+                if gpx_path.exists():
+                    try:
+                        gd = json.loads(gpx_path.read_text(encoding='utf-8'))
+                        gpx_pts = gd.get('gpx_points')
+                    except Exception:
+                        pass
+                _giri = max(1, t.get('giri', 1))
+                _km   = t.get('distanza_km')
+                _elev = t.get('dislivello_m')
+                stages.append({
+                    'numero':       t.get('numero', len(stages) + 1),
+                    'nome':         t.get('nome', ''),
+                    'slug_tappa':   t.get('slug', ''),
+                    'data':         t.get('data', ''),
+                    'disciplina':   t.get('disciplina', 'Strada'),
+                    'giri':         _giri,
+                    'distanza_km':  _km,
+                    'dislivello_m': _elev,
+                    'gpx_points':   gpx_pts,
+                    '_base_km':     round(_km / _giri, 4) if _km else None,
+                    '_base_elev':   round(_elev / _giri) if _elev else None,
+                })
+
+        selected_stage = [None]  # indice tappa selezionata
+        orphaned_stage_slugs: set[str] = set()  # slug di tappe da eliminare dal disco al salvataggio
+
+        # ── layout principale con Canvas scrollabile ────────────────────────
+        main_frame = tk.Frame(win, bg=BG)
+        main_frame.pack(fill="both", expand=True)
+
+        canvas = tk.Canvas(main_frame, bg=BG, highlightthickness=0)
+        scrollbar = tk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        scroll_frame = tk.Frame(canvas, bg=BG)
+        sw_id = canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+
+        def _on_frame_configure(e):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        def _on_canvas_configure(e):
+            canvas.itemconfig(sw_id, width=e.width)
+
+        scroll_frame.bind("<Configure>", _on_frame_configure)
+        canvas.bind("<Configure>", _on_canvas_configure)
+
+        def _on_mousewheel(e):
+            canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        win.bind("<Destroy>", lambda e: canvas.unbind_all("<MouseWheel>"))
+
+        # ── Sezione 1: dati corsa principale ──────────────────────────────
+        tk.Frame(scroll_frame, bg=ACCENT, height=4).pack(fill="x")
+        tk.Label(scroll_frame, text="\u26f0  Corsa a Tappe", font=("Helvetica", 14, "bold"),
+                 bg=BG, fg=FG, pady=8).pack(anchor="w", padx=14)
+
+        race_frame = tk.LabelFrame(scroll_frame, text="Dati corsa principale",
+                                   bg=BG, fg=FG, font=("Helvetica", 10, "bold"),
+                                   padx=10, pady=8)
+        race_frame.pack(fill="x", padx=14, pady=(0, 8))
+        race_frame.columnconfigure(1, weight=1)
+
+        race_entries = {}
+
+        import calendar as cal_mod
+
+        def _open_calendar(parent_win, sv, min_date=None, max_date=None):
+            """Popup calendario. sv è un tk.StringVar che contiene la data AAAA-MM-GG.
+            min_date e max_date sono stringhe AAAA-MM-GG per limitare le date selezionabili."""
+            try:
+                parts = sv.get().split("-")
+                cur_year, cur_month = int(parts[0]), int(parts[1])
+            except Exception:
+                _td = date.today()
+                cur_year, cur_month = _td.year, _td.month
+            
+            # Converti min_date e max_date in date objects
+            min_d = None
+            max_d = None
+            if min_date:
+                try:
+                    p = min_date.split("-")
+                    min_d = date(int(p[0]), int(p[1]), int(p[2]))
+                except:
+                    pass
+            if max_date:
+                try:
+                    p = max_date.split("-")
+                    max_d = date(int(p[0]), int(p[1]), int(p[2]))
+                except:
+                    pass
+            
+            top = tk.Toplevel(parent_win)
+            top.title("Seleziona data")
+            top.resizable(False, False)
+            top.attributes("-topmost", True)
+            top.configure(bg=BG)
+            top.grab_set()
+            state = {"year": cur_year, "month": cur_month}
+            nav = tk.Frame(top, bg=BG)
+            nav.pack(fill="x", padx=10, pady=(10, 4))
+            lbl_mese = tk.Label(nav, text="", font=("Helvetica", 11, "bold"),
+                                bg=BG, fg=FG, width=16)
+            lbl_mese.pack(side="left", expand=True)
+            def prev_m():
+                if state["month"] == 1: state["month"] = 12; state["year"] -= 1
+                else: state["month"] -= 1
+                _cal_ref()
+            def next_m():
+                if state["month"] == 12: state["month"] = 1; state["year"] += 1
+                else: state["month"] += 1
+                _cal_ref()
+            tk.Button(nav, text="◄", font=("Helvetica", 10), bg=BG, fg=FG,
+                      relief="flat", bd=0, cursor="hand2", command=prev_m).pack(side="left")
+            tk.Button(nav, text="►", font=("Helvetica", 10), bg=BG, fg=FG,
+                      relief="flat", bd=0, cursor="hand2", command=next_m).pack(side="right")
+            grid_f = tk.Frame(top, bg=BG)
+            grid_f.pack(padx=10, pady=(0, 10))
+            for col, g in enumerate(["Lu", "Ma", "Me", "Gi", "Ve", "Sa", "Do"]):
+                tk.Label(grid_f, text=g, font=("Helvetica", 9, "bold"),
+                         bg=BG, fg="#7a746b", width=3).grid(row=0, column=col, pady=(0, 4))
+            day_btns = []
+            def _cal_ref():
+                for b in day_btns: b.destroy()
+                day_btns.clear()
+                y, m = state["year"], state["month"]
+                lbl_mese.config(text=f"{cal_mod.month_name[m]} {y}")
+                first_wd = cal_mod.weekday(y, m, 1)
+                n_days = cal_mod.monthrange(y, m)[1]
+                _today = date.today()
+                cell = 0
+                for _ in range(first_wd):
+                    tk.Label(grid_f, text="", bg=BG, width=3).grid(
+                        row=1 + cell // 7, column=cell % 7)
+                    cell += 1
+                for d in range(1, n_days + 1):
+                    curr_date = date(y, m, d)
+                    is_today = (y == _today.year and m == _today.month and d == _today.day)
+                    
+                    # Verifica se la data è nel range (se specificato)
+                    is_in_range = True
+                    if min_d and curr_date < min_d:
+                        is_in_range = False
+                    if max_d and curr_date > max_d:
+                        is_in_range = False
+                    
+                    # Colore e stato del bottone
+                    if is_in_range:
+                        bg_color = ACCENT if is_today else BG
+                        fg_color = "white" if is_today else FG
+                        state_active = "normal"
+                        cursor = "hand2"
+                    else:
+                        # Disabilitato: grigio e non cliccabile
+                        bg_color = "#e5e5e5"
+                        fg_color = "#aaa"
+                        state_active = "disabled"
+                        cursor = "arrow"
+                    
+                    btn = tk.Button(
+                        grid_f, text=str(d), font=("Helvetica", 10),
+                        bg=bg_color, fg=fg_color,
+                        relief="flat", bd=0, width=3, cursor=cursor,
+                        activebackground=ACCENT if is_in_range else "#e5e5e5",
+                        activeforeground="white" if is_in_range else "#aaa",
+                        state=state_active,
+                    )
+                    if is_in_range:
+                        btn.config(command=lambda dd=d: _pick(dd))
+                    btn.grid(row=1 + cell // 7, column=cell % 7, pady=1)
+                    day_btns.append(btn)
+                    cell += 1
+            def _pick(day):
+                sv.set(f"{state['year']:04d}-{state['month']:02d}-{day:02d}")
+                top.destroy()
+            _cal_ref()
+
+        def _race_date_field(parent, row, key, label, default=""):
+            """Come _race_field ma con bottone 📅 per aprire il calendario."""
+            tk.Label(parent, text=label, font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+                row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+            f = tk.Frame(parent, bg=BG)
+            f.grid(row=row, column=1, sticky="ew", pady=4)
+            f.columnconfigure(0, weight=1)
+            var = tk.StringVar(value=str(data.get(key, default) or default))
+            tk.Entry(f, textvariable=var, font=("Helvetica", 10), relief="solid", bd=1).grid(
+                row=0, column=0, sticky="ew")
+            tk.Button(f, text="📅", font=("Helvetica", 11), bg=BG, fg=FG,
+                      relief="flat", bd=0, cursor="hand2",
+                      command=lambda sv=var: _open_calendar(win, sv)).grid(
+                row=0, column=1, padx=(4, 0))
+            race_entries[key] = var
+            return var
+
+        def _race_field(parent, row, key, label, default=""):
+            tk.Label(parent, text=label, font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+                row=row, column=0, sticky="w", padx=(0, 8), pady=4)
+            var = tk.StringVar(value=str(data.get(key, default) or default))
+            e = tk.Entry(parent, textvariable=var, font=("Helvetica", 10), relief="solid", bd=1)
+            e.grid(row=row, column=1, sticky="ew", pady=4)
+            race_entries[key] = var
+            return var
+
+        _race_field(race_frame, 0, 'titolo',     "Titolo corsa")
+        _race_date_field(race_frame, 1, 'data_inizio', "Data inizio",
+                         data.get('data_inizio') or data.get('data') or date.today().isoformat())
+        _race_date_field(race_frame, 2, 'data_fine',   "Data fine",
+                         data.get('data_fine') or '')
+        _race_field(race_frame, 3, 'luogo',       "Luogo")
+
+        # Genere combo
+        tk.Label(race_frame, text="Genere", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=4, column=0, sticky="w", padx=(0, 8), pady=4)
+        genere_var = tk.StringVar(value=data.get('genere', 'Femminile'))
+        tk.OptionMenu(race_frame, genere_var, *GENERI).grid(row=4, column=1, sticky="ew", pady=4)
+        race_entries['genere'] = genere_var
+
+        # Categoria checkboxes
+        tk.Label(race_frame, text="Categorie", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=5, column=0, sticky="w", padx=(0, 8), pady=4)
+        cat_frame = tk.Frame(race_frame, bg=BG)
+        cat_frame.grid(row=5, column=1, sticky="ew", pady=4)
+        current_cats = data.get('categoria', ['Junior'])
+        if isinstance(current_cats, str):
+            current_cats = [current_cats]
+        cat_vars: dict[str, tk.BooleanVar] = {}
+        for cat in CATEGORIE:
+            v = tk.BooleanVar(value=cat in current_cats)
+            tk.Checkbutton(cat_frame, text=cat, variable=v, bg=BG,
+                           font=("Helvetica", 9)).pack(side="left", padx=(0, 10))
+            cat_vars[cat] = v
+        race_entries['categoria'] = cat_vars
+
+        # Serie
+        _race_field(race_frame, 6, 'race_series', "Serie")
+
+        # Slug (auto-generato)
+        tk.Label(race_frame, text="Slug corsa", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=7, column=0, sticky="w", padx=(0, 8), pady=4)
+        original_slug = data.get('slug', '')
+        slug_var = tk.StringVar(value=original_slug)
+        slug_entry = tk.Entry(race_frame, textvariable=slug_var, font=("Helvetica", 10), relief="solid", bd=1)
+        slug_entry.grid(row=7, column=1, sticky="ew", pady=4)
+        race_entries['slug'] = slug_var
+        slug_manual = [not is_new]  # se edit, lo slug non viene auto-rigenerato
+
+        def _auto_slug(*_):
+            if slug_manual[0]:
+                return
+            titolo = race_entries['titolo'].get().strip()
+            data_s = race_entries['data_inizio'].get().strip()
+            year = data_s.split('-')[0] if len(data_s) >= 4 else "2026"
+            genere = race_entries['genere'].get()
+            cats = [c for c, v in cat_vars.items() if v.get()]
+            cat_code_str = '-'.join(
+                categoria_code(genere, c) for c in ['Allievi', 'Junior', 'U23', 'Elite'] if c in cats
+            )
+            if titolo:
+                new_slug = slugify(titolo) + f"-{year}"
+                if cat_code_str:
+                    new_slug += f"-{cat_code_str}"
+            else:
+                new_slug = ""
+            slug_var.set(new_slug)
+            _refresh_stage_slugs()
+
+        race_entries['titolo'].trace_add("write", _auto_slug)
+        race_entries['data_inizio'].trace_add("write", _auto_slug)
+        genere_var.trace_add("write", _auto_slug)
+        for v in cat_vars.values():
+            v.trace_add("write", _auto_slug)
+        slug_entry.bind("<KeyPress>", lambda e: slug_manual.__setitem__(0, True))
+
+        # ── Sezione 2: Tappe ───────────────────────────────────────────────
+        stages_outer = tk.LabelFrame(scroll_frame, text="Tappe",
+                                     bg=BG, fg=FG, font=("Helvetica", 10, "bold"),
+                                     padx=10, pady=8)
+        stages_outer.pack(fill="both", expand=True, padx=14, pady=(0, 8))
+
+        # Lista a sinistra + dettaglio a destra
+        stages_pane = tk.Frame(stages_outer, bg=BG)
+        stages_pane.pack(fill="both", expand=True)
+
+        left_pane = tk.Frame(stages_pane, bg=BG, width=220)
+        left_pane.pack(side="left", fill="y", padx=(0, 8))
+        left_pane.pack_propagate(False)
+
+        lf = tk.Frame(left_pane, bg="white", relief="solid", bd=1)
+        lf.pack(fill="both", expand=True)
+        s_scroll = tk.Scrollbar(lf)
+        s_scroll.pack(side="right", fill="y")
+        stage_listbox = tk.Listbox(lf, yscrollcommand=s_scroll.set, bg="white",
+                                   selectmode="single", font=("Courier", 9), bd=0, width=22, height=10)
+        stage_listbox.pack(side="left", fill="both", expand=True)
+        s_scroll.config(command=stage_listbox.yview)
+
+        btns_l = tk.Frame(left_pane, bg=BG)
+        btns_l.pack(fill="x", pady=(6, 0))
+        tk.Button(btns_l, text="+ Aggiungi Tappa", font=("Helvetica", 8), bg="#059669",
+                  fg="white", relief="flat", bd=0, cursor="hand2",
+                  command=lambda: _add_stage()).pack(fill="x", pady=(0, 3))
+        tk.Button(btns_l, text="− Rimuovi Tappa", font=("Helvetica", 8), bg="#dc2626",
+                  fg="white", relief="flat", bd=0, cursor="hand2",
+                  command=lambda: _remove_stage()).pack(fill="x")
+
+        # Pannello dettaglio tappa (destra)
+        right_pane = tk.Frame(stages_pane, bg=BG)
+        right_pane.pack(side="left", fill="both", expand=True)
+
+        detail_lf = tk.LabelFrame(right_pane, text="Dettaglio tappa selezionata",
+                                   bg=BG, fg=FG, font=("Helvetica", 9, "bold"),
+                                   padx=8, pady=6)
+        detail_lf.pack(fill="both", expand=True)
+        detail_lf.columnconfigure(1, weight=1)
+
+        stage_entries: dict[str, tk.Variable] = {}
+        stage_widgets: dict[str, tk.Widget] = {}
+
+        def _make_detail_field(parent, row, key, label, default=""):
+            tk.Label(parent, text=label, font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+                row=row, column=0, sticky="w", padx=(0, 6), pady=3)
+            var = tk.StringVar(value=default)
+            e = tk.Entry(parent, textvariable=var, font=("Helvetica", 9), relief="solid", bd=1)
+            e.grid(row=row, column=1, sticky="ew", pady=3)
+            stage_entries[key] = var
+            stage_widgets[key] = e
+            return var
+
+        def _make_detail_date_field(parent, row, key, label):
+            """Come _make_detail_field ma con bottone 📅 per aprire il calendario.
+            Per le tappe, limita il range al data_inizio - data_fine della corsa."""
+            tk.Label(parent, text=label, font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+                row=row, column=0, sticky="w", padx=(0, 6), pady=3)
+            f = tk.Frame(parent, bg=BG)
+            f.grid(row=row, column=1, sticky="ew", pady=3)
+            f.columnconfigure(0, weight=1)
+            var = tk.StringVar()
+            tk.Entry(f, textvariable=var, font=("Helvetica", 9), relief="solid", bd=1).grid(
+                row=0, column=0, sticky="ew")
+            # Bottone calendario: passa il range della corsa a tappe
+            tk.Button(f, text="📅", font=("Helvetica", 10), bg=BG, fg=FG,
+                      relief="flat", bd=0, cursor="hand2",
+                      command=lambda sv=var: _open_calendar(
+                          win, sv,
+                          min_date=race_entries['data_inizio'].get(),
+                          max_date=race_entries['data_fine'].get()
+                      )).grid(
+                row=0, column=1, padx=(4, 0))
+            stage_entries[key] = var
+            return var
+
+        _make_detail_field(detail_lf, 0, 'nome',         "Nome Tappa")
+        _make_detail_date_field(detail_lf, 1, 'data',    "Data")
+        _make_detail_field(detail_lf, 2, 'distanza_km',  "Distanza (km)")
+        _make_detail_field(detail_lf, 3, 'dislivello_m', "Dislivello (m)")
+        _make_detail_field(detail_lf, 4, 'velocita_media_kmh', "Velocità media (km/h)")
+
+        # Giri
+        tk.Label(detail_lf, text="Giri circuito", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=5, column=0, sticky="w", padx=(0, 6), pady=3)
+        giri_var = tk.IntVar(value=1)
+        tk.Spinbox(detail_lf, from_=1, to=50, textvariable=giri_var,
+                   font=("Helvetica", 9), width=6).grid(row=5, column=1, sticky="w", pady=3)
+        stage_entries['giri'] = giri_var
+
+        def _on_giri_change(*_):
+            idx = selected_stage[0]
+            if idx is None:
+                return
+            try:
+                giri = max(1, int(giri_var.get()))
+            except (ValueError, TypeError):
+                return
+            base_km   = stages[idx].get('_base_km')
+            base_elev = stages[idx].get('_base_elev')
+            if base_km is not None:
+                stage_entries['distanza_km'].set(str(round(base_km * giri, 2)))
+            if base_elev is not None:
+                stage_entries['dislivello_m'].set(str(round(base_elev * giri)))
+
+        giri_var.trace_add("write", _on_giri_change)
+
+        tk.Label(detail_lf, text="Disciplina", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=6, column=0, sticky="w", padx=(0, 6), pady=3)
+        disc_s_var = tk.StringVar(value="Strada")
+        disc_s_menu = tk.OptionMenu(detail_lf, disc_s_var, *DISCIPLINE)
+        disc_s_menu.config(font=("Helvetica", 9))
+        disc_s_menu.grid(row=6, column=1, sticky="ew", pady=3)
+        stage_entries['disciplina'] = disc_s_var
+
+        _make_detail_field(detail_lf, 7, 'luogo', "Luogo")
+
+        # Riga slug tappa (solo lettura, auto-generato)
+        tk.Label(detail_lf, text="Slug tappa", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=8, column=0, sticky="w", padx=(0, 6), pady=3)
+        slug_t_var = tk.StringVar()
+        slug_t_entry = tk.Entry(detail_lf, textvariable=slug_t_var, font=("Helvetica", 9),
+                                state="readonly", relief="solid", bd=1,
+                                readonlybackground="#ede9e2")
+        slug_t_entry.grid(row=8, column=1, sticky="ew", pady=3)
+        stage_entries['slug_tappa'] = slug_t_var
+
+        # Stato GPX
+        tk.Label(detail_lf, text="GPX", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=9, column=0, sticky="w", padx=(0, 6), pady=3)
+        gpx_status_var = tk.StringVar(value="Nessun GPX caricato")
+        gpx_status_lbl = tk.Label(detail_lf, textvariable=gpx_status_var,
+                                   font=("Helvetica", 9), bg=BG, fg="#7a746b")
+        gpx_status_lbl.grid(row=9, column=1, sticky="w", pady=3)
+
+        gpx_btn_frame = tk.Frame(detail_lf, bg=BG)
+        gpx_btn_frame.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(4, 0))
+
+        def _load_gpx_for_stage():
+            idx = selected_stage[0]
+            if idx is None:
+                messagebox.showwarning("Attenzione", "Seleziona una tappa prima", parent=win)
+                return
+            gpx_path = filedialog.askopenfilename(
+                title="Seleziona GPX per la tappa",
+                filetypes=[("GPX files", "*.gpx"), ("All files", "*.*")],
+                parent=win
+            )
+            if not gpx_path:
+                return
+            gpx_data = parse_gpx(Path(gpx_path))
+            if not gpx_data.get('gpx_points'):
+                messagebox.showwarning("Attenzione", "Il file GPX non contiene dati validi", parent=win)
+                return
+            stages[idx]['gpx_points'] = gpx_data['gpx_points']
+            stages[idx]['_base_km']   = gpx_data.get('distanza_km')
+            stages[idx]['_base_elev'] = gpx_data.get('dislivello_m')
+            try:
+                giri = int(stage_entries['giri'].get())
+            except (ValueError, TypeError):
+                giri = 1
+            giri = max(1, giri)
+            if gpx_data.get('distanza_km'):
+                km_val = round(gpx_data['distanza_km'] * giri, 2)
+                stage_entries['distanza_km'].set(str(km_val))
+                stages[idx]['distanza_km'] = km_val
+            if gpx_data.get('dislivello_m'):
+                elev_val = round(gpx_data['dislivello_m'] * giri)
+                stage_entries['dislivello_m'].set(str(elev_val))
+                stages[idx]['dislivello_m'] = elev_val
+            
+            # Auto-rileva luogo dalle coordinate del GPX
+            if gpx_data.get('center_lat') and gpx_data.get('center_lon'):
+                luogo = reverse_geocode(gpx_data['center_lat'], gpx_data['center_lon'])
+                if luogo:
+                    stage_entries['luogo'].set(luogo)
+                    stages[idx]['luogo'] = luogo
+            
+            gpx_status_var.set("✓ GPX caricato")
+            gpx_status_lbl.config(fg="#059669")
+            messagebox.showinfo("Successo", "GPX caricato per la tappa!", parent=win)
+
+        def _clear_gpx_for_stage():
+            idx = selected_stage[0]
+            if idx is None:
+                return
+            stages[idx]['gpx_points'] = None
+            stages[idx].pop('_base_km',   None)
+            stages[idx].pop('_base_elev', None)
+            gpx_status_var.set("Nessun GPX caricato")
+            gpx_status_lbl.config(fg="#7a746b")
+
+        tk.Button(gpx_btn_frame, text="📁 Carica GPX", font=("Helvetica", 8),
+                  bg="#8b5cf6", fg="white", relief="flat", bd=0, cursor="hand2",
+                  command=_load_gpx_for_stage).pack(side="left", padx=(0, 6))
+        tk.Button(gpx_btn_frame, text="✕ Rimuovi GPX", font=("Helvetica", 8),
+                  bg="#6b7280", fg="white", relief="flat", bd=0, cursor="hand2",
+                  command=_clear_gpx_for_stage).pack(side="left")
+
+        # Bottone salva tappa (applica al dict stages)
+        def _save_current_stage():
+            idx = selected_stage[0]
+            if idx is None:
+                return
+            try:
+                km = float(stage_entries['distanza_km'].get()) if stage_entries['distanza_km'].get().strip() else None
+            except ValueError:
+                km = None
+            try:
+                elev = float(stage_entries['dislivello_m'].get()) if stage_entries['dislivello_m'].get().strip() else None
+            except ValueError:
+                elev = None
+            try:
+                vel = float(stage_entries['velocita_media_kmh'].get()) if stage_entries['velocita_media_kmh'].get().strip() else None
+            except ValueError:
+                vel = None
+            try:
+                giri = int(stage_entries['giri'].get())
+            except (ValueError, TypeError):
+                giri = 1
+            stages[idx]['nome']         = stage_entries['nome'].get().strip()
+            stages[idx]['data']         = stage_entries['data'].get().strip()
+            stages[idx]['distanza_km']  = km
+            stages[idx]['dislivello_m'] = elev
+            stages[idx]['velocita_media_kmh'] = vel
+            stages[idx]['disciplina']   = stage_entries['disciplina'].get()
+            stages[idx]['luogo']        = stage_entries['luogo'].get().strip()
+            stages[idx]['giri']         = max(1, giri)
+            stages[idx]['slug_tappa']   = slug_t_var.get()
+            _refresh_stages_list()
+
+        tk.Button(detail_lf, text="Applica modifiche tappa", font=("Helvetica", 9, "bold"),
+                  bg=ACCENT, fg="white", relief="flat", bd=0, cursor="hand2",
+                  command=_save_current_stage).grid(row=11, column=0, columnspan=2,
+                                                    sticky="ew", pady=(8, 0))
+
+        # ── Helper: auto slug tappa ─────────────────────────────────────────
+        def _stage_auto_slug(stage_num: int) -> str:
+            base_slug = slug_var.get().strip()
+            # Rimuovi il codice cat alla fine per reinserirlo dopo S{N}
+            # Il slug di una tappa è: {base_slug_senza_cat}-S{N}-{year}-{cat_code}
+            # Però il race slug è già nella forma nome-year-CAT, quindi usiamo:
+            # prendiamo il nome-year-CAT e inseriamo S{N} prima del year
+            # Es: "cittiglio-tour-2026-DJ" → "cittiglio-tour-S2-2026-DJ"
+            import re as _re
+            # Prova a inserire S{N} prima dell'anno (4 cifre)
+            m = _re.search(r'-(\d{4})-', base_slug)
+            if m:
+                pos = m.start()
+                return base_slug[:pos] + f"-S{stage_num}" + base_slug[pos:]
+            else:
+                return base_slug + f"-S{stage_num}" if base_slug else f"tappa-S{stage_num}"
+
+        def _refresh_stage_slugs():
+            for i, s in enumerate(stages):
+                s['slug_tappa'] = _stage_auto_slug(s.get('numero', i + 1))
+            _refresh_stages_list()
+
+        # ── Helper: aggiorna listbox tappe ──────────────────────────────────
+        def _refresh_stages_list():
+            stage_listbox.delete(0, tk.END)
+            for s in stages:
+                gpx_mark = "✓" if s.get('gpx_points') else "—"
+                stage_listbox.insert(tk.END, f"S{s['numero']:>2}: {s.get('nome','?')[:16]:<16} {gpx_mark}")
+            # Ri-seleziona
+            if selected_stage[0] is not None and selected_stage[0] < len(stages):
+                stage_listbox.selection_set(selected_stage[0])
+
+        # ── Helper: carica dettagli tappa nel pannello ──────────────────────
+        def _load_stage_detail(idx: int):
+            if idx is None or idx >= len(stages):
+                return
+            s = stages[idx]
+            stage_entries['nome'].set(s.get('nome', ''))
+            stage_entries['data'].set(s.get('data', ''))
+            stage_entries['distanza_km'].set(str(s.get('distanza_km', '') or ''))
+            stage_entries['dislivello_m'].set(str(s.get('dislivello_m', '') or ''))
+            stage_entries['velocita_media_kmh'].set(str(s.get('velocita_media_kmh', '') or ''))
+            stage_entries['disciplina'].set(s.get('disciplina', 'Strada'))
+            stage_entries['luogo'].set(s.get('luogo', ''))
+            stage_entries['giri'].set(int(s.get('giri', 1)))
+            slug_t_var.set(s.get('slug_tappa', _stage_auto_slug(s.get('numero', idx + 1))))
+            if s.get('gpx_points'):
+                gpx_status_var.set("✓ GPX caricato")
+                gpx_status_lbl.config(fg="#059669")
+            else:
+                gpx_status_var.set("Nessun GPX caricato")
+                gpx_status_lbl.config(fg="#7a746b")
+
+        def _on_stage_select(event):
+            sel = stage_listbox.curselection()
+            if not sel:
+                return
+            new_idx = sel[0]
+            if selected_stage[0] == new_idx:
+                return
+            _save_current_stage()  # salva la tappa precedente prima di cambiare
+            selected_stage[0] = new_idx
+            _load_stage_detail(new_idx)
+            # Ripristina la selezione corretta nel listbox (corretta dopo _refresh_stages_list)
+            stage_listbox.selection_clear(0, tk.END)
+            stage_listbox.selection_set(new_idx)
+
+        stage_listbox.bind("<<ListboxSelect>>", _on_stage_select)
+
+        # ── Aggiungi / Rimuovi tappa ─────────────────────────────────────────
+        def _add_stage():
+            _save_current_stage()  # salva quella attuale prima
+            num = len(stages) + 1
+            new_s = {
+                'numero':       num,
+                'nome':         f"Tappa {num}",
+                'slug_tappa':   _stage_auto_slug(num),
+                'data':         race_entries['data_inizio'].get(),
+                'disciplina':   'Strada',
+                'giri':         1,
+                'distanza_km':  None,
+                'dislivello_m': None,
+                'gpx_points':   None,
+            }
+            stages.append(new_s)
+            _refresh_stages_list()
+            # Seleziona la nuova tappa
+            stage_listbox.selection_clear(0, tk.END)
+            stage_listbox.selection_set(len(stages) - 1)
+            selected_stage[0] = len(stages) - 1
+            _load_stage_detail(selected_stage[0])
+
+        def _remove_stage():
+            idx = selected_stage[0]
+            if idx is None:
+                messagebox.showwarning("Attenzione", "Seleziona una tappa da rimuovere", parent=win)
+                return
+            ok = messagebox.askyesno("Conferma", f"Rimuovere '{stages[idx].get('nome', '')}'?", parent=win)
+            if not ok:
+                return
+            # Traccia lo slug della tappa rimossa come orfano
+            removed_slug = stages[idx].get('slug_tappa', '')
+            if removed_slug:
+                orphaned_stage_slugs.add(removed_slug)
+            stages.pop(idx)
+            # Rinumera: traccia i vecchi slug prima di sovrascriverli
+            for i, s in enumerate(stages):
+                old_slug = s.get('slug_tappa', '')
+                s['numero'] = i + 1
+                s['slug_tappa'] = _stage_auto_slug(i + 1)
+                if old_slug and old_slug != s['slug_tappa']:
+                    orphaned_stage_slugs.add(old_slug)
+            selected_stage[0] = None
+            _refresh_stages_list()
+            # svuota dettaglio
+            for k in ['nome', 'data', 'distanza_km', 'dislivello_m']:
+                stage_entries[k].set('')
+            gpx_status_var.set("Nessun GPX caricato")
+
+        # Popola inizialmente
+        _refresh_stages_list()
+        if stages:
+            stage_listbox.selection_set(0)
+            selected_stage[0] = 0
+            _load_stage_detail(0)
+
+        if is_new:
+            _auto_slug()
+
+        # ── Bottoni finali ───────────────────────────────────────────────────
+        btn_frame = tk.Frame(scroll_frame, bg=BG, padx=14, pady=10)
+        btn_frame.pack(fill="x")
+
+        def _save_all():
+            _save_current_stage()  # assicura che l'ultima tappa sia salvata
+
+            titolo      = race_entries['titolo'].get().strip()
+            data_inizio = race_entries['data_inizio'].get().strip()
+            data_fine   = race_entries['data_fine'].get().strip()
+            luogo       = race_entries['luogo'].get().strip()
+            genere      = race_entries['genere'].get()
+            race_series = race_entries['race_series'].get().strip()
+            cats        = [c for c in CATEGORIE if cat_vars[c].get()]
+            race_slug   = race_entries['slug'].get().strip()
+
+            if not titolo:
+                messagebox.showerror("Errore", "Titolo obbligatorio", parent=win); return
+            if not race_slug:
+                messagebox.showerror("Errore", "Slug obbligatorio", parent=win); return
+            if not data_inizio:
+                messagebox.showerror("Errore", "Data inizio obbligatoria", parent=win); return
+            if data_fine and data_fine < data_inizio:
+                messagebox.showerror("Errore", "La data di fine non può essere precedente alla data di inizio", parent=win); return
+            if not cats:
+                messagebox.showerror("Errore", "Seleziona almeno una categoria", parent=win); return
+            if not stages:
+                messagebox.showerror("Errore", "Aggiungi almeno una tappa", parent=win); return
+            for s in stages:
+                if not s.get('nome'):
+                    messagebox.showerror("Errore", f"Tappa {s['numero']}: nome obbligatorio", parent=win)
+                    return
+
+            main = {
+                'titolo':       titolo,
+                'race_series':  race_series or slugify(titolo),
+                'data':         data_inizio,   # backward compat per index/filtri
+                'data_inizio':  data_inizio,
+                'data_fine':    data_fine or None,
+                'genere':       genere,
+                'categoria':    cats,
+                'luogo':        luogo or None,
+            }
+
+            save_stage_race(race_slug, main, stages)
+
+            # In edit mode, se lo slug della corsa è cambiato, elimina i vecchi file principali
+            if not is_new and original_slug and original_slug != race_slug:
+                for p in [
+                    GARE_DIR / f"{original_slug}.json",
+                    PUBLIC_GARE_DIR / f"{original_slug}.json",
+                ]:
+                    if p.exists():
+                        p.unlink()
+                # Segna tutte le tappe con il vecchio slug come orfane
+                if data.get('tappe'):
+                    for old_tappa in data['tappe']:
+                        old_stage_slug = old_tappa.get('slug', '')
+                        if old_stage_slug:
+                            orphaned_stage_slugs.add(old_stage_slug)
+
+            # Elimina file orfani (tappe rimosse o rinumerate con slug diverso)
+            current_stage_slugs = {s['slug_tappa'] for s in stages}
+            for orphan_slug in orphaned_stage_slugs - current_stage_slugs:
+                for p in [
+                    GARE_DIR / f"{orphan_slug}.json",
+                    PUBLIC_GARE_DIR / f"{orphan_slug}.json",
+                    GPX_DIR / f"{orphan_slug}-gpx.json",
+                    PUBLIC_GPX_DIR / f"{orphan_slug}-gpx.json",
+                ]:
+                    if p.exists():
+                        p.unlink()
+
+            messagebox.showinfo("Salvato", "Corsa a tappe salvata con successo!", parent=win)
+            win.destroy()
+            self.refresh_list()
+
+        tk.Button(btn_frame, text="💾 Salva corsa a tappe", font=("Helvetica", 10, "bold"),
+                  bg="#059669", fg="white", padx=14, pady=8, relief="flat", bd=0,
+                  cursor="hand2", command=_save_all).pack(side="left", padx=(0, 8))
+        tk.Button(btn_frame, text="Annulla", font=("Helvetica", 10),
+                  bg="#d1d5db", fg=FG, padx=14, pady=8, relief="flat", bd=0,
+                  cursor="hand2", command=win.destroy).pack(side="left")
+
+        # Dimensione finestra
+        win.update_idletasks()
+        win.minsize(720, 640)
+        win.geometry("750x780")
+
     def edit_race(self):
         """Modifica metadati della gara selezionata"""
         idx = self.race_listbox.curselection()
@@ -1378,7 +2294,10 @@ GPX FILE:     {gpx_info}"""
             return
         
         slug, data = self.filtered_races[idx[0]]
-        self.open_add_race_form(data.copy(), is_new=False, original_slug=slug)
+        if data.get('tipo') == 'corsa_a_tappe':
+            self.open_stage_race_form(initial_data=data.copy(), is_new=False)
+        else:
+            self.open_add_race_form(data.copy(), is_new=False, original_slug=slug)
     
     
     def delete_race(self):
@@ -1390,12 +2309,24 @@ GPX FILE:     {gpx_info}"""
         
         slug, data = self.filtered_races[idx[0]]
         title = data.get("titolo", slug)
+        tipo  = data.get('tipo', '')
         
-        ok = messagebox.askyesno("Conferma", f"Eliminare '{title}'?\nQuesta azione è irreversibile.")
-        if ok:
-            delete_race(slug)
-            messagebox.showinfo("Eliminato", "Gara rimossa dal database")
-            self.refresh_list()
+        if tipo == 'corsa_a_tappe':
+            n = data.get('n_tappe', 0)
+            ok = messagebox.askyesno(
+                "Conferma",
+                f"Eliminare '{title}' e TUTTE le sue {n} tappe?\nQuesta azione è irreversibile."
+            )
+            if ok:
+                delete_stage_race(slug, data.get('tappe', []))
+                messagebox.showinfo("Eliminato", "Corsa a tappe e tutte le tappe rimosse dal database")
+                self.refresh_list()
+        else:
+            ok = messagebox.askyesno("Conferma", f"Eliminare '{title}'?\nQuesta azione è irreversibile.")
+            if ok:
+                delete_race(slug)
+                messagebox.showinfo("Eliminato", "Gara rimossa dal database")
+                self.refresh_list()
     
     def push_changes(self):
         """Esegue git push automatico"""

@@ -1,7 +1,7 @@
 export function formatData(dateStr) {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
 }
 
 export function formatDistanza(km) {

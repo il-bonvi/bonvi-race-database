@@ -9,7 +9,9 @@
     "categoria": [
       "Junior"
     ],
-    "categoria_code": "DJ"
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null
   },
   {
     "slug": "omloop-van-schijndel-2026-DJ",
@@ -21,7 +23,9 @@
     "categoria": [
       "Junior"
     ],
-    "categoria_code": "DJ"
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null
   },
   {
     "slug": "piccolo-trofeo-alfredo-binda-2026-DJ",
@@ -33,7 +37,9 @@
     "categoria": [
       "Junior"
     ],
-    "categoria_code": "DJ"
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null
   },
   {
     "slug": "trofeo-alfredo-binda-2026-DU-DPRO",
@@ -46,6 +52,8 @@
       "Elite",
       "U23"
     ],
-    "categoria_code": "DPRO"
+    "categoria_code": "DPRO",
+    "tipo": null,
+    "n_tappe": null
   }
 ]

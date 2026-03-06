@@ -17,9 +17,19 @@ let gara = Object.values(garaFiles).map(m => m.default ?? m).find(g => g.slug ==
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 if (!gara) return Astro.redirect(`${base}/`);
 
-// Controlla se esiste un file GPX per questa gara (non più necessario ma manteniamo per futurità)
-const gpxFiles = import.meta.glob('../../../gare-sorgenti/gpx/*-gpx.json', { eager: false });
-const gpxSlug = (gara.gpx_reference ?? slug);
+const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
+const isTappa = gara.tipo === 'tappa';
+
+// Per navigazione tra tappe: carica la corsa a tappe parent se necessario
+let tappeDelleGara: any[] = [];
+if (isTappa && gara.corsa_a_tappe_slug) {
+  const corsaATappeParent = Object.values(garaFiles)
+    .map((m: any) => m.default ?? m)
+    .find((g: any) => g.slug === gara.corsa_a_tappe_slug);
+  if (corsaATappeParent && corsaATappeParent.tappe) {
+    tappeDelleGara = [...corsaATappeParent.tappe].sort((a: any, b: any) => (a.numero ?? 0) - (b.numero ?? 0));
+  }
+}
 
 // Per il colore della top bar, genera colore solido o gradiente
 const catColorMap = {
@@ -30,9 +40,6 @@ const catColorMap = {
 };
 const categorie = Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria];
 
-// Colore del testo: sempre il primo (solido)
-const textColor = catColorMap[categorie[0]] ?? '#888';
-
 // Colore del bordo: solido se singola categoria, gradiente se multiple
 let borderColor = '';
 if (categorie.length === 1) {
@@ -42,12 +49,66 @@ if (categorie.length === 1) {
   borderColor = `linear-gradient(90deg, ${colors.join(', ')})`;
 }
 
-// Shade genere — identica a GaraCard: radiale dall'angolo alto-dx
-// Centrata sull'area del badge (dopo "← Race DB | "), picco a ~250px dal left
+// Shade genere
 const genereR = gara.genere === 'Femminile' ? '225,0,100' : '80,150,215';
 const genereA1 = gara.genere === 'Femminile' ? '0.14' : '0.22';
 const genereA2 = gara.genere === 'Femminile' ? '0.05' : '0.08';
 const genereShade = `radial-gradient(ellipse 140px 52px at 260px 0%, rgba(${genereR},${genereA1}) 0%, rgba(${genereR},${genereA2}) 35%, transparent 65%)`;
+
+// Per corse a tappe: ordina tappe per numero
+const tappe = isCorsaATappe && gara.tappe
+  ? [...gara.tappe].sort((a: any, b: any) => (a.numero ?? 0) - (b.numero ?? 0))
+  : [];
+
+// Per corse a tappe: navigazione tra anni della stessa serie
+let yearNavigation: Array<{year: string; slug: string; isCurrent: boolean}> = [];
+if (isCorsaATappe && gara.race_series) {
+  const allRaces = Object.values(garaFiles)
+    .map((m: any) => m.default ?? m)
+    .filter((g: any) => g.tipo === 'corsa_a_tappe' && g.race_series === gara.race_series);
+  
+  const racesByYear: Record<string, any> = {};
+  allRaces.forEach((race: any) => {
+    const year = (race.data || race.data_inizio || '').split('-')[0];
+    if (year && !racesByYear[year]) {
+      racesByYear[year] = race;
+    }
+  });
+  
+  const years = Object.keys(racesByYear).sort((a, b) => parseInt(a) - parseInt(b));
+  const currentYear = (gara.data || gara.data_inizio || '').split('-')[0];
+  
+  yearNavigation = years.map(year => ({
+    year,
+    slug: racesByYear[year].slug,
+    isCurrent: year === currentYear
+  }));
+}
+
+// Per corse a tappe: genera colori per le tappe (rainbow spectrum)
+const stageColors: Record<number, string> = {};
+if (isCorsaATappe && tappe.length > 0) {
+  const hueStep = 360 / tappe.length;
+  tappe.forEach((tappa: any, idx: number) => {
+    const hue = (idx * hueStep) % 360;
+    stageColors[tappa.numero] = `hsl(${hue}, 75%, 50%)`;
+  });
+}
+
+// Per singola tappa: link di ritorno alla corsa a tappe parent
+const backHref = isTappa && gara.corsa_a_tappe_slug
+  ? `${base}/gare/${gara.corsa_a_tappe_slug}/`
+  : `${base}/`;
+const backLabel = isTappa && gara.corsa_a_tappe_titolo
+  ? `← ${gara.corsa_a_tappe_titolo}`
+  : '← Race DB';
+
+// Mappa disciplina → icona
+const discIconMap: Record<string, string> = {
+  'Strada':     '↗',
+  'Criterium':  '⟳',
+  'Cronometro': '⏱',
+};
 ---
 
 <!DOCTYPE html>
@@ -56,20 +117,23 @@ const genereShade = `radial-gradient(ellipse 140px 52px at 260px 0%, rgba(${gene
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{gara.titolo} — Race DB</title>
-  <meta name="description" content={`${gara.titolo} - ${gara.luogo} - ${gara.distanza_km}km`} />
+  <meta name="description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isCorsaATappe ? gara.n_tappe + ' tappe' : (gara.distanza_km + 'km')}`} />
   
   <!-- Open Graph -->
   <meta property="og:title" content={`${gara.titolo} — Race DB`} />
-  <meta property="og:description" content={`${gara.titolo} - ${gara.luogo} - ${gara.distanza_km}km`} />
   <meta property="og:type" content="website" />
+  <meta property="og:description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isCorsaATappe ? gara.n_tappe + ' tappe' : (gara.distanza_km + 'km')}`} />
   
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content={`${gara.titolo} — Race DB`} />
-  <meta name="twitter:description" content={`${gara.titolo} - ${gara.luogo} - ${gara.distanza_km}km`} />
+  <meta name="twitter:description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isCorsaATappe ? gara.n_tappe + ' tappe' : (gara.distanza_km + 'km')}`} />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  {isCorsaATappe && <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />}
+  {isCorsaATappe && <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>}
+  {isCorsaATappe && <script is:inline src="https://unpkg.com/d3@7/dist/d3.min.js"></script>}
   
   <style>
     :root {
@@ -84,11 +148,7 @@ const genereShade = `radial-gradient(ellipse 140px 52px at 260px 0%, rgba(${gene
       --font-body:    'Barlow', sans-serif;
       --font-mono:    'DM Mono', monospace;
     }
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       height: 100vh;
       background: var(--bg);
@@ -99,6 +159,7 @@ const genereShade = `radial-gradient(ellipse 140px 52px at 260px 0%, rgba(${gene
       flex-direction: column;
     }
 
+    /* ── TOP BAR ── */
     .top-bar {
       position: sticky; top: 0; z-index: 100;
       background: var(--bg2);
@@ -108,120 +169,784 @@ const genereShade = `radial-gradient(ellipse 140px 52px at 260px 0%, rgba(${gene
       box-shadow: 0 1px 8px rgba(0,0,0,0.06);
       flex-shrink: 0;
     }
-
     .top-bar::after {
       content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      position: absolute; bottom: 0; left: 0; right: 0;
       height: 2px;
       background: var(--cat-color, #888);
     }
-
     .back {
       font-family: var(--font-mono); font-size: 0.68rem;
       text-transform: uppercase; letter-spacing: 0.1em;
       color: var(--text3); text-decoration: none;
       display: flex; align-items: center; gap: 0.35rem;
       flex-shrink: 0; transition: color 0.15s;
+      max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .back:hover { color: var(--accent); }
-
     .bar-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
-
     .bar-cat {
       font-family: var(--font-mono); font-size: 0.65rem;
       text-transform: uppercase; letter-spacing: 0.1em;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem;
     }
-
-    .bar-cat-label {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-    }
-
-    .genere-symbol {
-      font-size: 0.75rem;
-      color: var(--text3);
-      text-transform: none;
-      letter-spacing: 0;
-    }
-
+    .bar-cat-label { display: flex; align-items: center; gap: 0.25rem; }
+    .genere-symbol { font-size: 0.75rem; color: var(--text3); text-transform: none; letter-spacing: 0; }
     .bar-title {
       font-family: var(--font-display);
       font-size: 1.1rem; font-weight: 700; letter-spacing: 0.01em;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      flex: 1; color: var(--text);
+      color: var(--text);
     }
-
+    .bar-title-with-stages {
+      display: flex; align-items: center; gap: 0.75rem;
+      flex: 1; overflow: hidden;
+    }
+    .bar-stages {
+      display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;
+    }
+    .bar-stages-links { display: flex; gap: 0.3rem; }
+    .bar-stage-link {
+      padding: 0.3rem 0.5rem; text-decoration: none; font-size: 0.7rem;
+      font-weight: 600; color: var(--text3); transition: all 0.15s;
+      cursor: pointer;
+    }
+    .bar-stage-link:hover { color: var(--accent); }
+    .bar-stage-link.current {
+      background: var(--accent); color: white; border-radius: 2px; padding: 0.3rem 0.5rem;
+    }
     .bar-stats { display: flex; gap: 1.25rem; flex-shrink: 0; }
     .bstat { display: flex; flex-direction: column; align-items: flex-end; }
     .bstat-v { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 500; color: var(--text); line-height: 1; }
     .bstat-l { font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); }
 
+    /* ── GPX VIEWER ── */
     .report-frame { width: 100%; border: none; display: block; flex: 1; }
-    
-    .content-wrapper {
-      flex: 1;
+
+    /* ── STAGE RACE RECAP PAGE ── */
+    .recap-body {
+      padding: 2rem 1.5rem;
+      max-width: 860px; width: 100%; margin: 0 auto;
+    }
+
+    .body-stage-race {
+      height: auto;
+      min-height: 100vh;
       overflow-y: auto;
-      padding: 1rem;
+    }
+
+    .body-stage-race .recap-body {
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+
+    .recap-header {
+      margin-bottom: 2rem;
+    }
+    .recap-hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800; line-height: 1.05;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+    .recap-meta {
+      display: flex; flex-wrap: wrap; gap: 1rem;
+      margin-top: 0.75rem; align-items: center;
+    }
+    .recap-meta-item {
+      font-family: var(--font-mono); font-size: 0.72rem;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text2);
+    }
+    .recap-totals {
+      display: flex; gap: 2rem; flex-wrap: wrap;
+      margin-top: 1.25rem; padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+    }
+    .recap-total-block { display: flex; flex-direction: column; gap: 0.2rem; }
+    .recap-total-v {
+      font-family: var(--font-mono); font-size: 1.5rem; font-weight: 500;
+      color: var(--text); line-height: 1;
+    }
+    .recap-total-l {
+      font-family: var(--font-mono); font-size: 0.58rem;
+      text-transform: uppercase; letter-spacing: 0.12em; color: var(--text3);
+    }
+
+    .stages-section { margin-top: 1.5rem; }
+    .stages-heading {
+      font-family: var(--font-mono); font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--text3); margin-bottom: 0.75rem;
+    }
+    .stages-list { display: flex; flex-direction: column; gap: 0; }
+
+    .stage-card {
+      display: flex; align-items: stretch;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      margin-top: -1px;
+      text-decoration: none; color: inherit;
+      transition: transform 0.12s, box-shadow 0.12s, z-index 0s;
+      position: relative; z-index: 0;
+    }
+    .stage-card:first-child { border-radius: 4px 4px 0 0; }
+    .stage-card:last-child  { border-radius: 0 0 4px 4px; }
+    .stage-card:only-child  { border-radius: 4px; }
+    .stage-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.09); z-index: 1; }
+
+    .stage-num {
+      flex-shrink: 0; width: 56px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      font-family: var(--font-display); font-size: 1.5rem; font-weight: 800;
+      color: var(--text3);
+    }
+
+    .stage-info {
+      flex: 1; padding: 0.9rem 1.1rem;
+      display: flex; flex-direction: column; gap: 0.35rem;
+    }
+    .stage-name {
+      font-family: var(--font-display); font-size: 1.15rem; font-weight: 700;
+      color: var(--text); line-height: 1.2;
+    }
+    .stage-sub {
+      display: flex; gap: 0.75rem; flex-wrap: wrap;
+      font-family: var(--font-mono); font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text3);
+    }
+    .stage-stats {
+      display: flex; gap: 1.1rem; margin-top: 0.25rem;
+    }
+    .stage-stat { display: flex; flex-direction: column; gap: 0.1rem; }
+    .stage-stat-v { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 500; color: var(--text); }
+    .stage-stat-l { font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); }
+
+    .stage-arrow {
+      flex-shrink: 0; display: flex; align-items: center;
+      padding: 0 1rem;
+      font-family: var(--font-mono); font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--text3); transition: color 0.12s;
+    }
+    .stage-card:hover .stage-arrow { color: var(--accent); }
+
+    /* Colore tappa in cima */
+    .stage-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--cat-color, #888);
+    }
+
+    /* Tappa senza GPX: stile dimmed */
+    .stage-card--no-gpx { opacity: 0.65; pointer-events: none; }
+    .stage-card--no-gpx .stage-arrow { display: none; }
+
+    /* ── NAVIGAZIONE SERIE (anni) ── */
+    .series-nav {
+      margin-top: 2.5rem; padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+    .series-nav-label {
+      font-family: var(--font-mono); font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--text3); margin-bottom: 0.75rem;
+    }
+    .series-nav-links {
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .series-nav-link {
+      padding: 0.4rem 0.8rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      text-decoration: none;
+      font-family: var(--font-mono); font-size: 0.72rem;
+      font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      border-radius: 3px;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+    .series-nav-link:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: rgba(212, 64, 26, 0.02);
+    }
+    .series-nav-link.current {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
     }
 
     @media (max-width: 600px) {
       .bar-stats { display: none; }
       .bar-cat { display: none; }
       .bar-divider:not(:first-of-type) { display: none; }
+      .bar-stages { display: none; }
+      .recap-body { padding: 1.25rem 1rem; }
+      .recap-totals { gap: 1.25rem; }
+    }
+
+    /* ── OVERVIEW MAPS & ELEVATION ── */
+    .overview-section {
+      margin-top: 2.5rem; padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+    .overview-heading {
+      font-family: var(--font-mono); font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--text3); margin-bottom: 1rem;
+    }
+
+    .stage-race-map-container {
+      width: 100%; height: 400px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      background: #f0f0f0;
+      margin-bottom: 2rem;
+    }
+    .stage-race-map {
+      width: 100%; height: 100%;
+    }
+
+    .elevation-container {
+      width: 100%; height: 300px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      background: var(--bg2);
+      margin-bottom: 2rem;
+    }
+    .elevation-svg {
+      width: 100%; height: 100%;
+    }
+
+    .elevation-legend {
+      display: flex; gap: 1.5rem; flex-wrap: wrap;
+      margin-top: 1rem;
+      font-family: var(--font-mono); font-size: 0.7rem;
+    }
+    .elevation-legend-item {
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .elevation-legend-color {
+      width: 12px; height: 12px;
+      border-radius: 2px;
     }
   </style>
 </head>
-<body>
+<body class={isCorsaATappe ? 'body-stage-race' : ''}>
+  <!-- ── TOP BAR (comune a tutti i tipi) ────────────────────────────────── -->
   <div class="top-bar" style={{
     "--cat-color": borderColor,
     "backgroundImage": genereShade,
     "backgroundColor": "var(--bg2)"
   }}>
-    <a href={`${base}/`} class="back">← Race DB</a>
+    <a href={backHref} class="back">{backLabel}</a>
     <div class="bar-divider"></div>
     <span class="bar-cat">
       <span class="bar-cat-label">
-        {categorie.map((cat, idx) => (
-          <span key={idx} style={{ color: catColorMap[cat] ?? '#888', fontWeight: 500 }}>
+        {categorie.map((cat: string, idx: number) => (
+          <span style={{ color: catColorMap[cat as keyof typeof catColorMap] ?? '#888', fontWeight: 500 }}>
             {cat}{idx < categorie.length - 1 ? ' / ' : ''}
           </span>
         ))}
-        {' · '}{gara.disciplina}
+        {isCorsaATappe
+          ? <span style="color:var(--text3)"> · {gara.n_tappe} tappe</span>
+          : <span style="color:var(--text3)"> · {gara.disciplina}</span>
+        }
       </span>
       <span class="genere-symbol">{gara.genere === 'Femminile' ? '♀' : '♂'}</span>
     </span>
     <div class="bar-divider"></div>
-    <span class="bar-title">{gara.titolo}</span>
+    <div class="bar-title-with-stages">
+      <span class="bar-title">{gara.titolo}</span>
+      {isTappa && tappeDelleGara.length > 0 && (
+        <div class="bar-stages">
+          <div class="bar-stages-links">
+            {tappeDelleGara.map((t: any) => (
+              <a
+                href={`${base}/gare/${t.slug}/`}
+                class={`bar-stage-link ${slug === t.slug ? 'current' : ''}`}
+                title={`${t.nome} (${t.distanza_km} km)`}
+              >
+                S{t.numero}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
     <div class="bar-stats">
       {gara.distanza_km && (
         <div class="bstat">
           <span class="bstat-v">{formatDistanza(gara.distanza_km)}</span>
-          <span class="bstat-l">dist</span>
+          <span class="bstat-l">{isCorsaATappe ? 'tot dist' : 'dist'}</span>
         </div>
       )}
       {gara.dislivello_m && (
         <div class="bstat">
           <span class="bstat-v">{formatDislivello(gara.dislivello_m)}</span>
-          <span class="bstat-l">D+</span>
+          <span class="bstat-l">{isCorsaATappe ? 'tot D+' : 'D+'}</span>
         </div>
       )}
-      {gara.data && (
+      {(gara.data_inizio || gara.data) && (
         <div class="bstat">
-          <span class="bstat-v">{formatData(gara.data)}</span>
+          <span class="bstat-v">
+            {isCorsaATappe && gara.data_fine
+              ? `${formatData(gara.data_inizio || gara.data)} – ${formatData(gara.data_fine)}`
+              : formatData(gara.data_inizio || gara.data)}
+          </span>
           <span class="bstat-l">data</span>
         </div>
       )}
     </div>
   </div>
 
-  <iframe class="report-frame" src={`${base}/gara.html?gara=${slug}`} title={gara.titolo}></iframe>
+  {isCorsaATappe ? (
+    <!-- ── RECAP PAGE: corsa a tappe ─────────────────────────────────────── -->
+    <div class="recap-body">
+      <div class="recap-header">
+        <h1 class="recap-hero-title">{gara.titolo}</h1>
+        <div class="recap-meta">
+          {gara.luogo && <span class="recap-meta-item">↗ {gara.luogo}</span>}
+          {(gara.data_inizio || gara.data) && (
+            <span class="recap-meta-item">
+              {isCorsaATappe && gara.data_fine
+                ? `${formatData(gara.data_inizio || gara.data)} – ${formatData(gara.data_fine)}`
+                : formatData(gara.data_inizio || gara.data)}
+            </span>
+          )}
+          {gara.genere && <span class="recap-meta-item">{gara.genere}</span>}
+        </div>
+        <div class="recap-totals">
+          <div class="recap-total-block">
+            <span class="recap-total-v">{gara.n_tappe}</span>
+            <span class="recap-total-l">tappe</span>
+          </div>
+          {gara.distanza_km && (
+            <div class="recap-total-block">
+              <span class="recap-total-v">{formatDistanza(gara.distanza_km)}</span>
+              <span class="recap-total-l">distanza totale</span>
+            </div>
+          )}
+          {gara.dislivello_m && (
+            <div class="recap-total-block">
+              <span class="recap-total-v">{formatDislivello(gara.dislivello_m)}</span>
+              <span class="recap-total-l">dislivello totale</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── LISTA TAPPE (prima delle mappe) ── */}
+      <div class="stages-section">
+        <div class="stages-heading">Tappe</div>
+        <div class="stages-list">
+          {tappe.map((tappa: any) => {
+            return (
+              <a
+                href={`${base}/gare/${tappa.slug}/`}
+                class="stage-card"
+                style={`--cat-color: ${borderColor}`}
+              >
+                <div class="stage-num">{tappa.numero}</div>
+                <div class="stage-info">
+                  <div class="stage-name">{tappa.nome}</div>
+                  <div class="stage-sub">
+                    {tappa.data && <span>{formatData(tappa.data)}</span>}
+                    {tappa.disciplina && <span>{discIconMap[tappa.disciplina] ?? '·'} {tappa.disciplina}</span>}
+                  </div>
+                  <div class="stage-stats">
+                    {tappa.distanza_km && (
+                      <div class="stage-stat">
+                        <span class="stage-stat-v">{formatDistanza(tappa.distanza_km)}</span>
+                        <span class="stage-stat-l">dist</span>
+                      </div>
+                    )}
+                    {tappa.dislivello_m && (
+                      <div class="stage-stat">
+                        <span class="stage-stat-v">{formatDislivello(tappa.dislivello_m)}</span>
+                        <span class="stage-stat-l">D+</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div class="stage-arrow">Apri →</div>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── OVERVIEW MAPS & ELEVATION ── */}
+      <div class="overview-section">
+        <div class="overview-heading">Panoramica delle tappe</div>
+        
+        {/* Mappa Leaflet */}
+        <div class="stage-race-map-container" id="stage-map"></div>
+        
+        {/* Profilo altimetrico */}
+        <div class="elevation-container">
+          <svg class="elevation-svg" id="elevation-chart"></svg>
+        </div>
+        <div class="elevation-legend" id="elevation-legend"></div>
+      </div>
+
+      {yearNavigation.length > 1 && (
+        <div class="series-nav">
+          <div class="series-nav-label">Edizione</div>
+          <div class="series-nav-links">
+            {yearNavigation.map((nav) => (
+              <a
+                href={`${base}/gare/${nav.slug}/`}
+                class={`series-nav-link ${nav.isCurrent ? 'current' : ''}`}
+              >
+                {nav.year}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  ) : (
+    <!-- ── GPX VIEWER (gara normale o singola tappa) ─────────────────────── -->
+    <>
+      <iframe class="report-frame" src={`${base}/gara.html?gara=${slug}&base=${base}`} title={gara.titolo}></iframe>
+    </>
+  )}
+
+  <script is:inline define:vars={{ 
+    tappe, 
+    stageColors, 
+    isCorsaATappe,
+    base
+  }}>
+    // Attendi che Leaflet e D3 siano caricati
+    function waitForLibraries() {
+      return new Promise((resolve) => {
+        const check = setInterval(() => {
+          if (typeof L !== 'undefined' && typeof d3 !== 'undefined') {
+            clearInterval(check);
+            resolve();
+          }
+        }, 50);
+        setTimeout(() => {
+          clearInterval(check);
+          resolve(); // Timeout dopo 5s comunque
+        }, 5000);
+      });
+    }
+
+    // Carica mappe e profili per corsa a tappe
+    waitForLibraries().then(() => {
+      if (isCorsaATappe && tappe && tappe.length > 0) {
+        (async () => {
+          // Carica GPX per tutte le tappe
+          const stageGpxData = {};
+          for (const tappa of tappe) {
+            try {
+              const gpxPath = `${base}/gare-sorgenti/gpx/${tappa.slug}-gpx.json`;
+              const gpxRes = await fetch(gpxPath);
+              if (gpxRes.ok) {
+                const gpxData = await gpxRes.json();
+                stageGpxData[tappa.numero] = gpxData.gpx_points || [];
+              }
+            } catch (e) {
+              // GPX non disponibile per questa tappa
+            }
+          }
+
+          // Inizializza mappa Leaflet
+          initStageMap(tappe, stageGpxData, stageColors);
+          
+          // Disegna profilo altimetrico
+          drawElevationProfile(tappe, stageGpxData, stageColors);
+        })();
+      }
+    });
+
+    function initStageMap(tappe, stageGpxData, colors) {
+      const mapEl = document.getElementById('stage-map');
+      if (!mapEl) {
+        return;
+      }
+
+      // Calcola bounds da tutti i GPX
+      let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+      let hasPoints = false;
+
+      for (const [stageNum, points] of Object.entries(stageGpxData || {})) {
+        if (Array.isArray(points) && points.length > 0) {
+          hasPoints = true;
+          points.forEach((point, idx) => {
+            // Punto può essere array [lat, lon, ele] oppure oggetto {lat, lon, ele}
+            let lat, lon;
+            if (Array.isArray(point)) {
+              [lat, lon] = point;
+            } else if (typeof point === 'object' && point !== null) {
+              lat = point.lat;
+              lon = point.lon;
+            } else {
+              return;
+            }
+            
+            minLat = Math.min(minLat, lat);
+            maxLat = Math.max(maxLat, lat);
+            minLon = Math.min(minLon, lon);
+            maxLon = Math.max(maxLon, lon);
+          });
+        }
+      }
+
+      if (!hasPoints) {
+        mapEl.innerHTML = '<p style="padding: 2rem; text-align: center; color: #aaa;">Nessun GPX disponibile</p>';
+        return;
+      }
+
+      // Crea mappa
+      const routeBounds = L.latLngBounds([
+        [minLat, minLon],
+        [maxLat, maxLon]
+      ]);
+      const map = L.map(mapEl).fitBounds(routeBounds, { padding: [40, 40] });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 18
+      }).addTo(map);
+
+      // Assicura fit corretto e aggiunge bottone ricentra identico a gara.html
+      setTimeout(() => {
+        map.invalidateSize();
+        map.fitBounds(routeBounds, { padding: [40, 40] });
+      }, 100);
+
+      map.whenReady(() => {
+        setTimeout(() => {
+          const zoomBar = document.querySelector('#stage-map .leaflet-control-zoom');
+          if (zoomBar && !zoomBar.querySelector('.recenter-control')) {
+            const btn = document.createElement('a');
+            btn.href = '#';
+            btn.title = 'Recentra sul percorso';
+            btn.innerHTML = '⌖';
+            btn.className = 'recenter-control';
+            btn.style.fontSize = '18px';
+            btn.onclick = (e) => {
+              e.preventDefault();
+              map.fitBounds(routeBounds, { padding: [30, 30], animate: true });
+            };
+            zoomBar.appendChild(btn);
+          }
+        }, 200);
+      });
+
+      // Disegna rotte per ogni tappa
+      for (const tappa of tappe) {
+        const points = stageGpxData[tappa.numero] || [];
+        if (points.length === 0) continue;
+
+        const color = colors[tappa.numero] || '#888';
+        
+        // Polyline rotta
+        const polyline = L.polyline(
+          points.map(p => {
+            if (Array.isArray(p)) return [p[0], p[1]];
+            else return [p.lat, p.lon];
+          }),
+          { color, weight: 3, opacity: 0.8, className: `stage-route-${tappa.numero}` }
+        ).addTo(map);
+
+        // Marker partenza e arrivo
+        const startPoint = points[0];
+        const endPoint = points[points.length - 1];
+        
+        const startLat = Array.isArray(startPoint) ? startPoint[0] : startPoint.lat;
+        const startLon = Array.isArray(startPoint) ? startPoint[1] : startPoint.lon;
+        const endLat = Array.isArray(endPoint) ? endPoint[0] : endPoint.lat;
+        const endLon = Array.isArray(endPoint) ? endPoint[1] : endPoint.lon;
+
+        // PARTENZA: con numero della tappa
+        L.marker([startLat, startLon], {
+          icon: L.divIcon({
+            className: 'stage-start-marker',
+            html: `<div style="background:${color}; color:#fff; width:16px; height:16px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-weight:700; font-size:8px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border: 1.5px solid #fff;">${tappa.numero}</div>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          })
+        }).bindPopup(`S${tappa.numero} ${tappa.nome} - PARTENZA`).addTo(map);
+
+        // ARRIVO: prominente con bandiera
+        L.marker([endLat, endLon], {
+          icon: L.divIcon({
+            className: 'stage-finish-marker',
+            html: `<div style="background:#ffd54f; color:#333; width:16px; height:16px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:10px; box-shadow: 0 1px 3px rgba(0,0,0,0.35); border: 1.5px solid #fff;">🏁</div>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          })
+        }).bindPopup(`S${tappa.numero} - ARRIVO`).addTo(map);
+      }
+    }
+
+    function drawElevationProfile(tappe, stageGpxData, colors) {
+      const svgEl = document.getElementById('elevation-chart');
+      const legendEl = document.getElementById('elevation-legend');
+      if (!svgEl) {
+        return;
+      }
+
+      // Combina profili altimetrici da tutte le tappe
+      const combinedProfile = [];
+      let cumulativeDist = 0;
+
+      for (const tappa of tappe) {
+        const points = stageGpxData[tappa.numero] || [];
+        if (points.length === 0) continue;
+
+        // Calcola distanza cumulativa per questo tappa
+        let stageDist = 0;
+        for (let i = 0; i < points.length; i++) {
+          const point = points[i];
+          let lat, lon, ele = 0;
+          
+          if (Array.isArray(point)) {
+            [lat, lon, ele] = point;
+          } else if (typeof point === 'object' && point !== null) {
+            lat = point.lat;
+            lon = point.lon;
+            ele = point.ele || 0;
+          } else {
+            continue;
+          }
+          
+          if (i > 0) {
+            const prevPoint = points[i - 1];
+            let prevLat, prevLon;
+            if (Array.isArray(prevPoint)) {
+              [prevLat, prevLon] = prevPoint;
+            } else if (typeof prevPoint === 'object' && prevPoint !== null) {
+              prevLat = prevPoint.lat;
+              prevLon = prevPoint.lon;
+            } else {
+              continue;
+            }
+            const d = haversine(prevLat, prevLon, lat, lon);
+            stageDist += d / 1000; // km
+          }
+          combinedProfile.push({
+            dist: cumulativeDist + stageDist,
+            ele: ele,
+            stageNum: tappa.numero,
+            color: colors[tappa.numero] || '#888'
+          });
+        }
+        cumulativeDist += stageDist;
+      }
+
+      if (combinedProfile.length === 0) {
+        svgEl.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#aaa">Nessun profilo disponibile</text>';
+        return;
+      }
+
+      // Setup dimensioni SVG
+      const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+      const width = svgEl.clientWidth - margin.left - margin.right;
+      const height = svgEl.clientHeight - margin.top - margin.bottom;
+
+      // Scale
+      const xScale = d3.scaleLinear()
+        .domain(d3.extent(combinedProfile, d => d.dist))
+        .range([0, width]);
+
+      const yScale = d3.scaleLinear()
+        .domain([
+          d3.min(combinedProfile, d => d.ele) - 50,
+          d3.max(combinedProfile, d => d.ele) + 50
+        ])
+        .range([height, 0]);
+
+      // Clear and setup SVG
+      d3.select(svgEl).selectAll("*").remove();
+      const svg = d3.select(svgEl)
+        .attr('width', width + margin.left + margin.right)
+        .attr('height', height + margin.top + margin.bottom)
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+      // Area generator
+      const area = d3.area()
+        .x(d => xScale(d.dist))
+        .y0(height)
+        .y1(d => yScale(d.ele));
+
+      // Group by stage for coloring
+      const stages = {};
+      for (const point of combinedProfile) {
+        const stageNum = point.stageNum;
+        if (!stages[stageNum]) stages[stageNum] = [];
+        stages[stageNum].push(point);
+      }
+
+      // Disegna area per ogni stage
+      for (const [stageNum, points] of Object.entries(stages)) {
+        svg.append('path')
+          .datum(points)
+          .attr('fill', points[0].color)
+          .attr('fill-opacity', 0.5)
+          .attr('d', area);
+      }
+
+      // Line path (contorno)
+      const line = d3.line()
+        .x(d => xScale(d.dist))
+        .y(d => yScale(d.ele));
+
+      svg.append('path')
+        .datum(combinedProfile)
+        .attr('fill', 'none')
+        .attr('stroke', '#555')
+        .attr('stroke-width', 1.5)
+        .attr('d', line);
+
+      // Assi
+      svg.append('g')
+        .attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(xScale).tickFormat(d => d.toFixed(0) + ' km'));
+
+      svg.append('g')
+        .call(d3.axisLeft(yScale).tickFormat(d => d + ' m'));
+
+      // Legenda
+      if (legendEl) {
+        legendEl.innerHTML = '';
+        for (const tappa of tappe) {
+          if (!stageGpxData[tappa.numero] || stageGpxData[tappa.numero].length === 0) continue;
+          const item = document.createElement('div');
+          item.className = 'elevation-legend-item';
+          item.innerHTML = `
+            <div class="elevation-legend-color" style="background: ${colors[tappa.numero]}; margin-top: 2px;"></div>
+            <span>S${tappa.numero} ${tappa.nome}</span>
+          `;
+          legendEl.appendChild(item);
+        }
+      }
+    }
+
+    function haversine(lat1, lon1, lat2, lon2) {
+      const R = 6371000; // m
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+  </script>
+
 </body>
 </html>

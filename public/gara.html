@@ -2717,9 +2717,11 @@ let map;
             document.getElementById('fileInput').value = '';
         }
 
-        // ── AUTO-LOAD DA PARAMETRO URL (?gara=slug) ───────────────────────
+        // ── AUTO-LOAD DA PARAMETRO URL (?gara=slug&base=/path) ───────────────────────
         (async function () {
-            const slug = new URLSearchParams(location.search).get('gara');
+            const searchParams = new URLSearchParams(location.search);
+            const slug = searchParams.get('gara');
+            const baseParam = searchParams.get('base') || '';
             if (!slug) return;
 
             // Nascondi sezione upload
@@ -2727,7 +2729,8 @@ let map;
             if (us) us.style.display = 'none';
 
             try {
-                const res = await fetch('gare-sorgenti/dettagli/' + slug + '.json');
+                const detailsPath = (baseParam ? baseParam + '/' : '') + 'gare-sorgenti/dettagli/' + slug + '.json';
+                const res = await fetch(detailsPath);
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const gara = await res.json();
 
@@ -2753,7 +2756,8 @@ let map;
                 // Carica navigazione tra versioni della stessa serie e tra categorie
                 if (gara.race_series) {
                     try {
-                        const indexRes = await fetch('gare-index.json');
+                        const indexPath = (baseParam ? baseParam + '/' : '') + 'gare-index.json';
+                        const indexRes = await fetch(indexPath);
                         if (indexRes.ok) {
                             const allRaces = await indexRes.json();
                             
@@ -2860,7 +2864,8 @@ let map;
                 let gpxPoints = null;
                 const gpxSlug = gara.gpx_reference || slug;
                 try {
-                    const gpxRes = await fetch('gare-sorgenti/gpx/' + gpxSlug + '-gpx.json');
+                    const gpxPath = (baseParam ? baseParam + '/' : '') + 'gare-sorgenti/gpx/' + gpxSlug + '-gpx.json';
+                    const gpxRes = await fetch(gpxPath);
                     if (gpxRes.ok) {
                         const gpxFile = await gpxRes.json();
                         gpxPoints = gpxFile.gpx_points;

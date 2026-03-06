@@ -7,6 +7,9 @@ import { GENERI, CATEGORIE, DISCIPLINE } from '../lib/gare.js';
 const garaFiles = import.meta.glob('../../gare-sorgenti/dettagli/*.json', { eager: true });
 let gare = Object.values(garaFiles).map((m: any) => m.default ?? m);
 
+// Nasconde le singole tappe (le corse a tappe si vedono tramite la card principale)
+gare = gare.filter((g: any) => g.tipo !== 'tappa');
+
 // Filtra solo gare future (da oggi in poi)
 const today = new Date();
 today.setHours(0, 0, 0, 0);
