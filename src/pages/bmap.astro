@@ -1,0 +1,605 @@
+---
+import Base from '../layouts/Base.astro';
+import LangSwitcher from '../components/LangSwitcher.astro';
+import { GENERI, CATEGORIE, DISCIPLINE } from '../lib/gare.js';
+
+// ── Carica dettagli gare ──────────────────────────────────────────────────────
+const garaFiles = import.meta.glob('../../gare-sorgenti/dettagli/*.json', { eager: true });
+const dettagliMap: Record<string, any> = {};
+for (const [, mod] of Object.entries(garaFiles)) {
+  const g: any = (mod as any).default ?? mod;
+  if (g?.slug) dettagliMap[g.slug] = g;
+}
+
+// ── Carica tutti i GPX (build time) ──────────────────────────────────────────
+const gpxFiles = import.meta.glob('../../gare-sorgenti/gpx/*-gpx.json', { eager: true });
+
+// Per ogni file GPX: calcola centro e salva punti grezzi
+type GpxEntry = {
+  slug: string;
+  lat: number;
+  lon: number;
+  ptsBruti: [number, number][];
+  start: [number, number];
+  end: [number, number];
+};
+const gpxEntries: Record<string, GpxEntry> = {};
+
+for (const [path, mod] of Object.entries(gpxFiles)) {
+  const data: any = (mod as any).default ?? mod;
+  const pts: { lat: number; lon: number }[] = data?.gpx_points ?? [];
+  if (pts.length === 0) continue;
+
+  // Slug dal nome file
+  const filename = path.split('/').pop()!;
+  const slug = filename.replace(/-gpx\.json$/, '');
+
+  // Centro = punto di mezzo
+  const mid = pts[Math.floor(pts.length / 2)];
+
+  // Salva i punti grezzi (saranno decimati in base alla distanza effettiva nel loop successivo)
+  const ptsRaw: [number, number][] = pts.map(p => [p.lat, p.lon]);
+
+  const first = pts[0];
+  const last  = pts[pts.length - 1];
+  gpxEntries[slug] = {
+    slug, lat: mid.lat, lon: mid.lon, ptsBruti: ptsRaw,
+    start: [first.lat, first.lon] as [number, number],
+    end:   [last.lat,  last.lon]  as [number, number],
+  };
+}
+
+// ── Costruisce gareData: una entry per ogni gara (non tappa) con GPX ──────────
+const anni = new Set<number>();
+const gareData: any[] = [];
+
+for (const [detailSlug, g] of Object.entries(dettagliMap)) {
+  if (g.tipo === 'tappa') continue;
+
+  // Determina slug/i GPX
+  let gpxSlugs: string[] = [];
+  if (g.tipo === 'corsa_a_tappe' && g.tappe?.length > 0) {
+    gpxSlugs = (g.tappe as any[]).map((t: any) => t.slug).filter(Boolean);
+  } else {
+    gpxSlugs = [g.gpx_reference || detailSlug];
+  }
+
+  // Trova il primo GPX disponibile per il centro mappa
+  let centerLat: number | null = null;
+  let centerLon: number | null = null;
+  const polylines: [number, number][][] = [];
+
+  // Decimazione basata sulla distanza effettiva del percorso
+  // Formula: ~1 punto ogni 50m (distanza * 20), con un minimo di 300 per brevi distanze
+  const distanza = g.distanza_km ?? 0;
+  const MAX = Math.max(300, Math.ceil(distanza * 20));
+
+  for (const gs of gpxSlugs) {
+    const entry = gpxEntries[gs];
+    if (!entry) continue;
+    if (centerLat === null) { centerLat = entry.lat; centerLon = entry.lon; }
+    
+    // Decima i punti grezzi
+    const step = entry.ptsBruti.length > MAX ? Math.floor(entry.ptsBruti.length / MAX) : 1;
+    const decimated = entry.ptsBruti.filter((_, i) => i % step === 0);
+    polylines.push(decimated);
+  }
+
+  if (centerLat === null) continue; // nessun GPX → escludi dalla mappa
+
+  const year = new Date(g.data).getFullYear();
+  anni.add(year);
+
+  gareData.push({
+    slug:          detailSlug,
+    titolo:        g.titolo,
+    data:          g.data,
+    anno:          year,
+    mese:          new Date(g.data).getMonth(),
+    genere:        g.genere ?? '',
+    categoria:     Array.isArray(g.categoria) ? g.categoria : (g.categoria ? [g.categoria] : []),
+    disciplina:    g.disciplina ?? '',
+    distanza_km:   g.distanza_km ?? null,
+    dislivello_m:  g.dislivello_m ?? null,
+    luogo:         g.luogo ?? '',
+    lat:           centerLat,
+    lon:           centerLon,
+    polylines,
+    startPt: (() => { for (const gs of gpxSlugs) { const e = gpxEntries[gs]; if (e) return e.start; } return null; })(),
+    // un endPt per ogni tappa/polyline disponibile
+    endPts: gpxSlugs.map(gs => gpxEntries[gs]?.end ?? null).filter(Boolean) as [number,number][],
+  });
+}
+
+const anniSorted = [...anni].sort((a, b) => b - a);
+const MESI_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<Base title="BMAP — Race Database">
+<Fragment slot="head">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" />
+</Fragment>
+
+<div class="layout">
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+
+      <div class="brand">
+        <div class="brand-mark">BRD</div>
+        <div>
+          <div class="brand-name">Race Database</div>
+          <div class="brand-sub">BMAP</div>
+        </div>
+      </div>
+
+      <div class="db-stats">
+        <div class="db-stat">
+          <span class="db-n" id="count-visible">{gareData.length}</span>
+          <span class="db-l" data-i18n="stat_on_map">gare sulla mappa</span>
+        </div>
+      </div>
+
+      <div class="filters">
+
+        <div class="filter-group">
+          <div class="filter-label" data-i18n="filter_gender">Genere</div>
+          <div class="filter-pills">
+            <button class="pill active" data-group="genere" data-val="all" data-i18n="filter_all_g">Tutti</button>
+            {GENERI.map((g: string) => (
+              <button class="pill" data-group="genere" data-val={g} data-i18n-gen={g}>{g}</button>
+            ))}
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-label" data-i18n="filter_cat">Categoria</div>
+          <div class="filter-pills">
+            <button class="pill active" data-group="categoria" data-val="all" data-i18n="filter_all_c">Tutte</button>
+            {CATEGORIE.map((c: string) => (
+              <button class="pill" data-group="categoria" data-val={c} data-i18n-cat={c}>{c}</button>
+            ))}
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-label" data-i18n="filter_disc">Disciplina</div>
+          <div class="filter-pills">
+            <button class="pill active" data-group="disciplina" data-val="all" data-i18n="filter_all_d">Tutte</button>
+            {DISCIPLINE.map((d: string) => (
+              <button class="pill" data-group="disciplina" data-val={d} data-i18n-disc={d}>{d}</button>
+            ))}
+          </div>
+        </div>
+
+        <button class="reset-filters" id="reset-filters" data-i18n="filter_reset">Azzera filtri</button>
+
+      </div>
+
+      <div class="sidebar-footer">
+        <a href={`${base}/`}           class="sidebar-page-btn" data-i18n="nav_upcoming">Prossime Gare</a>
+        <a href={`${base}/archivio`}   class="sidebar-page-btn" data-i18n="nav_archive">Archivio</a>
+        <a href={`${base}/bmap`}       class="sidebar-page-btn active">BMAP</a>
+        <a href={`${base}/progetto`}   class="sidebar-page-btn" data-i18n="nav_project">Il Progetto</a>
+        <a href={`${base}/faq`}        class="sidebar-page-btn" data-i18n="nav_faq">FAQ</a>
+        <a href={`${base}/contattami`} class="sidebar-page-btn" data-i18n="nav_contact">Contattami</a>
+      </div>
+
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <button class="mobile-menu-btn" id="menu-btn" aria-label="Apri menu">☰</button>
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="search-input" class="search-input"
+          placeholder="Cerca per nome, luogo..."
+          data-i18n-placeholder="search_placeholder"
+          autocomplete="off" />
+      </div>
+      <div class="topbar-filters">
+        <span class="topbar-filter-label" data-i18n="filter_date_label">Data</span>
+        <select id="anno-select" class="topbar-select">
+          <option value="all" data-i18n="filter_all_y">Tutti</option>
+          {anniSorted.map((a) => (
+            <option value={String(a)}>{a}</option>
+          ))}
+        </select>
+        <select id="mese-select" class="topbar-select" style="display:none">
+          <option value="all" data-i18n-opt="filter_all_m">Tutti</option>
+          {MESI_IT.map((m, i) => (
+            <option value={String(i)} data-i18n-month={i}>{m}</option>
+          ))}
+        </select>
+      </div>
+      <div class="map-style-group">
+        <button class="map-style-btn" data-style="light"  title="Standard">☀</button>
+        <button class="map-style-btn" data-style="invert" title="Invertita">◑</button>
+        <button class="map-style-btn" data-style="dark"   title="Dark">☽</button>
+      </div>
+      <LangSwitcher />
+    </div>
+
+    <div id="map-container">
+      <div id="map"></div>
+      <div id="no-results-map" style="display:none">
+        <div class="empty-icon">◎</div>
+        <div class="empty-title" data-i18n="no_results">Nessun risultato</div>
+        <div class="empty-sub"   data-i18n="no_results_sub">Prova a modificare i filtri</div>
+      </div>
+    </div>
+  </main>
+</div>
+</Base>
+
+<script>
+(window as any).__brdTranslations = (window as any).__brdTranslations || {};
+(window as any).__brdTranslations.en = Object.assign(
+  (window as any).__brdTranslations.en || {},
+  {
+    nav_upcoming:'Upcoming Races', nav_archive:'Archive', nav_bmap:'BMAP', nav_project:'The Project',
+    nav_faq:'FAQ', nav_contact:'Contact',
+    filter_year:'Year', filter_month:'Month', filter_gender:'Gender',
+    filter_cat:'Category', filter_disc:'Discipline', filter_reset:'Reset filters',
+    filter_date_label:'Date',
+    filter_all_y:'All', filter_all_m:'All', filter_all_g:'All', filter_all_c:'All', filter_all_d:'All',
+    search_placeholder:'Search by name, location...',
+    stat_on_map:'races on map', no_results:'No results', no_results_sub:'Try changing the filters',
+    cat_Allievi:'U16', cat_Allieve:'U16', cat_Junior:'Junior', cat_U23:'U23', cat_Elite:'Elite',
+    gen_Maschile:'Men', gen_Femminile:'Women',
+    disc_Strada:'Road Race', disc_Criterium:'Criterium', disc_Cronometro:'Time Trial',
+    months:['January','February','March','April','May','June','July','August','September','October','November','December'],
+    view_route:'View route →',
+  }
+);
+</script>
+
+<script define:vars={{ gareData, base }}>
+window.__GARE_DATA__ = gareData;
+window.__BASE_URL__  = base;
+</script>
+
+<script>
+(async () => {
+  const lang = localStorage.getItem('brd-lang') || 'it';
+  const T: any = lang !== 'it' ? ((window as any).__brdTranslations?.en || {}) : null;
+  const tr = (k: string, fb: string) => T?.[k] ?? fb;
+
+  if (T) {
+    document.querySelectorAll('[data-i18n]').forEach((el: Element) => { const k=(el as HTMLElement).dataset.i18n!; if(T[k]!==undefined) el.textContent=T[k]; });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el: Element) => { const k=(el as HTMLElement).dataset.i18nPlaceholder!; if(T[k]!==undefined)(el as HTMLInputElement).placeholder=T[k]; });
+    document.querySelectorAll('[data-i18n-month]').forEach((el: Element) => { const i=parseInt((el as HTMLElement).dataset.i18nMonth!,10); if(!isNaN(i)&&T.months?.[i]) el.textContent=T.months[i]; });
+    document.querySelectorAll('[data-i18n-gen]').forEach((el:Element)=>{ const v=(el as HTMLElement).dataset.i18nGen!; if(T['gen_'+v]) el.textContent=T['gen_'+v]; });
+    document.querySelectorAll('[data-i18n-cat]').forEach((el:Element)=>{ const v=(el as HTMLElement).dataset.i18nCat!; if(T['cat_'+v]) el.textContent=T['cat_'+v]; });
+    document.querySelectorAll('[data-i18n-disc]').forEach((el:Element)=>{ const v=(el as HTMLElement).dataset.i18nDisc!; if(T['disc_'+v]) el.textContent=T['disc_'+v]; });
+    document.querySelectorAll('[data-i18n-opt]').forEach((el:Element)=>{ const k=(el as HTMLElement).dataset.i18nOpt!; if(T[k]!==undefined) el.textContent=T[k]; });
+    // translate month options
+    document.querySelectorAll('option[data-i18n-month]').forEach((el:Element)=>{ const i=parseInt((el as HTMLElement).dataset.i18nMonth!,10); if(!isNaN(i)&&T.months?.[i]) el.textContent=T.months[i]; });
+  }
+
+  const MESI = T?.months ? T.months.map((m:string)=>m.slice(0,3)) : ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+
+  // Carica Leaflet
+  if (!(window as any).L) {
+    await new Promise<void>((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=()=>res();s.onerror=rej;document.head.appendChild(s);});
+    await new Promise<void>((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/maplibre-gl/dist/maplibre-gl.js';s.onload=()=>res();s.onerror=rej;document.head.appendChild(s);});
+    await new Promise<void>((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js';s.onload=()=>res();s.onerror=rej;document.head.appendChild(s);});
+  }
+  const L=(window as any).L;
+  const gareData:any[]=(window as any).__GARE_DATA__||[];
+  const base:string=(window as any).__BASE_URL__||'';
+
+  const catColor:Record<string,string>={Elite:'#C8A951',U23:'#4A7FA5',Junior:'#5C9E6E',Allievi:'#A0522D',Allieve:'#A0522D'};
+  const getColor=(g:any)=>catColor[(g.categoria||[])[0]]??'#888';
+
+  const map=L.map('map',{center:[46.5,11.0],zoom:5});
+  const OSM_ATTR='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const OFM_ATTR='&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
+  // Layer raster: light + invert (OSM con className, filtro solo sulle tile)
+  const rasterLayers:{[k:string]:any}={
+    light:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              {attribution:OSM_ATTR, maxZoom:19}),
+    invert: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              {attribution:OSM_ATTR, maxZoom:19, className:'tiles-invert'}),
+  };
+
+  // Layer vettoriale dark: OpenFreeMap dark via MapLibre GL Leaflet
+  // Licenza MIT + CC-BY 4.0, nessuna API key, nessuna registrazione
+  let darkLayer:any = null;
+  const getDarkLayer = () => {
+    if(!darkLayer) {
+      darkLayer = (L as any).maplibreGL({
+        style: 'https://tiles.openfreemap.org/styles/dark',
+        attribution: OFM_ATTR,
+      });
+    }
+    return darkLayer;
+  };
+
+  const applyMapStyle=(id:string)=>{
+    // Rimuovi tutti i layer attivi
+    Object.values(rasterLayers).forEach((l:any)=>{ if(map.hasLayer(l)) map.removeLayer(l); });
+    if(darkLayer && map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
+
+    if(id==='dark') {
+      getDarkLayer().addTo(map);
+    } else {
+      rasterLayers[id]?.addTo(map);
+    }
+    localStorage.setItem('brd-map-style', id);
+    document.querySelectorAll<HTMLElement>('.map-style-btn[data-style]').forEach(b=>{
+      b.classList.toggle('active', b.dataset.style===id);
+    });
+  };
+
+  applyMapStyle((['dark','light','invert'].includes(localStorage.getItem('brd-map-style')||'')
+    ? localStorage.getItem('brd-map-style')!
+    : 'dark'));
+  document.querySelectorAll<HTMLElement>('.map-style-btn[data-style]').forEach(b=>{
+    b.addEventListener('click',()=>applyMapStyle(b.dataset.style!));
+  });
+
+  // Legenda
+  const leg=(L.control as any)({position:'bottomright'});
+  leg.onAdd=()=>{
+    const d=L.DomUtil.create('div','map-legend');
+    d.innerHTML=`<div class="legend-title">Categoria</div>${['Elite','U23','Junior','Allievi'].map(c=>`<div class="legend-row"><span class="legend-dot" style="background:${catColor[c]}"></span>${c}</div>`).join('')}<div class="legend-divider"></div><div class="legend-row"><span class="legend-dot solid"></span>${tr('gen_Maschile','Maschile')}</div><div class="legend-row"><span class="legend-dot dashed"></span>${tr('gen_Femminile','Femminile')}</div>`;
+    return d;
+  };
+  leg.addTo(map);
+
+  const makePopup=(g:any)=>{
+    const col=getColor(g);
+    const d=new Date(g.data);
+    const ds=`${d.getDate()} ${MESI[d.getMonth()]} ${d.getFullYear()}`;
+    const cats=(g.categoria||[]).map((c:string)=>T?.['cat_'+c]??c).join(' · ');
+    const gen=g.genere==='Femminile'?tr('gen_Femminile','Femminile'):tr('gen_Maschile','Maschile');
+    return `<div class="map-popup"><div class="popup-cat" style="color:${col}">${cats} · ${gen}</div><div class="popup-title">${g.titolo}</div><div class="popup-meta"><span>${ds}</span>${g.luogo?`<span>· ${g.luogo}</span>`:''}</div><div class="popup-stats">${g.distanza_km?`<span>${g.distanza_km} km</span>`:''} ${g.dislivello_m?`<span>+${g.dislivello_m} m</span>`:''} ${g.disciplina?`<span>${T?.['disc_'+g.disciplina]??g.disciplina}</span>`:''}</div><a class="popup-cta" href="${base}/gare/${g.slug}/">${tr('view_route','Vedi percorso →')}</a></div>`;
+  };
+
+
+
+  type Entry={gara:any;polylines:any[];startMarkers:any[];endMarkers:any[];visible:boolean};
+  const entries:Entry[]=[];
+
+  // Stato globale: entry attiva (con start/end marker visibili)
+  let activeEntry: Entry|null = null;
+
+  function showEndMarkers(entry: Entry) {
+    // Nascondi end marker dell'entry precedente
+    if(activeEntry && activeEntry !== entry) {
+      activeEntry.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);});
+      activeEntry.endMarkers=[];
+    }
+    // Toggle: se già attiva chiudi end marker
+    if(activeEntry === entry) {
+      entry.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);});
+      entry.endMarkers=[];
+      activeEntry=null;
+      return;
+    }
+    activeEntry=entry;
+    const g=entry.gara;
+    if(g.endPts?.length && entry.endMarkers.length===0) {
+      const endIcon=L.divIcon({
+        className:'',
+        html:`<div style="width:14px;height:14px;background:#fff;border:1.5px solid #555;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;box-sizing:border-box;">🏁</div>`,
+        iconSize:[14,14], iconAnchor:[7,7],
+      });
+      entry.endMarkers = g.endPts.map((pt: [number,number]) =>
+        L.marker(pt, {icon:endIcon, zIndexOffset:400}).addTo(map)
+      );
+    }
+  }
+
+  // Chiudi markers se si clicca sulla mappa (fuori dalle polyline)
+  map.on('click', ()=>{
+    if(activeEntry){
+      activeEntry.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);});
+      activeEntry.endMarkers=[];
+      activeEntry=null;
+    }
+  });
+
+  gareData.forEach(g=>{
+    const polylines:any[]=[];
+    const col=getColor(g);
+    (g.polylines as [number,number][][]).forEach(pts=>{
+      if(!pts||pts.length===0) return;
+      const poly=L.polyline(pts,{color:col,weight:2.5,opacity:0.75});
+      poly.bindPopup(makePopup(g),{maxWidth:260});
+      poly.addTo(map);
+      poly.on('click', (e)=>{ L.DomEvent.stopPropagation(e); showEndMarkers(entryRef); });
+      polylines.push(poly);
+    });
+
+    // Start marker — sempre visibile, minimal dot con colore categoria
+    const startMarkers: any[] = [];
+    if(g.startPt) {
+      const col2 = getColor(g);
+      const sm = L.marker(g.startPt, {
+        icon: L.divIcon({
+          className:'',
+          html:`<div style="width:6px;height:6px;background:${col2};border-radius:50%;box-sizing:border-box;opacity:0.85;"></div>`,
+          iconSize:[6,6], iconAnchor:[2.5,2.5], popupAnchor:[0,-5],
+        }),
+        zIndexOffset:100,
+      });
+      sm.bindPopup(makePopup(g),{maxWidth:260});
+      sm.on('click',(e:any)=>{ L.DomEvent.stopPropagation(e); showEndMarkers(entryRef); });
+      sm.addTo(map);
+      startMarkers.push(sm);
+    }
+    const entryRef: Entry = {gara:g,polylines,startMarkers,endMarkers:[],visible:true};
+    entries.push(entryRef);
+  });
+
+  if(entries.length>0){
+    const allPolys=entries.flatMap(e=>e.polylines);
+    if(allPolys.length>0) map.fitBounds(L.featureGroup(allPolys).getBounds(),{padding:[40,40]});
+    else {
+      const allStarts=entries.flatMap(e=>e.startMarkers);
+      if(allStarts.length>0) map.fitBounds(L.featureGroup(allStarts).getBounds(),{padding:[60,60]});
+    }
+  }
+
+  const state:Record<string,string>={anno:'all',mese:'all',genere:'all',categoria:'all',disciplina:'all',q:''};
+  const counter=document.getElementById('count-visible') as HTMLElement;
+  const noRes=document.getElementById('no-results-map') as HTMLElement;
+
+  const isVis=(g:any)=>{
+    const q=state.q.toLowerCase();
+    const cats:string[]=g.categoria||[];
+    return(state.anno==='all'||String(g.anno)===state.anno)&&(state.mese==='all'||String(g.mese)===state.mese)&&(state.genere==='all'||g.genere===state.genere)&&(state.categoria==='all'||cats.includes(state.categoria))&&(state.disciplina==='all'||g.disciplina===state.disciplina)&&(!q||g.titolo.toLowerCase().includes(q)||g.luogo.toLowerCase().includes(q));
+  };
+
+  function applyAll(){
+    let n=0;
+    entries.forEach(e=>{
+      const show=isVis(e.gara);
+      e.visible=show;
+      e.polylines.forEach(p=>{ if(!map.hasLayer(p))p.addTo(map); p.setStyle({opacity:show?0.75:0.06,weight:show?2.5:1.5}); });
+      e.startMarkers.forEach(m=>{ if(show){if(!map.hasLayer(m))m.addTo(map);}else{if(map.hasLayer(m))map.removeLayer(m);} });
+      if(!show) { e.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);}); }
+      if(show)n++;
+    });
+    counter.textContent=String(n);
+    noRes.style.display=n===0?'flex':'none';
+  }
+
+  const meseSelect=document.getElementById('mese-select') as HTMLSelectElement;
+  const annoSelect=document.getElementById('anno-select') as HTMLSelectElement;
+  const updateMeseOptions=(anno:string)=>{
+    if(anno==='all'){meseSelect.style.display='none';state.mese='all';meseSelect.value='all';return;}
+    const present=new Set(gareData.filter(g=>String(g.anno)===anno).map(g=>g.mese));
+    Array.from(meseSelect.options).forEach(opt=>{
+      if(opt.value==='all'){opt.style.display='';return;}
+      opt.style.display=present.has(Number(opt.value))?'':'none';
+    });
+    meseSelect.style.display='';
+  };
+
+  document.querySelectorAll('.pill').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const el=btn as HTMLElement,group=el.dataset.group!,val=el.dataset.val!;
+      el.closest('.filter-pills')!.querySelectorAll('.pill').forEach(b=>b.classList.remove('active'));
+      el.classList.add('active');
+      state[group]=val;
+      applyAll();
+    });
+  });
+
+  annoSelect.addEventListener('change',()=>{
+    state.anno=annoSelect.value;
+    state.mese='all';
+    meseSelect.value='all';
+    updateMeseOptions(annoSelect.value);
+    applyAll();
+  });
+  meseSelect.addEventListener('change',()=>{
+    state.mese=meseSelect.value;
+    applyAll();
+  });
+
+  (document.getElementById('search-input') as HTMLInputElement).addEventListener('input',e=>{state.q=(e.target as HTMLInputElement).value;applyAll();});
+  (document.getElementById('reset-filters') as HTMLElement).addEventListener('click',()=>{
+    state.anno=state.mese=state.genere=state.categoria=state.disciplina='all';state.q='';
+    (document.getElementById('search-input') as HTMLInputElement).value='';
+    annoSelect.value='all'; meseSelect.value='all'; meseSelect.style.display='none';
+    document.querySelectorAll('.pill').forEach(b=>b.classList.toggle('active',(b as HTMLElement).dataset.val==='all'));
+    applyAll();
+  });
+
+  const menuBtn=document.getElementById('menu-btn') as HTMLElement;
+  const overlay=document.getElementById('sidebar-overlay') as HTMLElement;
+  const sidebar=document.getElementById('sidebar') as HTMLElement;
+  menuBtn?.addEventListener('click',()=>{sidebar.classList.add('open');overlay.classList.add('open');document.body.style.overflow='hidden';});
+  overlay?.addEventListener('click',()=>{sidebar.classList.remove('open');overlay.classList.remove('open');document.body.style.overflow='';});
+  document.querySelectorAll('.sidebar-page-btn').forEach(b=>b.addEventListener('click',()=>{sidebar.classList.remove('open');overlay.classList.remove('open');document.body.style.overflow='';}));
+})();
+</script>
+
+<style>
+  .layout{display:grid;grid-template-columns:250px 1fr;height:100vh;overflow:hidden}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+  .sidebar-overlay.open{display:block}
+  .sidebar{background:var(--bg2);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto;grid-column:1;grid-row:1/-1}
+  .sidebar-inner{display:flex;flex-direction:column;padding:1.75rem 1.25rem;height:100%;gap:1.5rem}
+  .brand{display:flex;align-items:center;gap:.85rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border)}
+  .brand-mark{font-family:var(--font-display);font-size:.85rem;font-weight:800;letter-spacing:.08em;background:var(--text);color:var(--bg);padding:.3rem .5rem;border-radius:2px;flex-shrink:0}
+  .brand-name{font-family:var(--font-display);font-size:.95rem;font-weight:700;letter-spacing:.02em;color:var(--text)}
+  .brand-sub{font-family:var(--font-mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text3);margin-top:.1rem}
+  .db-stats{display:flex;flex-direction:column;gap:.75rem}
+  .db-stat{display:flex;flex-direction:column;gap:.1rem}
+  .db-n{font-family:var(--font-display);font-size:1.8rem;font-weight:800;color:var(--accent);line-height:1;letter-spacing:-.02em}
+  .db-l{font-family:var(--font-mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3)}
+  .filters{display:flex;flex-direction:column;gap:1.25rem;flex:1;overflow-y:auto}
+  .filter-group{display:flex;flex-direction:column;gap:.5rem}
+  .filter-label{font-family:var(--font-mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text3)}
+  .filter-pills{display:flex;flex-wrap:wrap;gap:.35rem}
+  .pill{font-family:var(--font-mono);font-size:.68rem;padding:.3rem .65rem;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;border-radius:2px;transition:all .12s}
+  .pill:hover{border-color:var(--text2);color:var(--text)}
+  .pill.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+  .reset-filters{font-family:var(--font-mono);font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);background:transparent;border:1px solid var(--border);padding:.4rem .75rem;cursor:pointer;border-radius:2px;transition:all .12s;align-self:flex-start;margin-top:auto}
+  .reset-filters:hover{color:var(--accent);border-color:var(--accent)}
+  .sidebar-footer{margin-top:auto;padding-top:1rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:.4rem}
+  .sidebar-page-btn{font-family:var(--font-mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);text-decoration:none;padding:.6rem .75rem;border:1px solid var(--border);border-radius:3px;background:transparent;transition:all .15s;display:block}
+  .sidebar-page-btn:hover{color:var(--text);border-color:var(--text2)}
+  .sidebar-page-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(212,64,26,.06)}
+  .main{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+  .topbar{display:flex;align-items:center;gap:.75rem;padding:.65rem 1rem;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;z-index:10}
+  .mobile-menu-btn{display:none;background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;padding:.4rem .65rem;font-size:1.1rem;color:var(--text);line-height:1}
+  .mobile-menu-btn:hover{border-color:var(--text2)}
+  .search-wrap{flex:1;position:relative;max-width:380px}
+  .search-icon{position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:1rem;color:var(--text3);pointer-events:none}
+  .search-input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:.42rem .75rem .42rem 2rem;font-family:var(--font-mono);font-size:.72rem;color:var(--text);outline:none;transition:border-color .15s;box-sizing:border-box}
+  .search-input:focus{border-color:var(--text2)}
+  .search-input::placeholder{color:var(--text3)}
+  .topbar-filters{display:flex;gap:.4rem;align-items:center;flex-shrink:0}
+  .topbar-filter-label{font-family:var(--font-mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);white-space:nowrap}
+  .map-style-group{display:flex;border:1px solid var(--border);border-radius:3px;overflow:hidden;flex-shrink:0}
+  .map-style-btn{background:none;border:none;border-right:1px solid var(--border);cursor:pointer;padding:.38rem .6rem;font-size:.85rem;color:var(--text2);line-height:1;transition:all .15s}
+  .map-style-btn:last-child{border-right:none}
+  .map-style-btn:hover{background:var(--bg2);color:var(--text)}
+  .map-style-btn.active{background:var(--text);color:var(--bg)}
+  :global(.tiles-invert){filter:invert(100%) hue-rotate(180deg) brightness(0.95) contrast(0.9)!important}
+  :global(.maplibregl-map){z-index:0}
+  .topbar-select{font-family:var(--font-mono);font-size:.68rem;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:.38rem .55rem;color:var(--text);cursor:pointer;outline:none;transition:border-color .15s}
+  .topbar-select:focus,.topbar-select:hover{border-color:var(--text2)}
+  #map-container{flex:1;position:relative;overflow:hidden}
+  #map{width:100%;height:100%}
+  #no-results-map{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;pointer-events:none;z-index:10}
+  .empty-icon{font-size:2.5rem;color:var(--text3);line-height:1}
+  .empty-title{font-family:var(--font-display);font-size:1.1rem;font-weight:700;color:var(--text2)}
+  .empty-sub{font-family:var(--font-mono);font-size:.7rem;color:var(--text3)}
+  :global(.leaflet-popup-content-wrapper){background:var(--bg,#fff)!important;border:1px solid var(--border,#ddd)!important;border-radius:4px!important;box-shadow:0 4px 20px rgba(0,0,0,.15)!important;color:var(--text,#111)!important;padding:0!important}
+  :global(.leaflet-popup-content){margin:0!important}
+  :global(.leaflet-popup-tip){background:var(--bg,#fff)!important}
+  :global(.leaflet-popup-close-button){color:var(--text3,#888)!important;font-size:18px!important;top:6px!important;right:8px!important}
+  :global(.map-popup){padding:.85rem 1rem;min-width:200px}
+  :global(.popup-cat){font-family:var(--font-mono,monospace);font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.35rem}
+  :global(.popup-title){font-family:var(--font-display,sans-serif);font-size:1rem;font-weight:700;line-height:1.2;color:var(--text,#111);margin-bottom:.3rem}
+  :global(.popup-meta){font-family:var(--font-mono,monospace);font-size:.65rem;color:var(--text3,#888);margin-bottom:.35rem;display:flex;gap:.35rem;flex-wrap:wrap}
+  :global(.popup-stats){display:flex;gap:.6rem;font-family:var(--font-mono,monospace);font-size:.67rem;color:var(--text2,#555);margin-bottom:.75rem}
+  :global(.popup-cta){display:inline-block;font-family:var(--font-mono,monospace);font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--accent,#d4401a);text-decoration:none;border:1px solid var(--accent,#d4401a);padding:.3rem .65rem;border-radius:2px;transition:all .15s}
+  :global(.popup-cta:hover){background:var(--accent,#d4401a);color:#fff}
+  :global(.map-legend){background:var(--bg,#fff);border:1px solid var(--border,#ddd);border-radius:4px;padding:.65rem .8rem;font-family:var(--font-mono,monospace);font-size:.62rem;color:var(--text2,#555);min-width:110px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+  :global(.legend-title){text-transform:uppercase;letter-spacing:.1em;color:var(--text3,#888);margin-bottom:.5rem;font-size:.58rem}
+  :global(.legend-row){display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem}
+  :global(.legend-dot){width:9px;height:9px;border-radius:50%;flex-shrink:0;display:inline-block;border:2px solid transparent;box-sizing:border-box}
+  :global(.legend-dot.solid){background:#888;border-color:rgba(255,255,255,.5)}
+  :global(.legend-dot.dashed){background:transparent!important;border:2px dashed #888}
+  :global(.legend-divider){border-top:1px solid var(--border,#ddd);margin:.4rem 0}
+  @media(max-width:768px){
+    .layout{grid-template-columns:1fr}
+    .sidebar{position:fixed;left:-270px;top:0;width:270px;height:100vh;z-index:100;transition:left .25s ease}
+    .sidebar.open{left:0}
+    .mobile-menu-btn{display:block}
+    .main{height:100vh}
+  }
+</style>

@@ -781,11 +781,11 @@ const discIconMap: Record<string, string> = {
           })
         }).bindPopup(`S${tappa.numero} ${tappa.nome} - PARTENZA`).addTo(map);
 
-        // ARRIVO: prominente con bandiera
+        // ARRIVO: prominente con bandiera, stesso colore della partenza
         L.marker([endLat, endLon], {
           icon: L.divIcon({
             className: 'stage-finish-marker',
-            html: `<div style="background:#ffd54f; color:#333; width:16px; height:16px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:10px; box-shadow: 0 1px 3px rgba(0,0,0,0.35); border: 1.5px solid #fff;">🏁</div>`,
+            html: `<div style="background:${color}; color:#fff; width:16px; height:16px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:10px; box-shadow: 0 1px 3px rgba(0,0,0,0.35); border: 1.5px solid #fff;">🏁</div>`,
             iconSize: [16, 16],
             iconAnchor: [8, 8]
           })
