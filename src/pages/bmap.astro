@@ -100,9 +100,9 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
     lat:           centerLat,
     lon:           centerLon,
     polylines,
-    // start = primo punto del primo GPX, end = ultimo punto dell'ultimo GPX
     startPt: (() => { for (const gs of gpxSlugs) { const e = gpxEntries[gs]; if (e) return e.start; } return null; })(),
-    endPt:   (() => { for (const gs of [...gpxSlugs].reverse()) { const e = gpxEntries[gs]; if (e) return e.end; } return null; })(),
+    // un endPt per ogni tappa/polyline disponibile
+    endPts: gpxSlugs.map(gs => gpxEntries[gs]?.end ?? null).filter(Boolean) as [number,number][],
   });
 }
 
@@ -194,6 +194,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           autocomplete="off" />
       </div>
       <div class="topbar-filters">
+        <span class="topbar-filter-label" data-i18n="filter_date_label">Data</span>
         <select id="anno-select" class="topbar-select">
           <option value="all" data-i18n="filter_all_y">Tutti</option>
           {anniSorted.map((a) => (
@@ -207,6 +208,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           ))}
         </select>
       </div>
+      <button id="map-style-btn" class="map-style-btn" title="Cambia stile mappa">◐</button>
       <LangSwitcher />
     </div>
 
@@ -231,6 +233,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     nav_faq:'FAQ', nav_contact:'Contact',
     filter_year:'Year', filter_month:'Month', filter_gender:'Gender',
     filter_cat:'Category', filter_disc:'Discipline', filter_reset:'Reset filters',
+    filter_date_label:'Date',
     filter_all_y:'All', filter_all_m:'All', filter_all_g:'All', filter_all_c:'All', filter_all_d:'All',
     search_placeholder:'Search by name, location...',
     stat_on_map:'races on map', no_results:'No results', no_results_sub:'Try changing the filters',
@@ -280,9 +283,23 @@ window.__BASE_URL__  = base;
   const getColor=(g:any)=>catColor[(g.categoria||[])[0]]??'#888';
 
   const map=L.map('map',{center:[46.5,11.0],zoom:5});
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  const tileLight=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19
-  }).addTo(map);
+  });
+  const tileDark=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',maxZoom:19
+  });
+  let isDark=(localStorage.getItem('brd-map-dark')??'1')==='1';
+  (isDark?tileDark:tileLight).addTo(map);
+  const mapBtn=document.getElementById('map-style-btn') as HTMLElement;
+  if(isDark) mapBtn.classList.add('active');
+  mapBtn.addEventListener('click',()=>{
+    isDark=!isDark;
+    localStorage.setItem('brd-map-dark',isDark?'1':'0');
+    if(isDark){map.removeLayer(tileLight);tileDark.addTo(map);}
+    else{map.removeLayer(tileDark);tileLight.addTo(map);}
+    mapBtn.classList.toggle('active',isDark);
+  });
 
   // Legenda
   const leg=(L.control as any)({position:'bottomright'});
@@ -333,16 +350,15 @@ window.__BASE_URL__  = base;
     }
     activeEntry=entry;
     const g=entry.gara;
-    if(g.endPt && entry.endMarkers.length===0) {
-      const em=L.marker(g.endPt,{
-        icon:L.divIcon({
-          className:'',
-          html:`<div style="width:14px;height:14px;background:#fff;border:1.5px solid #555;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;box-sizing:border-box;">🏁</div>`,
-          iconSize:[14,14], iconAnchor:[7,7],
-        }),
-        zIndexOffset:400,
-      }).addTo(map);
-      entry.endMarkers=[em];
+    if(g.endPts?.length && entry.endMarkers.length===0) {
+      const endIcon=L.divIcon({
+        className:'',
+        html:`<div style="width:14px;height:14px;background:#fff;border:1.5px solid #555;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;box-sizing:border-box;">🏁</div>`,
+        iconSize:[14,14], iconAnchor:[7,7],
+      });
+      entry.endMarkers = g.endPts.map((pt: [number,number]) =>
+        L.marker(pt, {icon:endIcon, zIndexOffset:400}).addTo(map)
+      );
     }
   }
 
@@ -375,8 +391,8 @@ window.__BASE_URL__  = base;
       const sm = L.marker(g.startPt, {
         icon: L.divIcon({
           className:'',
-          html:`<div style="width:10px;height:10px;background:${col2};border:2px ${fem2?'dashed':'solid'} ${col2};border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3);box-sizing:border-box;"></div>`,
-          iconSize:[10,10], iconAnchor:[5,5], popupAnchor:[0,-7],
+          html:`<div style="width:6px;height:6px;background:${col2};border-radius:50%;box-sizing:border-box;opacity:0.85;"></div>`,
+          iconSize:[6,6], iconAnchor:[2.5,2.5], popupAnchor:[0,-5],
         }),
         zIndexOffset:100,
       });
@@ -511,6 +527,10 @@ window.__BASE_URL__  = base;
   .search-input:focus{border-color:var(--text2)}
   .search-input::placeholder{color:var(--text3)}
   .topbar-filters{display:flex;gap:.4rem;align-items:center;flex-shrink:0}
+  .topbar-filter-label{font-family:var(--font-mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);white-space:nowrap}
+  .map-style-btn{background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;padding:.38rem .55rem;font-size:.95rem;color:var(--text2);line-height:1;transition:all .15s;flex-shrink:0}
+  .map-style-btn:hover{border-color:var(--text2);color:var(--text)}
+  .map-style-btn.active{background:var(--text);color:var(--bg);border-color:var(--text)}
   .topbar-select{font-family:var(--font-mono);font-size:.68rem;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:.38rem .55rem;color:var(--text);cursor:pointer;outline:none;transition:border-color .15s}
   .topbar-select:focus,.topbar-select:hover{border-color:var(--text2)}
   #map-container{flex:1;position:relative;overflow:hidden}
