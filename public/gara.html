@@ -939,6 +939,7 @@ let map;
         let _hoverMapMarker = null;   // marker arancione hover sul chart
         let _zoomStartMarker = null;  // marker inizio zoom
         let _zoomEndMarker = null;    // marker fine zoom
+        let _selectedClimbMarkers = null; // { climb, startColor, endColor } — persiste tra zoom
         let detectedClimbs = [];
         let climbPolylines = [];
         
@@ -1980,6 +1981,47 @@ let map;
 
             // Blocca contextmenu da long-press mobile sull'SVG
             svgNode.addEventListener('contextmenu', function(e) { e.preventDefault(); }, { once: false });
+
+            // Re-disegna i marker della salita selezionata dopo ogni zoom/reset
+            redrawClimbElevationMarkers();
+        }
+
+        function redrawClimbElevationMarkers() {
+            if (!_selectedClimbMarkers) return;
+            const { climb, startColor, endColor } = _selectedClimbMarkers;
+            const svg = d3.select('#elevation-chart svg');
+            if (!svg.node()) return;
+            const chartGroup = svg.select('g');
+            if (!chartGroup.node()) return;
+            const xS = window._elevXScale;
+            const yS = window._elevYScale;
+            if (!xS || !yS) return;
+
+            svg.selectAll('.climb-elevation-marker').remove();
+
+            const pts = routeData.points;
+            const startPt = pts[climb.startIndex];
+            const endPt   = pts[climb.endIndex];
+            const [d0, d1] = xS.domain();
+
+            if (startPt.dist / 1000 >= d0 && startPt.dist / 1000 <= d1) {
+                chartGroup.append('circle')
+                    .attr('class', 'climb-elevation-marker')
+                    .attr('cx', xS(startPt.dist / 1000))
+                    .attr('cy', yS(startPt.ele))
+                    .attr('r', 7).attr('fill', startColor)
+                    .attr('stroke', '#fff').attr('stroke-width', 2)
+                    .style('pointer-events', 'none');
+            }
+            if (endPt.dist / 1000 >= d0 && endPt.dist / 1000 <= d1) {
+                chartGroup.append('circle')
+                    .attr('class', 'climb-elevation-marker')
+                    .attr('cx', xS(endPt.dist / 1000))
+                    .attr('cy', yS(endPt.ele))
+                    .attr('r', 7).attr('fill', endColor)
+                    .attr('stroke', '#fff').attr('stroke-width', 2)
+                    .style('pointer-events', 'none');
+            }
         }
 
         
@@ -2230,46 +2272,10 @@ let map;
                     }).addTo(map);
                     endMarker.bindPopup(`<strong>Fine Salita ${index + 1}</strong><br>Quota: ${endPoint.ele.toFixed(0)} m`);
                     climbPolylines.push(endMarker);
-                    
-                    // Add markers on elevation chart using the current (possibly zoomed) scales
-                    setTimeout(() => {
-                        const svg = d3.select('#elevation-chart svg');
-                        if (!svg.node()) return;
-                        const chartGroup = svg.select('g');
-                        if (!chartGroup.node()) return;
 
-                        // Usa le scale globali aggiornate da buildElevationChart (zoom-aware)
-                        const xS = window._elevXScale;
-                        const yS = window._elevYScale;
-                        if (!xS || !yS) return;
-
-                        const pts = routeData.points;
-                        const startPt = pts[climb.startIndex];
-                        const endPt   = pts[climb.endIndex];
-
-                        const [d0, d1] = xS.domain();
-
-                        // Disegna solo se il punto è nel dominio visibile
-                        if (startPt.dist / 1000 >= d0 && startPt.dist / 1000 <= d1) {
-                            chartGroup.append('circle')
-                                .attr('class', 'climb-elevation-marker')
-                                .attr('cx', xS(startPt.dist / 1000))
-                                .attr('cy', yS(startPt.ele))
-                                .attr('r', 7).attr('fill', startColor)
-                                .attr('stroke', '#fff').attr('stroke-width', 2)
-                                .style('pointer-events', 'none');
-                        }
-
-                        if (endPt.dist / 1000 >= d0 && endPt.dist / 1000 <= d1) {
-                            chartGroup.append('circle')
-                                .attr('class', 'climb-elevation-marker')
-                                .attr('cx', xS(endPt.dist / 1000))
-                                .attr('cy', yS(endPt.ele))
-                                .attr('r', 7).attr('fill', endColor)
-                                .attr('stroke', '#fff').attr('stroke-width', 2)
-                                .style('pointer-events', 'none');
-                        }
-                    }, 100);
+                    // Salva stato marker per il ridisegno dopo zoom/reset
+                    _selectedClimbMarkers = { climb, startColor, endColor };
+                    redrawClimbElevationMarkers();
                 });
                 
                 climbsList.appendChild(card);
@@ -2287,6 +2293,7 @@ let map;
             document.querySelectorAll('.climb-card').forEach(c => c.classList.remove('highlighted'));
             climbPolylines.forEach(marker => map.removeLayer(marker));
             climbPolylines = [];
+            _selectedClimbMarkers = null;
             const svg = d3.select('#elevation-chart svg');
             svg.selectAll('.climb-elevation-marker').remove();
         }
