@@ -1659,15 +1659,17 @@ let map;
             const paddingBottom = minEle >= 100 ? 80 : Math.max(0, minEle * 0.5);
 
             // Y RANGE: based on actual elevation gain
-            // rangeY ≈ max(elevGain × 1.5, elevGain + 300), capped at maxEle + 400m rounded to 100m
+            // rangeY ≈ max(elevGain × 1.5, elevGain + 300)
             const rangeY_base = Math.max(elevationGain * 1.5, elevationGain + 300);
-            const yMaxCap = Math.ceil((maxEle + 100) / 100) * 100;
-            const rangeY_final = Math.min(rangeY_base + paddingBottom + paddingTop, yMaxCap);
+            const rangeY_final = rangeY_base + paddingBottom + paddingTop;
 
             // ROUND values to nice numbers (no 137m nonsense)
             const roundTo = 50;
             const yMin = Math.floor((minEle - paddingBottom) / roundTo) * roundTo;
-            const yMax = Math.ceil((yMin + rangeY_final) / roundTo) * roundTo;
+            const yMaxRaw = Math.ceil((yMin + rangeY_final) / roundTo) * roundTo;
+            // Cap yMax relativo a maxEle: non più di paddingTop sopra la quota massima
+            const yMaxCap = Math.ceil((maxEle + paddingTop) / roundTo) * roundTo;
+            const yMax = Math.min(yMaxRaw, yMaxCap);
 
             const yScale = d3.scaleLinear()
                 .domain([yMin, yMax])
