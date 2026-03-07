@@ -303,7 +303,10 @@ def save_race(slug: str, data: dict):
     if not data.get('race_series'):
         titolo = data.get('titolo')
         if titolo:
-            data['race_series'] = titolo
+            data['race_series'] = slugify(titolo)
+    else:
+        # Converti a minuscolo per evitare inconsistenze
+        data['race_series'] = data.get('race_series', '').lower().strip()
 
     # ── Estrai gpx_points (vanno nel file separato) ──────────────────────────
     gpx_points = data.pop('gpx_points', None)
@@ -381,6 +384,9 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list):
     main_data['slug']         = race_slug
     if not main_data.get('race_series'):
         main_data['race_series'] = slugify(main_data.get('titolo', ''))
+    else:
+        # Converti a minuscolo per evitare inconsistenze
+        main_data['race_series'] = main_data.get('race_series', '').lower().strip()
 
     # Salva JSON principale
     main_clean = {k: v for k, v in main_data.items() if v is not None}
