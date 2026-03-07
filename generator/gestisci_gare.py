@@ -534,6 +534,8 @@ class RaceManagerApp:
         
         self.all_races = []  # Cache di tutte le gare
         self.filtered_races = []  # Gare filtrate
+        self.expanded_stages = set()  # Slug delle corse a tappe expand nel listbox
+        self.listbox_index_map = {}  # Mapping da indice listbox a slug gara/tappa
         
         # State filtri
         self.filter_state = {
@@ -630,6 +632,7 @@ class RaceManagerApp:
                                        selectmode="single", font=("Courier", 9), bd=0)
         self.race_listbox.pack(side="left", fill="both", expand=True)
         self.race_listbox.bind("<<ListboxSelect>>", self.on_race_select)
+        self.race_listbox.bind("<Double-Button-1>", self.on_race_double_click)
         scrollbar.config(command=self.race_listbox.yview)
         
         # Right: Details
@@ -750,22 +753,48 @@ class RaceManagerApp:
     def update_listbox(self):
         """Aggiorna listbox con gare filtrate"""
         self.race_listbox.delete(0, tk.END)
+        self.listbox_index_map = {}  # Reset mapping
+        current_index = 0
+        
         for slug, data in self.filtered_races:
+            tipo = data.get('tipo', '')
+            
+            # Non mostra le tappe singole se non expanded
+            if tipo == 'tappa':
+                continue
+            
             titolo = data.get('titolo', f'[{slug}]')
             data_gara = data.get('data', '—')
             km = data.get('distanza_km', '—')
             dislivello = data.get('dislivello_m', '—')
-            tipo = data.get('tipo', '')
+            
             if tipo == 'corsa_a_tappe':
                 n_tappe = data.get('n_tappe', '?')
-                prefix = f'[⛰ {n_tappe}T] '
-            elif tipo == 'tappa':
-                n = data.get('numero_tappa', '?')
-                prefix = f'  └ S{n}  '
+                is_expanded = slug in self.expanded_stages
+                expand_sym = '▼' if is_expanded else '▶'
+                prefix = f'{expand_sym} [⛰ {n_tappe}T]'
             else:
-                prefix = '       '
-            line = f"{prefix}{titolo:27s} | {data_gara} | {str(km):6}km | {str(dislivello):6}m"
+                prefix = '[  ]'
+            
+            # Formattazione con colonne allineate usando monospace
+            line = f"{prefix:10s} {titolo:30s} | {str(data_gara):10s} | {str(km):>7s}km | {str(dislivello):>6s}m"
             self.race_listbox.insert(tk.END, line)
+            self.listbox_index_map[current_index] = slug  # Mappa indice -> slug gara
+            current_index += 1
+            
+            # Se la corsa a tappe è expanded, mostra le tappe indentate
+            if tipo == 'corsa_a_tappe' and slug in self.expanded_stages:
+                for tappa in data.get('tappe', []):
+                    t_numero = tappa.get('numero', '?')
+                    t_nome = tappa.get('nome', '—')
+                    t_data = tappa.get('data', '—')
+                    t_km = tappa.get('distanza_km', '—')
+                    t_elev = tappa.get('dislivello_m', '—')
+                    t_slug = tappa.get('slug', '')  # Slug della tappa
+                    t_line = f"  └─ S{t_numero} {t_nome:26s} | {str(t_data):10s} | {str(t_km):>7s}km | {str(t_elev):>6s}m"
+                    self.race_listbox.insert(tk.END, t_line)
+                    self.listbox_index_map[current_index] = t_slug  # Mappa indice -> slug tappa
+                    current_index += 1
     
     def reset_filters(self):
         """Azzera tutti i filtri"""
@@ -783,9 +812,39 @@ class RaceManagerApp:
         if not idx:
             return
         
-        slug, data = self.filtered_races[idx[0]]
+        # Usa il mapping per trovare lo slug dalla posizione nel listbox
+        slug = self.listbox_index_map.get(idx[0])
+        if not slug:
+            return
+        
+        # Carica i dati: dalla cache se è gara, dal JSON se è tappa
+        data = None
+        is_stage = False
+        
+        # Prova prima a trovare nella cache filtered_races
+        for s, d in self.filtered_races:
+            if s == slug:
+                data = d
+                break
+        
+        # Se non trovato nella cache, potrebbe essere una tappa -> carica dal JSON
+        if not data:
+            tappa_json_path = GARE_DIR / f"{slug}.json"
+            if tappa_json_path.exists():
+                try:
+                    data = json.loads(tappa_json_path.read_text(encoding='utf-8'))
+                    is_stage = True
+                except Exception:
+                    return
+            else:
+                return
+        
+        if not data:
+            return
+        
         tipo = data.get('tipo', '')
         
+        # Mostra i dettagli della gara selezionata nel pannello info
         if tipo == 'corsa_a_tappe':
             tappe_info = ""
             for t in data.get('tappe', []):
@@ -805,15 +864,26 @@ D+ TOTALE:    {data.get('dislivello_m', '—')} m
 LUOGO:        {data.get('luogo', '—')}
 TAPPE:{tappe_info}"""
         elif tipo == 'tappa':
+            gpx_file = GPX_DIR / f"{slug}-gpx.json"
+            gpx_info = "sì" if gpx_file.exists() else "no"
+            velocita = data.get('velocita_media_kmh')
+            velocita_str = f"{velocita} km/h" if velocita else "—"
+            
             info = f"""TITOLO:       {data.get('titolo', '—')}
 SLUG:         {slug}
-TIPO:         Singola Tappa (S{data.get('numero_tappa','?')})
+TIPO:         Tappa (S{data.get('numero_tappa','?')})
 CORSA:        {data.get('corsa_a_tappe_titolo', '—')} ({data.get('corsa_a_tappe_slug', '—')})
 NOME TAPPA:   {data.get('nome_tappa', '—')}
 DATA:         {data.get('data', '—')}
 DISCIPLINA:   {data.get('disciplina', '—')}
 DISTANZA:     {data.get('distanza_km', '—')} km
-DISLIVELLO:  {data.get('dislivello_m', '—')} m"""
+DISLIVELLO:   {data.get('dislivello_m', '—')} m
+VEL MEDIA:    {velocita_str}
+LUOGO:        {data.get('luogo', '—')}
+GENERE:       {data.get('genere', '—')}
+CATEGORIE:    {', '.join(data.get('categoria', [])) if isinstance(data.get('categoria'), list) else data.get('categoria', '—')}
+NOTE:         {(data.get('note', '') or '')[:100]}
+GPX FILE:     {gpx_info}"""
         else:
             # Determina quale file GPX verrà usato per questa gara
             gpx_ref  = data.get('gpx_reference', '')
@@ -843,6 +913,39 @@ GPX FILE:     {gpx_info}"""
         self.info_text.delete(1.0, tk.END)
         self.info_text.insert(1.0, info)
         self.info_text.config(state="disabled")
+    
+    def on_race_double_click(self, event):
+        """Doppio click: espandi/collassa corsa a tappe"""
+        idx = self.race_listbox.curselection()
+        if not idx:
+            return
+        
+        # Usa il mapping per trovare lo slug
+        slug = self.listbox_index_map.get(idx[0])
+        if not slug:
+            return
+        
+        # Verifica che sia una corsa a tappe (non una tappa singola)
+        data = None
+        for s, d in self.filtered_races:
+            if s == slug and d.get('tipo') == 'corsa_a_tappe':
+                data = d
+                break
+        
+        if not data:
+            return
+        
+        # Togglare expand/collapse
+        if slug in self.expanded_stages:
+            self.expanded_stages.discard(slug)
+        else:
+            self.expanded_stages.add(slug)
+        
+        self.update_listbox()
+        
+        # Re-seleziona lo stesso index (che è rimasto lo stesso nel listbox)
+        self.race_listbox.selection_clear(0, tk.END)
+        self.race_listbox.selection_set(idx[0])
     
     def add_race(self):
         """Dialogo per scegliere come aggiungere una nuova gara"""
@@ -1548,13 +1651,24 @@ GPX FILE:     {gpx_info}"""
         # ── dati interni ───────────────────────────────────────────────────
         data = (initial_data or {}).copy()
         # Lista tappe: ognuna è un dict con chiavi:
-        #   numero, nome, slug_tappa, data, disciplina, distanza_km, dislivello_m, gpx_points
+        #   numero, nome, slug_tappa, data, disciplina, distanza_km, dislivello_m, luogo, velocita_media_kmh, gpx_points
         stages: list[dict] = []
         if data.get('tappe'):
             for t in data['tappe']:
+                stage_slug = t.get('slug', '')
+                
+                # Carica i dati completi della tappa dal file JSON separato se esiste
+                tappa_completa = {}
+                tappa_json_path = GARE_DIR / f"{stage_slug}.json"
+                if tappa_json_path.exists():
+                    try:
+                        tappa_completa = json.loads(tappa_json_path.read_text(encoding='utf-8'))
+                    except Exception:
+                        pass
+                
                 # ricarica i gpx_points dal file, se esiste
                 gpx_pts = None
-                gpx_path = GPX_DIR / f"{t.get('slug', '')}-gpx.json"
+                gpx_path = GPX_DIR / f"{stage_slug}-gpx.json"
                 if gpx_path.exists():
                     try:
                         gd = json.loads(gpx_path.read_text(encoding='utf-8'))
@@ -1567,12 +1681,14 @@ GPX FILE:     {gpx_info}"""
                 stages.append({
                     'numero':       t.get('numero', len(stages) + 1),
                     'nome':         t.get('nome', ''),
-                    'slug_tappa':   t.get('slug', ''),
+                    'slug_tappa':   stage_slug,
                     'data':         t.get('data', ''),
                     'disciplina':   t.get('disciplina', 'Strada'),
                     'giri':         _giri,
                     'distanza_km':  _km,
                     'dislivello_m': _elev,
+                    'luogo':        tappa_completa.get('luogo') or t.get('luogo'),
+                    'velocita_media_kmh': tappa_completa.get('velocita_media_kmh') or t.get('velocita_media_kmh'),
                     'gpx_points':   gpx_pts,
                     '_base_km':     round(_km / _giri, 4) if _km else None,
                     '_base_elev':   round(_elev / _giri) if _elev else None,
@@ -1710,18 +1826,18 @@ GPX FILE:     {gpx_info}"""
                         state_active = "normal"
                         cursor = "hand2"
                     else:
-                        # Disabilitato: grigio e non cliccabile
-                        bg_color = "#e5e5e5"
-                        fg_color = "#aaa"
+                        # Disabilitato: grigio scuro con forte contrasto
+                        bg_color = "#d0d0d0"
+                        fg_color = "#555555"
                         state_active = "disabled"
                         cursor = "arrow"
                     
                     btn = tk.Button(
                         grid_f, text=str(d), font=("Helvetica", 10),
                         bg=bg_color, fg=fg_color,
-                        relief="flat", bd=0, width=3, cursor=cursor,
-                        activebackground=ACCENT if is_in_range else "#e5e5e5",
-                        activeforeground="white" if is_in_range else "#aaa",
+                        relief="solid", bd=1, width=3, cursor=cursor,
+                        activebackground=ACCENT if is_in_range else "#c8c8c8",
+                        activeforeground="white" if is_in_range else "#333333",
                         state=state_active,
                     )
                     if is_in_range:
@@ -2150,6 +2266,8 @@ GPX FILE:     {gpx_info}"""
                 'giri':         1,
                 'distanza_km':  None,
                 'dislivello_m': None,
+                'luogo':        None,
+                'velocita_media_kmh': None,
                 'gpx_points':   None,
             }
             stages.append(new_s)
@@ -2283,8 +2401,8 @@ GPX FILE:     {gpx_info}"""
 
         # Dimensione finestra
         win.update_idletasks()
-        win.minsize(720, 640)
-        win.geometry("750x780")
+        win.minsize(720, 800)
+        win.geometry("750x900")
 
     def edit_race(self):
         """Modifica metadati della gara selezionata"""
@@ -2293,8 +2411,48 @@ GPX FILE:     {gpx_info}"""
             messagebox.showwarning("Attenzione", "Seleziona una gara prima")
             return
         
-        slug, data = self.filtered_races[idx[0]]
-        if data.get('tipo') == 'corsa_a_tappe':
+        # Usa il mapping per trovare lo slug dalla posizione nel listbox
+        slug = self.listbox_index_map.get(idx[0])
+        if not slug:
+            messagebox.showwarning("Attenzione", "Gara non trovata")
+            return
+        
+        # Carica i dati
+        data = None
+        for s, d in self.filtered_races:
+            if s == slug:
+                data = d
+                break
+        
+        # Se non trovato nella cache, potrebbe essere una tappa -> carica dal JSON
+        if not data:
+            tappa_json_path = GARE_DIR / f"{slug}.json"
+            if tappa_json_path.exists():
+                try:
+                    data = json.loads(tappa_json_path.read_text(encoding='utf-8'))
+                except Exception:
+                    messagebox.showerror("Errore", "Impossibile caricare i dati della tappa")
+                    return
+            else:
+                messagebox.showwarning("Attenzione", "Gara non trovata")
+                return
+        
+        # Se è una tappa, carica la corsa a tappe principale
+        if data.get('tipo') == 'tappa':
+            stage_race_slug = data.get('corsa_a_tappe_slug')
+            if stage_race_slug:
+                stage_race_path = GARE_DIR / f"{stage_race_slug}.json"
+                if stage_race_path.exists():
+                    try:
+                        stage_race_data = json.loads(stage_race_path.read_text(encoding='utf-8'))
+                        self.open_stage_race_form(initial_data=stage_race_data.copy(), is_new=False)
+                        return
+                    except Exception as e:
+                        messagebox.showerror("Errore", f"Impossibile caricare la corsa a tappe: {e}")
+                        return
+            messagebox.showwarning("Attenzione", "Corsa a tappe principale non trovata")
+            return
+        elif data.get('tipo') == 'corsa_a_tappe':
             self.open_stage_race_form(initial_data=data.copy(), is_new=False)
         else:
             self.open_add_race_form(data.copy(), is_new=False, original_slug=slug)
@@ -2307,7 +2465,33 @@ GPX FILE:     {gpx_info}"""
             messagebox.showwarning("Attenzione", "Seleziona una gara prima")
             return
         
-        slug, data = self.filtered_races[idx[0]]
+        # Usa il mapping per trovare lo slug dalla posizione nel listbox
+        slug = self.listbox_index_map.get(idx[0])
+        if not slug:
+            messagebox.showwarning("Attenzione", "Gara non trovata")
+            return
+        
+        # Carica i dati
+        data = None
+        for s, d in self.filtered_races:
+            if s == slug:
+                data = d
+                break
+        
+        # Se non trovato, carica dal JSON se è una tappa
+        if not data:
+            tappa_json_path = GARE_DIR / f"{slug}.json"
+            if tappa_json_path.exists():
+                try:
+                    data = json.loads(tappa_json_path.read_text(encoding='utf-8'))
+                except Exception:
+                    messagebox.showerror("Errore", "Impossibile caricare i dati della tappa")
+                    return
+        
+        if not data:
+            messagebox.showwarning("Attenzione", "Gara non trovata")
+            return
+        
         title = data.get("titolo", slug)
         tipo  = data.get('tipo', '')
         
