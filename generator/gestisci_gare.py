@@ -1745,15 +1745,25 @@ GPX FILE:     {gpx_info}"""
 
         import calendar as cal_mod
 
-        def _open_calendar(parent_win, sv, min_date=None, max_date=None):
+        def _open_calendar(parent_win, sv, min_date=None, max_date=None, reference_date=None):
             """Popup calendario. sv è un tk.StringVar che contiene la data AAAA-MM-GG.
-            min_date e max_date sono stringhe AAAA-MM-GG per limitare le date selezionabili."""
+            min_date e max_date sono stringhe AAAA-MM-GG per limitare le date selezionabili.
+            reference_date è una stringa AAAA-MM-GG per impostare il mese/anno iniziale (invece di today)."""
             try:
                 parts = sv.get().split("-")
                 cur_year, cur_month = int(parts[0]), int(parts[1])
             except Exception:
-                _td = date.today()
-                cur_year, cur_month = _td.year, _td.month
+                # Se reference_date è fornito, usa quello come punto di partenza
+                if reference_date:
+                    try:
+                        p = reference_date.split("-")
+                        cur_year, cur_month = int(p[0]), int(p[1])
+                    except:
+                        _td = date.today()
+                        cur_year, cur_month = _td.year, _td.month
+                else:
+                    _td = date.today()
+                    cur_year, cur_month = _td.year, _td.month
             
             # Converti min_date e max_date in date objects
             min_d = None
@@ -1778,29 +1788,81 @@ GPX FILE:     {gpx_info}"""
             top.configure(bg=BG)
             top.grab_set()
             state = {"year": cur_year, "month": cur_month}
+            
+            # ── Navigazione mese/anno con controllo anno ──
             nav = tk.Frame(top, bg=BG)
             nav.pack(fill="x", padx=10, pady=(10, 4))
+            
+            # Bottone anno (cliccabile per scegliere l'anno)
             lbl_mese = tk.Label(nav, text="", font=("Helvetica", 11, "bold"),
-                                bg=BG, fg=FG, width=16)
+                                bg=BG, fg=FG, width=18, cursor="hand2")
             lbl_mese.pack(side="left", expand=True)
+            
+            def open_year_picker():
+                """Popup per scegliere l'anno rapidamente"""
+                year_win = tk.Toplevel(top)
+                year_win.title("Scegli anno")
+                year_win.resizable(False, False)
+                year_win.attributes("-topmost", True)
+                year_win.configure(bg=BG)
+                year_win.grab_set()
+                
+                # Range di anni: da 2020 a 2035
+                years = list(range(2020, 2036))
+                
+                tk.Label(year_win, text="Seleziona anno:", font=("Helvetica", 10, "bold"),
+                        bg=BG, fg=FG, pady=8).pack()
+                
+                buttons_frame = tk.Frame(year_win, bg=BG, padx=10)
+                buttons_frame.pack(pady=8)
+                
+                for i, y in enumerate(years):
+                    col = i % 4
+                    row = i // 4
+                    bg_y = ACCENT if y == state["year"] else BG
+                    fg_y = "white" if y == state["year"] else FG
+                    
+                    def _select_year(yy=y):
+                        state["year"] = yy
+                        year_win.destroy()
+                        _cal_ref()
+                    
+                    tk.Button(buttons_frame, text=str(y), font=("Helvetica", 9),
+                             bg=bg_y, fg=fg_y, relief="solid", bd=1,
+                             width=5, cursor="hand2",
+                             activebackground=ACCENT, activeforeground="white",
+                             command=_select_year).grid(row=row, column=col, padx=2, pady=2)
+            
+            lbl_mese.bind("<Button-1>", lambda e: open_year_picker())
+            
             def prev_m():
                 if state["month"] == 1: state["month"] = 12; state["year"] -= 1
                 else: state["month"] -= 1
                 _cal_ref()
+            
             def next_m():
                 if state["month"] == 12: state["month"] = 1; state["year"] += 1
                 else: state["month"] += 1
                 _cal_ref()
+            
+            tk.Button(nav, text="◀◀", font=("Helvetica", 9), bg=BG, fg=FG,
+                      relief="flat", bd=0, cursor="hand2",
+                      command=lambda: (state.update({"year": state["year"] - 1}), _cal_ref())).pack(side="left", padx=2)
             tk.Button(nav, text="◄", font=("Helvetica", 10), bg=BG, fg=FG,
-                      relief="flat", bd=0, cursor="hand2", command=prev_m).pack(side="left")
+                      relief="flat", bd=0, cursor="hand2", command=prev_m).pack(side="left", padx=2)
             tk.Button(nav, text="►", font=("Helvetica", 10), bg=BG, fg=FG,
-                      relief="flat", bd=0, cursor="hand2", command=next_m).pack(side="right")
+                      relief="flat", bd=0, cursor="hand2", command=next_m).pack(side="right", padx=2)
+            tk.Button(nav, text="►►", font=("Helvetica", 9), bg=BG, fg=FG,
+                      relief="flat", bd=0, cursor="hand2",
+                      command=lambda: (state.update({"year": state["year"] + 1}), _cal_ref())).pack(side="right", padx=2)
+            
             grid_f = tk.Frame(top, bg=BG)
             grid_f.pack(padx=10, pady=(0, 10))
             for col, g in enumerate(["Lu", "Ma", "Me", "Gi", "Ve", "Sa", "Do"]):
                 tk.Label(grid_f, text=g, font=("Helvetica", 9, "bold"),
                          bg=BG, fg="#7a746b", width=3).grid(row=0, column=col, pady=(0, 4))
             day_btns = []
+            
             def _cal_ref():
                 for b in day_btns: b.destroy()
                 day_btns.clear()
@@ -1851,9 +1913,11 @@ GPX FILE:     {gpx_info}"""
                     btn.grid(row=1 + cell // 7, column=cell % 7, pady=1)
                     day_btns.append(btn)
                     cell += 1
+            
             def _pick(day):
                 sv.set(f"{state['year']:04d}-{state['month']:02d}-{day:02d}")
                 top.destroy()
+            
             _cal_ref()
 
         def _race_date_field(parent, row, key, label, default=""):
@@ -1866,10 +1930,19 @@ GPX FILE:     {gpx_info}"""
             var = tk.StringVar(value=str(data.get(key, default) or default))
             tk.Entry(f, textvariable=var, font=("Helvetica", 10), relief="solid", bd=1).grid(
                 row=0, column=0, sticky="ew")
+            
+            def open_cal():
+                # Se è data_fine, usa data_inizio come reference per il mese iniziale
+                ref_date = None
+                if key == 'data_fine' and 'data_inizio' in race_entries:
+                    ref_date = race_entries['data_inizio'].get().strip()
+                    if not ref_date:
+                        ref_date = None
+                _open_calendar(win, var, reference_date=ref_date)
+            
             tk.Button(f, text="📅", font=("Helvetica", 11), bg=BG, fg=FG,
                       relief="flat", bd=0, cursor="hand2",
-                      command=lambda sv=var: _open_calendar(win, sv)).grid(
-                row=0, column=1, padx=(4, 0))
+                      command=open_cal).grid(row=0, column=1, padx=(4, 0))
             race_entries[key] = var
             return var
 
@@ -2030,18 +2103,26 @@ GPX FILE:     {gpx_info}"""
             stage_entries[key] = var
             return var
 
-        _make_detail_field(detail_lf, 0, 'nome',         "Nome Tappa")
-        _make_detail_date_field(detail_lf, 1, 'data',    "Data")
-        _make_detail_field(detail_lf, 2, 'distanza_km',  "Distanza (km)")
-        _make_detail_field(detail_lf, 3, 'dislivello_m', "Dislivello (m)")
-        _make_detail_field(detail_lf, 4, 'velocita_media_kmh', "Velocità media (km/h)")
+        # Numero tappa (editabile per riordinare)
+        tk.Label(detail_lf, text="Numero tappa", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=0, column=0, sticky="w", padx=(0, 6), pady=3)
+        numero_tappa_var = tk.IntVar(value=1)
+        tk.Spinbox(detail_lf, from_=1, to=99, textvariable=numero_tappa_var,
+                   font=("Helvetica", 9), width=6).grid(row=0, column=1, sticky="w", pady=3)
+        stage_entries['numero'] = numero_tappa_var
+        
+        _make_detail_field(detail_lf, 1, 'nome',         "Nome Tappa")
+        _make_detail_date_field(detail_lf, 2, 'data',    "Data")
+        _make_detail_field(detail_lf, 3, 'distanza_km',  "Distanza (km)")
+        _make_detail_field(detail_lf, 4, 'dislivello_m', "Dislivello (m)")
+        _make_detail_field(detail_lf, 5, 'velocita_media_kmh', "Velocità media (km/h)")
 
         # Giri
         tk.Label(detail_lf, text="Giri circuito", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
-            row=5, column=0, sticky="w", padx=(0, 6), pady=3)
+            row=6, column=0, sticky="w", padx=(0, 6), pady=3)
         giri_var = tk.IntVar(value=1)
         tk.Spinbox(detail_lf, from_=1, to=50, textvariable=giri_var,
-                   font=("Helvetica", 9), width=6).grid(row=5, column=1, sticky="w", pady=3)
+                   font=("Helvetica", 9), width=6).grid(row=6, column=1, sticky="w", pady=3)
         stage_entries['giri'] = giri_var
 
         def _on_giri_change(*_):
@@ -2062,35 +2143,57 @@ GPX FILE:     {gpx_info}"""
         giri_var.trace_add("write", _on_giri_change)
 
         tk.Label(detail_lf, text="Disciplina", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
-            row=6, column=0, sticky="w", padx=(0, 6), pady=3)
+            row=7, column=0, sticky="w", padx=(0, 6), pady=3)
         disc_s_var = tk.StringVar(value="Strada")
         disc_s_menu = tk.OptionMenu(detail_lf, disc_s_var, *DISCIPLINE)
         disc_s_menu.config(font=("Helvetica", 9))
-        disc_s_menu.grid(row=6, column=1, sticky="ew", pady=3)
+        disc_s_menu.grid(row=7, column=1, sticky="ew", pady=3)
         stage_entries['disciplina'] = disc_s_var
 
-        _make_detail_field(detail_lf, 7, 'luogo', "Luogo")
+        _make_detail_field(detail_lf, 8, 'luogo', "Luogo")
 
-        # Riga slug tappa (solo lettura, auto-generato)
+        # Riga slug tappa con bottone rigenerazione
         tk.Label(detail_lf, text="Slug tappa", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
-            row=8, column=0, sticky="w", padx=(0, 6), pady=3)
+            row=9, column=0, sticky="w", padx=(0, 6), pady=3)
+        slug_frame = tk.Frame(detail_lf, bg=BG)
+        slug_frame.grid(row=9, column=1, sticky="ew", pady=3)
+        slug_frame.columnconfigure(0, weight=1)
+        
         slug_t_var = tk.StringVar()
-        slug_t_entry = tk.Entry(detail_lf, textvariable=slug_t_var, font=("Helvetica", 9),
+        slug_t_entry = tk.Entry(slug_frame, textvariable=slug_t_var, font=("Helvetica", 9),
                                 state="readonly", relief="solid", bd=1,
                                 readonlybackground="#ede9e2")
-        slug_t_entry.grid(row=8, column=1, sticky="ew", pady=3)
+        slug_t_entry.grid(row=0, column=0, sticky="ew")
+        
+        def _regenerate_stage_slug():
+            """Rigenerazione dello slug della tappa basato su numero e dati principali"""
+            try:
+                num = int(numero_tappa_var.get())
+            except (ValueError, TypeError):
+                num = selected_stage[0] + 1 if selected_stage[0] is not None else 1
+            novo_slug = _stage_auto_slug(num)
+            slug_t_var.set(novo_slug)
+            # Aggiorna anche nel dict stages
+            idx = selected_stage[0]
+            if idx is not None:
+                stages[idx]['slug_tappa'] = novo_slug
+        
+        tk.Button(slug_frame, text="🔄", font=("Helvetica", 10), bg=BG, fg=FG,
+                  relief="flat", bd=0, cursor="hand2",
+                  command=_regenerate_stage_slug).grid(row=0, column=1, padx=(4, 0))
+        
         stage_entries['slug_tappa'] = slug_t_var
 
         # Stato GPX
         tk.Label(detail_lf, text="GPX", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
-            row=9, column=0, sticky="w", padx=(0, 6), pady=3)
+            row=10, column=0, sticky="w", padx=(0, 6), pady=3)
         gpx_status_var = tk.StringVar(value="Nessun GPX caricato")
         gpx_status_lbl = tk.Label(detail_lf, textvariable=gpx_status_var,
                                    font=("Helvetica", 9), bg=BG, fg="#7a746b")
-        gpx_status_lbl.grid(row=9, column=1, sticky="w", pady=3)
+        gpx_status_lbl.grid(row=10, column=1, sticky="w", pady=3)
 
         gpx_btn_frame = tk.Frame(detail_lf, bg=BG)
-        gpx_btn_frame.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(4, 0))
+        gpx_btn_frame.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(4, 0))
 
         def _load_gpx_for_stage():
             idx = selected_stage[0]
@@ -2174,6 +2277,27 @@ GPX FILE:     {gpx_info}"""
                 giri = int(stage_entries['giri'].get())
             except (ValueError, TypeError):
                 giri = 1
+            try:
+                nuovo_numero = int(numero_tappa_var.get())
+            except (ValueError, TypeError):
+                nuovo_numero = stages[idx].get('numero', idx + 1)
+            
+            # Se il numero è cambiato, è necessario riordinare le tappe
+            old_numero = stages[idx]['numero']
+            if nuovo_numero != old_numero:
+                # Sposta la tappa nella lista
+                stage = stages.pop(idx)
+                stage['numero'] = nuovo_numero
+                # Inserisci nella posizione corretta (numero - 1)
+                insertion_pos = min(nuovo_numero - 1, len(stages))
+                stages.insert(insertion_pos, stage)
+                # Rinumera tutte le tappe per assicurare coerenza
+                for i, s in enumerate(stages):
+                    s['numero'] = i + 1
+                selected_stage[0] = stages.index(stage)
+            else:
+                stages[idx]['numero'] = nuovo_numero
+            
             stages[idx]['nome']         = stage_entries['nome'].get().strip()
             stages[idx]['data']         = stage_entries['data'].get().strip()
             stages[idx]['distanza_km']  = km
@@ -2187,7 +2311,7 @@ GPX FILE:     {gpx_info}"""
 
         tk.Button(detail_lf, text="Applica modifiche tappa", font=("Helvetica", 9, "bold"),
                   bg=ACCENT, fg="white", relief="flat", bd=0, cursor="hand2",
-                  command=_save_current_stage).grid(row=11, column=0, columnspan=2,
+                  command=_save_current_stage).grid(row=12, column=0, columnspan=2,
                                                     sticky="ew", pady=(8, 0))
 
         # ── Helper: auto slug tappa ─────────────────────────────────────────
@@ -2227,6 +2351,7 @@ GPX FILE:     {gpx_info}"""
             if idx is None or idx >= len(stages):
                 return
             s = stages[idx]
+            numero_tappa_var.set(int(s.get('numero', idx + 1)))
             stage_entries['nome'].set(s.get('nome', ''))
             stage_entries['data'].set(s.get('data', ''))
             stage_entries['distanza_km'].set(str(s.get('distanza_km', '') or ''))
