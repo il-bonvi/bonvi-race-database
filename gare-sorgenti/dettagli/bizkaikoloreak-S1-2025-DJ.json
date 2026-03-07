@@ -1,0 +1,20 @@
+{
+  "titolo": "Bizkaikoloreak — Tappa 1: Abadiño",
+  "tipo": "tappa",
+  "nome_tappa": "Abadiño",
+  "numero_tappa": 1,
+  "corsa_a_tappe_slug": "bizkaikoloreak-2025-DJ",
+  "corsa_a_tappe_titolo": "Bizkaikoloreak",
+  "race_series": "bizkaikoloreak",
+  "data": "2025-08-14",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 68.99,
+  "dislivello_m": 621.0,
+  "velocita_media_kmh": 39.5,
+  "luogo": "ES",
+  "slug": "bizkaikoloreak-S1-2025-DJ"
+}

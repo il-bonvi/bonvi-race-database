@@ -1,0 +1,20 @@
+{
+  "titolo": "Bizkaikoloreak — Tappa 2: Iurreta",
+  "tipo": "tappa",
+  "nome_tappa": "Iurreta",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "bizkaikoloreak-2025-DJ",
+  "corsa_a_tappe_titolo": "Bizkaikoloreak",
+  "race_series": "bizkaikoloreak",
+  "data": "2025-08-15",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 65.03,
+  "dislivello_m": 747.0,
+  "velocita_media_kmh": 37.5,
+  "luogo": "ES",
+  "slug": "bizkaikoloreak-S2-2025-DJ"
+}

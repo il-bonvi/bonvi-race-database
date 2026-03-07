@@ -1,5 +1,19 @@
 [
   {
+    "slug": "bizkaikoloreak-2025-DJ",
+    "titolo": "Bizkaikoloreak",
+    "data": "2025-08-14",
+    "year": "2025",
+    "race_series": "bizkaikoloreak",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": "corsa_a_tappe",
+    "n_tappe": 2
+  },
+  {
     "slug": "nonantola-2026-DJ",
     "titolo": "Nonantola",
     "data": "2026-03-08",
