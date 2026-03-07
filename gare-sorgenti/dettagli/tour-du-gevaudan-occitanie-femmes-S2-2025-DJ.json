@@ -1,0 +1,20 @@
+{
+  "titolo": "Tour du Gévaudan Occitanie femmes — Tappa 2: Balsièges  >  Montée Jalabert",
+  "tipo": "tappa",
+  "nome_tappa": "Balsièges  >  Montée Jalabert",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "tour-du-gevaudan-occitanie-femmes-2025-DJ",
+  "corsa_a_tappe_titolo": "Tour du Gévaudan Occitanie femmes",
+  "race_series": "tour du gévaudan occitanie femmes",
+  "data": "2025-05-11",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 75.35,
+  "dislivello_m": 1304.0,
+  "velocita_media_kmh": 35.0,
+  "luogo": "Lozère, FR",
+  "slug": "tour-du-gevaudan-occitanie-femmes-S2-2025-DJ"
+}

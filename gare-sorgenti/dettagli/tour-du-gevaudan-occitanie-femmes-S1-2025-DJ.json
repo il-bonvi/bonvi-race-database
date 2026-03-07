@@ -1,0 +1,20 @@
+{
+  "titolo": "Tour du Gévaudan Occitanie femmes — Tappa 1: Balsièges",
+  "tipo": "tappa",
+  "nome_tappa": "Balsièges",
+  "numero_tappa": 1,
+  "corsa_a_tappe_slug": "tour-du-gevaudan-occitanie-femmes-2025-DJ",
+  "corsa_a_tappe_titolo": "Tour du Gévaudan Occitanie femmes",
+  "race_series": "tour du gévaudan occitanie femmes",
+  "data": "2025-05-10",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 70.35,
+  "dislivello_m": 1042.0,
+  "velocita_media_kmh": 33.0,
+  "luogo": "Lozère, FR",
+  "slug": "tour-du-gevaudan-occitanie-femmes-S1-2025-DJ"
+}

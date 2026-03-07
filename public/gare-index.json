@@ -56,6 +56,20 @@
     "n_tappe": null
   },
   {
+    "slug": "tour-du-gevaudan-occitanie-femmes-2025-DJ",
+    "titolo": "Tour du Gévaudan Occitanie femmes",
+    "data": "2025-05-10",
+    "year": "2025",
+    "race_series": "tour du gévaudan occitanie femmes",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": "corsa_a_tappe",
+    "n_tappe": 2
+  },
+  {
     "slug": "trofeo-alfredo-binda-2026-DU-DPRO",
     "titolo": "Trofeo Alfredo Binda",
     "data": "2026-03-15",
