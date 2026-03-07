@@ -14,12 +14,12 @@ for (const [, mod] of Object.entries(garaFiles)) {
 // ── Carica tutti i GPX (build time) ──────────────────────────────────────────
 const gpxFiles = import.meta.glob('../../gare-sorgenti/gpx/*-gpx.json', { eager: true });
 
-// Per ogni file GPX: calcola centro e polyline decimata
+// Per ogni file GPX: calcola centro e salva punti grezzi
 type GpxEntry = {
   slug: string;
   lat: number;
   lon: number;
-  pts: [number, number][];
+  ptsBruti: [number, number][];
   start: [number, number];
   end: [number, number];
 };
@@ -37,17 +37,13 @@ for (const [path, mod] of Object.entries(gpxFiles)) {
   // Centro = punto di mezzo
   const mid = pts[Math.floor(pts.length / 2)];
 
-  // Decimazione a max 300 punti
-  const MAX = 300;
-  const step = pts.length > MAX ? Math.floor(pts.length / MAX) : 1;
-  const sampled: [number, number][] = pts
-    .filter((_, i) => i % step === 0)
-    .map(p => [p.lat, p.lon]);
+  // Salva i punti grezzi (saranno decimati in base alla distanza effettiva nel loop successivo)
+  const ptsRaw: [number, number][] = pts.map(p => [p.lat, p.lon]);
 
   const first = pts[0];
   const last  = pts[pts.length - 1];
   gpxEntries[slug] = {
-    slug, lat: mid.lat, lon: mid.lon, pts: sampled,
+    slug, lat: mid.lat, lon: mid.lon, ptsBruti: ptsRaw,
     start: [first.lat, first.lon] as [number, number],
     end:   [last.lat,  last.lon]  as [number, number],
   };
@@ -73,11 +69,20 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
   let centerLon: number | null = null;
   const polylines: [number, number][][] = [];
 
+  // Decimazione basata sulla distanza effettiva del percorso
+  // Formula: ~1 punto ogni 50m (distanza * 20), con un minimo di 300 per brevi distanze
+  const distanza = g.distanza_km ?? 0;
+  const MAX = Math.max(300, Math.ceil(distanza * 20));
+
   for (const gs of gpxSlugs) {
     const entry = gpxEntries[gs];
     if (!entry) continue;
     if (centerLat === null) { centerLat = entry.lat; centerLon = entry.lon; }
-    polylines.push(entry.pts);
+    
+    // Decima i punti grezzi
+    const step = entry.ptsBruti.length > MAX ? Math.floor(entry.ptsBruti.length / MAX) : 1;
+    const decimated = entry.ptsBruti.filter((_, i) => i % step === 0);
+    polylines.push(decimated);
   }
 
   if (centerLat === null) continue; // nessun GPX → escludi dalla mappa
@@ -113,6 +118,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 <Base title="BMAP — Race Database">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" />
 
 <div class="layout">
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
@@ -208,7 +214,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           ))}
         </select>
       </div>
-      <button id="map-style-btn" class="map-style-btn" title="Cambia stile mappa">◐</button>
+      <div class="map-style-group">
+        <button class="map-style-btn" data-style="light"  title="Standard">☀</button>
+        <button class="map-style-btn" data-style="invert" title="Invertita">◑</button>
+        <button class="map-style-btn" data-style="dark"   title="Dark">☽</button>
+      </div>
       <LangSwitcher />
     </div>
 
@@ -274,6 +284,8 @@ window.__BASE_URL__  = base;
   // Carica Leaflet
   if (!(window as any).L) {
     await new Promise<void>((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=()=>res();s.onerror=rej;document.head.appendChild(s);});
+    await new Promise<void>((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/maplibre-gl/dist/maplibre-gl.js';s.onload=()=>res();s.onerror=rej;document.head.appendChild(s);});
+    await new Promise<void>((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js';s.onload=()=>res();s.onerror=rej;document.head.appendChild(s);});
   }
   const L=(window as any).L;
   const gareData:any[]=(window as any).__GARE_DATA__||[];
@@ -283,22 +295,49 @@ window.__BASE_URL__  = base;
   const getColor=(g:any)=>catColor[(g.categoria||[])[0]]??'#888';
 
   const map=L.map('map',{center:[46.5,11.0],zoom:5});
-  const tileLight=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19
-  });
-  const tileDark=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',maxZoom:19
-  });
-  let isDark=(localStorage.getItem('brd-map-dark')??'1')==='1';
-  (isDark?tileDark:tileLight).addTo(map);
-  const mapBtn=document.getElementById('map-style-btn') as HTMLElement;
-  if(isDark) mapBtn.classList.add('active');
-  mapBtn.addEventListener('click',()=>{
-    isDark=!isDark;
-    localStorage.setItem('brd-map-dark',isDark?'1':'0');
-    if(isDark){map.removeLayer(tileLight);tileDark.addTo(map);}
-    else{map.removeLayer(tileDark);tileLight.addTo(map);}
-    mapBtn.classList.toggle('active',isDark);
+  const OSM_ATTR='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const OFM_ATTR='&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
+  // Layer raster: light + invert (OSM con className, filtro solo sulle tile)
+  const rasterLayers:{[k:string]:any}={
+    light:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              {attribution:OSM_ATTR, maxZoom:19}),
+    invert: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              {attribution:OSM_ATTR, maxZoom:19, className:'tiles-invert'}),
+  };
+
+  // Layer vettoriale dark: OpenFreeMap dark via MapLibre GL Leaflet
+  // Licenza MIT + CC-BY 4.0, nessuna API key, nessuna registrazione
+  let darkLayer:any = null;
+  const getDarkLayer = () => {
+    if(!darkLayer) {
+      darkLayer = (L as any).maplibreGL({
+        style: 'https://tiles.openfreemap.org/styles/dark',
+        attribution: OFM_ATTR,
+      });
+    }
+    return darkLayer;
+  };
+
+  const applyMapStyle=(id:string)=>{
+    // Rimuovi tutti i layer attivi
+    Object.values(rasterLayers).forEach((l:any)=>{ if(map.hasLayer(l)) map.removeLayer(l); });
+    if(darkLayer && map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
+
+    if(id==='dark') {
+      getDarkLayer().addTo(map);
+    } else {
+      rasterLayers[id]?.addTo(map);
+    }
+    localStorage.setItem('brd-map-style', id);
+    document.querySelectorAll<HTMLElement>('.map-style-btn[data-style]').forEach(b=>{
+      b.classList.toggle('active', b.dataset.style===id);
+    });
+  };
+
+  applyMapStyle(localStorage.getItem('brd-map-style')||'dark');
+  document.querySelectorAll<HTMLElement>('.map-style-btn[data-style]').forEach(b=>{
+    b.addEventListener('click',()=>applyMapStyle(b.dataset.style!));
   });
 
   // Legenda
@@ -528,9 +567,13 @@ window.__BASE_URL__  = base;
   .search-input::placeholder{color:var(--text3)}
   .topbar-filters{display:flex;gap:.4rem;align-items:center;flex-shrink:0}
   .topbar-filter-label{font-family:var(--font-mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);white-space:nowrap}
-  .map-style-btn{background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;padding:.38rem .55rem;font-size:.95rem;color:var(--text2);line-height:1;transition:all .15s;flex-shrink:0}
-  .map-style-btn:hover{border-color:var(--text2);color:var(--text)}
-  .map-style-btn.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+  .map-style-group{display:flex;border:1px solid var(--border);border-radius:3px;overflow:hidden;flex-shrink:0}
+  .map-style-btn{background:none;border:none;border-right:1px solid var(--border);cursor:pointer;padding:.38rem .6rem;font-size:.85rem;color:var(--text2);line-height:1;transition:all .15s}
+  .map-style-btn:last-child{border-right:none}
+  .map-style-btn:hover{background:var(--bg2);color:var(--text)}
+  .map-style-btn.active{background:var(--text);color:var(--bg)}
+  :global(.tiles-invert){filter:invert(100%) hue-rotate(180deg) brightness(0.95) contrast(0.9)!important}
+  :global(.maplibregl-map){z-index:0}
   .topbar-select{font-family:var(--font-mono);font-size:.68rem;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:.38rem .55rem;color:var(--text);cursor:pointer;outline:none;transition:border-color .15s}
   .topbar-select:focus,.topbar-select:hover{border-color:var(--text2)}
   #map-container{flex:1;position:relative;overflow:hidden}
