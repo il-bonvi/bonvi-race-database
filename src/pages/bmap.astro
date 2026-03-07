@@ -117,8 +117,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 <Base title="BMAP — Race Database">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" />
+<Fragment slot="head">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" />
+</Fragment>
 
 <div class="layout">
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
@@ -239,7 +241,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 (window as any).__brdTranslations.en = Object.assign(
   (window as any).__brdTranslations.en || {},
   {
-    nav_upcoming:'Upcoming Races', nav_archive:'Archive', nav_project:'The Project',
+    nav_upcoming:'Upcoming Races', nav_archive:'Archive', nav_bmap:'BMAP', nav_project:'The Project',
     nav_faq:'FAQ', nav_contact:'Contact',
     filter_year:'Year', filter_month:'Month', filter_gender:'Gender',
     filter_cat:'Category', filter_disc:'Discipline', filter_reset:'Reset filters',
@@ -335,7 +337,9 @@ window.__BASE_URL__  = base;
     });
   };
 
-  applyMapStyle(localStorage.getItem('brd-map-style')||'dark');
+  applyMapStyle((['dark','light','invert'].includes(localStorage.getItem('brd-map-style')||'')
+    ? localStorage.getItem('brd-map-style')!
+    : 'dark'));
   document.querySelectorAll<HTMLElement>('.map-style-btn[data-style]').forEach(b=>{
     b.addEventListener('click',()=>applyMapStyle(b.dataset.style!));
   });
@@ -365,14 +369,6 @@ window.__BASE_URL__  = base;
 
   // Stato globale: entry attiva (con start/end marker visibili)
   let activeEntry: Entry|null = null;
-
-  function makeEndDot(color: string) {
-    return L.divIcon({
-      className:'',
-      html:`<div style="width:8px;height:8px;background:${color};border-radius:50%;box-sizing:border-box;"></div>`,
-      iconSize:[8,8], iconAnchor:[4,4],
-    });
-  }
 
   function showEndMarkers(entry: Entry) {
     // Nascondi end marker dell'entry precedente
@@ -426,7 +422,6 @@ window.__BASE_URL__  = base;
     const startMarkers: any[] = [];
     if(g.startPt) {
       const col2 = getColor(g);
-      const fem2 = g.genere === 'Femminile';
       const sm = L.marker(g.startPt, {
         icon: L.divIcon({
           className:'',
