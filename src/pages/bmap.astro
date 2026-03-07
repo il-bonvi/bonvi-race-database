@@ -525,30 +525,30 @@ window.__BASE_URL__  = base;
 </script>
 
 <style>
-  .layout{display:grid;grid-template-columns:250px 1fr;height:100vh;overflow:hidden}
+  .layout{display:grid;grid-template-columns:240px 1fr;height:100vh;overflow:hidden}
   .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
   .sidebar-overlay.open{display:block}
   .sidebar{background:var(--bg2);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto;grid-column:1;grid-row:1/-1}
-  .sidebar-inner{display:flex;flex-direction:column;padding:1.75rem 1.25rem;height:100%;gap:1.5rem}
-  .brand{display:flex;align-items:center;gap:.85rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border)}
-  .brand-mark{font-family:var(--font-display);font-size:.85rem;font-weight:800;letter-spacing:.08em;background:var(--text);color:var(--bg);padding:.3rem .5rem;border-radius:2px;flex-shrink:0}
-  .brand-name{font-family:var(--font-display);font-size:.95rem;font-weight:700;letter-spacing:.02em;color:var(--text)}
-  .brand-sub{font-family:var(--font-mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text3);margin-top:.1rem}
-  .db-stats{display:flex;flex-direction:column;gap:.75rem}
-  .db-stat{display:flex;flex-direction:column;gap:.1rem}
-  .db-n{font-family:var(--font-display);font-size:1.8rem;font-weight:800;color:var(--accent);line-height:1;letter-spacing:-.02em}
-  .db-l{font-family:var(--font-mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3)}
-  .filters{display:flex;flex-direction:column;gap:1.25rem;flex:1;overflow-y:auto}
-  .filter-group{display:flex;flex-direction:column;gap:.5rem}
-  .filter-label{font-family:var(--font-mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text3)}
-  .filter-pills{display:flex;flex-wrap:wrap;gap:.35rem}
-  .pill{font-family:var(--font-mono);font-size:.68rem;padding:.3rem .65rem;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;border-radius:2px;transition:all .12s}
+  .sidebar-inner{display:flex;flex-direction:column;padding:1.6rem 1.1rem;height:100%;gap:1.35rem}
+  .brand{display:flex;align-items:center;gap:.75rem;padding-bottom:1.1rem;border-bottom:1px solid var(--border)}
+  .brand-mark{font-family:var(--font-display);font-size:.82rem;font-weight:800;letter-spacing:.08em;background:var(--text);color:var(--bg);padding:.27rem .43rem;border-radius:2px;flex-shrink:0}
+  .brand-name{font-family:var(--font-display);font-size:.88rem;font-weight:700;letter-spacing:.02em;color:var(--text)}
+  .brand-sub{font-family:var(--font-mono);font-size:.57rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text3);margin-top:.06rem}
+  .db-stats{display:flex;flex-direction:column;gap:.65rem}
+  .db-stat{display:flex;flex-direction:column;gap:.08rem}
+  .db-n{font-family:var(--font-display);font-size:1.75rem;font-weight:800;color:var(--accent);line-height:1;letter-spacing:-.02em}
+  .db-l{font-family:var(--font-mono);font-size:.57rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3)}
+  .filters{display:flex;flex-direction:column;gap:1.1rem;flex:1;overflow-y:auto}
+  .filter-group{display:flex;flex-direction:column;gap:.45rem}
+  .filter-label{font-family:var(--font-mono);font-size:.57rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text3)}
+  .filter-pills{display:flex;flex-wrap:wrap;gap:.3rem}
+  .pill{font-family:var(--font-mono);font-size:.66rem;padding:.27rem .6rem;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;border-radius:2px;transition:all .12s}
   .pill:hover{border-color:var(--text2);color:var(--text)}
   .pill.active{background:var(--text);color:var(--bg);border-color:var(--text)}
-  .reset-filters{font-family:var(--font-mono);font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);background:transparent;border:1px solid var(--border);padding:.4rem .75rem;cursor:pointer;border-radius:2px;transition:all .12s;align-self:flex-start;margin-top:auto}
+  .reset-filters{font-family:var(--font-mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);background:transparent;border:1px solid var(--border);padding:.33rem .68rem;cursor:pointer;border-radius:2px;transition:all .12s;align-self:flex-start;margin-top:auto}
   .reset-filters:hover{color:var(--accent);border-color:var(--accent)}
-  .sidebar-footer{margin-top:auto;padding-top:1rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:.4rem}
-  .sidebar-page-btn{font-family:var(--font-mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);text-decoration:none;padding:.6rem .75rem;border:1px solid var(--border);border-radius:3px;background:transparent;transition:all .15s;display:block}
+  .sidebar-footer{margin-top:auto;padding-top:.9rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:.35rem}
+  .sidebar-page-btn{font-family:var(--font-mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);text-decoration:none;padding:.53rem .68rem;border:1px solid var(--border);border-radius:3px;background:transparent;transition:all .15s;display:block}
   .sidebar-page-btn:hover{color:var(--text);border-color:var(--text2)}
   .sidebar-page-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(212,64,26,.06)}
   .main{display:flex;flex-direction:column;height:100vh;overflow:hidden}

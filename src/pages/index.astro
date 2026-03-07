@@ -467,7 +467,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 <style>
   .layout {
     display: grid;
-    grid-template-columns: 250px 1fr;
+    grid-template-columns: 240px 1fr;
     grid-template-rows: 1fr auto;
     height: 100vh;
   }
@@ -497,63 +497,63 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   .sidebar-inner {
     display: flex; flex-direction: column;
-    padding: 1.75rem 1.25rem;
-    height: 100%; gap: 1.5rem;
+    padding: 1.6rem 1.1rem;
+    height: 100%; gap: 1.35rem;
   }
 
   .brand {
-    display: flex; align-items: center; gap: 0.85rem;
-    padding-bottom: 1.5rem;
+    display: flex; align-items: center; gap: 0.75rem;
+    padding-bottom: 1.1rem;
     border-bottom: 1px solid var(--border);
   }
 
   .brand-mark {
     font-family: var(--font-display);
-    font-size: 0.85rem; font-weight: 800;
+    font-size: 0.82rem; font-weight: 800;
     letter-spacing: 0.08em;
     background: var(--text);
     color: var(--bg);
-    padding: 0.3rem 0.5rem;
+    padding: 0.27rem 0.43rem;
     border-radius: 2px;
     flex-shrink: 0;
   }
 
   .brand-name {
     font-family: var(--font-display);
-    font-size: 0.95rem; font-weight: 700;
+    font-size: 0.88rem; font-weight: 700;
     letter-spacing: 0.02em; color: var(--text);
   }
 
   .brand-sub {
-    font-family: var(--font-mono); font-size: 0.6rem;
+    font-family: var(--font-mono); font-size: 0.57rem;
     text-transform: uppercase; letter-spacing: 0.12em;
-    color: var(--text3); margin-top: 0.1rem;
+    color: var(--text3); margin-top: 0.06rem;
   }
 
-  .db-stats { display: flex; flex-direction: column; gap: 0.75rem; }
-  .db-stat { display: flex; flex-direction: column; gap: 0.1rem; }
+  .db-stats { display: flex; flex-direction: column; gap: 0.65rem; }
+  .db-stat { display: flex; flex-direction: column; gap: 0.08rem; }
   .db-n {
     font-family: var(--font-display);
-    font-size: 1.8rem; font-weight: 800;
+    font-size: 1.75rem; font-weight: 800;
     color: var(--accent); line-height: 1; letter-spacing: -0.02em;
   }
   .db-l {
-    font-family: var(--font-mono); font-size: 0.6rem;
+    font-family: var(--font-mono); font-size: 0.57rem;
     text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3);
   }
 
-  .filters { display: flex; flex-direction: column; gap: 1.25rem; flex: 1; }
-  .filter-group { display: flex; flex-direction: column; gap: 0.5rem; }
+  .filters { display: flex; flex-direction: column; gap: 1.1rem; flex: 1; }
+  .filter-group { display: flex; flex-direction: column; gap: 0.45rem; }
   .filter-label {
-    font-family: var(--font-mono); font-size: 0.6rem;
+    font-family: var(--font-mono); font-size: 0.57rem;
     text-transform: uppercase; letter-spacing: 0.12em; color: var(--text3);
   }
 
-  .filter-pills { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .filter-pills { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 
   .pill {
-    font-family: var(--font-mono); font-size: 0.68rem;
-    padding: 0.3rem 0.65rem;
+    font-family: var(--font-mono); font-size: 0.66rem;
+    padding: 0.27rem 0.6rem;
     border: 1px solid var(--border); background: transparent;
     color: var(--text2); cursor: pointer; border-radius: 2px;
     transition: all 0.12s;
@@ -562,27 +562,27 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   .pill.active { background: var(--text); color: var(--bg); border-color: var(--text); }
 
   .reset-filters {
-    font-family: var(--font-mono); font-size: 0.65rem;
+    font-family: var(--font-mono); font-size: 0.62rem;
     text-transform: uppercase; letter-spacing: 0.1em;
     color: var(--text3); background: transparent;
     border: 1px solid var(--border);
-    padding: 0.4rem 0.75rem; cursor: pointer; border-radius: 2px;
+    padding: 0.33rem 0.68rem; cursor: pointer; border-radius: 2px;
     transition: all 0.12s; align-self: flex-start; margin-top: auto;
   }
   .reset-filters:hover { color: var(--accent); border-color: var(--accent); }
 
   .sidebar-footer {
     margin-top: auto;
-    padding-top: 1rem;
+    padding-top: 0.9rem;
     border-top: 1px solid var(--border);
-    display: flex; flex-direction: column; gap: 0.4rem;
+    display: flex; flex-direction: column; gap: 0.35rem;
   }
 
   .sidebar-page-btn {
-    font-family: var(--font-mono); font-size: 0.72rem;
+    font-family: var(--font-mono); font-size: 0.68rem;
     text-transform: uppercase; letter-spacing: 0.08em;
     color: var(--text2); text-decoration: none;
-    padding: 0.6rem 0.75rem;
+    padding: 0.53rem 0.68rem;
     border: 1px solid var(--border); border-radius: 3px;
     background: transparent; transition: all 0.15s; display: block;
   }
