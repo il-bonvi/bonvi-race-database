@@ -298,7 +298,6 @@ window.__BASE_URL__  = base;
 
   const map=L.map('map',{center:[46.5,11.0],zoom:5});
   const OSM_ATTR='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-  const OFM_ATTR='&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
   // Layer raster: light + invert (OSM con className, filtro solo sulle tile)
   const rasterLayers:{[k:string]:any}={
@@ -315,14 +314,13 @@ window.__BASE_URL__  = base;
     if(!darkLayer) {
       darkLayer = (L as any).maplibreGL({
         style: 'https://tiles.openfreemap.org/styles/dark',
-        attribution: OFM_ATTR,
       });
     }
     return darkLayer;
   };
 
   const applyMapStyle=(id:string)=>{
-    // Rimuovi tutti i layer attivi
+    // Rimuovi attribution dei layer attivi prima di rimuoverli
     Object.values(rasterLayers).forEach((l:any)=>{ if(map.hasLayer(l)) map.removeLayer(l); });
     if(darkLayer && map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
 
@@ -341,7 +339,13 @@ window.__BASE_URL__  = base;
     ? localStorage.getItem('brd-map-style')!
     : 'dark'));
   document.querySelectorAll<HTMLElement>('.map-style-btn[data-style]').forEach(b=>{
-    b.addEventListener('click',()=>applyMapStyle(b.dataset.style!));
+    b.addEventListener('click',()=>{
+      const current=localStorage.getItem('brd-map-style')||'dark';
+      const next=b.dataset.style!;
+      localStorage.setItem('brd-map-style',next);
+      if(current==='dark' && next!=='dark'){ location.reload(); return; }
+      applyMapStyle(next);
+    });
   });
 
   // Legenda
@@ -525,7 +529,7 @@ window.__BASE_URL__  = base;
 </script>
 
 <style>
-  .layout{display:grid;grid-template-columns:240px 1fr;height:100vh;overflow:hidden}
+  .layout{display:grid;grid-template-columns:240px 1fr;height:100vh;height:100dvh;overflow:hidden}
   .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
   .sidebar-overlay.open{display:block}
   .sidebar{background:var(--bg2);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;height:100dvh;overflow-y:auto;grid-column:1;grid-row:1/-1}
@@ -569,7 +573,6 @@ window.__BASE_URL__  = base;
   .map-style-btn.active{background:var(--text);color:var(--bg)}
   :global(.tiles-invert){filter:invert(100%) hue-rotate(180deg) brightness(0.95) contrast(0.9)!important}
   :global(.maplibregl-map){z-index:0}
-  :global(.leaflet-bottom){padding-bottom:max(env(safe-area-inset-bottom,0px),48px)}
   .topbar-select{font-family:var(--font-mono);font-size:.68rem;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:.38rem .55rem;color:var(--text);cursor:pointer;outline:none;transition:border-color .15s}
   .topbar-select:focus,.topbar-select:hover{border-color:var(--text2)}
   #map-container{flex:1;position:relative;overflow:hidden}
@@ -604,6 +607,7 @@ window.__BASE_URL__  = base;
     .topbar{z-index:1000}
     .mobile-menu-btn{display:block}
     .main{height:100%;height:100dvh}
+    :global(.leaflet-bottom){padding-bottom:max(env(safe-area-inset-bottom,0px),48px)}
   }
   @media(min-width:769px){
     :global(.leaflet-bottom){padding-bottom:0}
