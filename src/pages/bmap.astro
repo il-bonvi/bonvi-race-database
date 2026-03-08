@@ -608,6 +608,8 @@ window.__BASE_URL__  = base;
     .mobile-menu-btn{display:block}
     .main{height:100%;height:100dvh}
     :global(.leaflet-bottom){padding-bottom:max(env(safe-area-inset-bottom,0px),48px)}
+    :global(.leaflet-control-attribution){max-width:26px;overflow:hidden;white-space:nowrap;cursor:pointer;transition:max-width .25s ease}
+    :global(.leaflet-control-attribution.leaflet-control-attribution-expanded){max-width:90vw}
   }
   @media(min-width:769px){
     :global(.leaflet-bottom){padding-bottom:0}
