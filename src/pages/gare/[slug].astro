@@ -128,6 +128,9 @@ const discIconMap: Record<string, string> = {
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content={`${gara.titolo} — Race DB`} />
   <meta name="twitter:description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isCorsaATappe ? gara.n_tappe + ' tappe' : (gara.distanza_km + 'km')}`} />
+  <!-- Analytics (no cookie, no banner) -->
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="3671101f-d5b1-4dfd-81d4-8f02dfd515b2"></script>
+ 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
