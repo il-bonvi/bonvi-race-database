@@ -297,6 +297,45 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     });
   }
 
+  // ── Salva/ripristina stato collapsed su sessionStorage ──
+  const STORAGE_KEY = 'brd-archivio-open';
+
+  function saveOpenState() {
+    const openYears = Array.from(document.querySelectorAll('.year-group.expanded'))
+      .map(el => (el as HTMLElement).dataset.year ?? '');
+    const openMonths = Array.from(document.querySelectorAll('.month-group.expanded'))
+      .map(el => (el as HTMLElement).dataset.monthKey ?? '');
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ years: openYears, months: openMonths }));
+  }
+
+    function restoreOpenState() {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const { years, months } = JSON.parse(raw);
+      document.querySelectorAll('.year-group').forEach((el: Element) => {
+        const group = el as HTMLElement;
+        const year = group.dataset.year ?? '';
+        const races = group.querySelector('.year-races') as HTMLElement;
+        if (years.includes(year)) {
+          group.classList.add('expanded'); group.classList.remove('collapsed');
+          races.style.display = 'flex';
+        }
+      });
+      document.querySelectorAll('.month-group').forEach((el: Element) => {
+        const group = el as HTMLElement;
+        const key = group.dataset.monthKey ?? '';
+        const races = group.querySelector('.month-races') as HTMLElement;
+        if (months.includes(key)) {
+          group.classList.add('expanded'); group.classList.remove('collapsed');
+          races.style.display = 'grid';
+        }
+      });
+    } catch(e) {}
+  }
+
+    restoreOpenState();
+
   document.querySelectorAll('.year-header').forEach((btn: Element) => {
     btn.addEventListener('click', () => {
       const group = (btn as HTMLElement).closest('.year-group') as HTMLElement;
@@ -304,6 +343,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       const isExpanded = group.classList.toggle('expanded');
       group.classList.toggle('collapsed', !isExpanded);
       races.style.display = isExpanded ? 'flex' : 'none';
+      saveOpenState();
     });
   });
 
@@ -314,6 +354,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       const isExpanded = group.classList.toggle('expanded');
       group.classList.toggle('collapsed', !isExpanded);
       races.style.display = isExpanded ? 'grid' : 'none';
+      saveOpenState();
     });
   });
 

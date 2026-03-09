@@ -451,6 +451,19 @@ const discIconMap: Record<string, string> = {
     "backgroundColor": "var(--bg2)"
   }}>
     <a href={backHref} class="back">{backLabel}</a>
+    <script is:inline define:vars={{ base, backHref: isTappa && gara.corsa_a_tappe_slug ? `${base}/gare/${gara.corsa_a_tappe_slug}/` : `${base}/` }}>
+    (function() {
+      var ref = document.referrer;
+      var archivioUrl = base + '/archivio';
+      var backLink = document.querySelector('.back');
+      if (!backLink) return;
+      // Se vieni dall'archivio, aggiorna il link e il testo
+      if (ref && ref.includes('/archivio')) {
+        backLink.href = base + '/archivio/';
+        backLink.textContent = '← Archivio';
+      }
+    })();
+  </script>
     <div class="bar-divider"></div>
     <span class="bar-cat">
       <span class="bar-cat-label">
