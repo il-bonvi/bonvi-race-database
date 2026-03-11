@@ -78,7 +78,7 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
     const entry = gpxEntries[gs];
     if (!entry) continue;
     if (centerLat === null) { centerLat = entry.lat; centerLon = entry.lon; }
-    
+
     // Decima i punti grezzi
     const step = entry.ptsBruti.length > MAX ? Math.floor(entry.ptsBruti.length / MAX) : 1;
     const decimated = entry.ptsBruti.filter((_, i) => i % step === 0);
@@ -216,11 +216,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           ))}
         </select>
       </div>
-      <div class="map-style-group">
-        <button class="map-style-btn" data-style="light"  title="Standard">☀</button>
-        <button class="map-style-btn" data-style="invert" title="Invertita">◑</button>
-        <button class="map-style-btn" data-style="dark"   title="Dark">☽</button>
-      </div>
       <LangSwitcher />
     </div>
 
@@ -254,6 +249,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     disc_Strada:'Road Race', disc_Criterium:'Criterium', disc_Cronometro:'Time Trial',
     months:['January','February','March','April','May','June','July','August','September','October','November','December'],
     view_route:'View route →',
+    map_style_label:'Map',
   }
 );
 </script>
@@ -320,10 +316,8 @@ window.__BASE_URL__  = base;
   };
 
   const applyMapStyle=(id:string)=>{
-    // Rimuovi attribution dei layer attivi prima di rimuoverli
     Object.values(rasterLayers).forEach((l:any)=>{ if(map.hasLayer(l)) map.removeLayer(l); });
     if(darkLayer && map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
-
     if(id==='dark') {
       getDarkLayer().addTo(map);
     } else {
@@ -335,18 +329,27 @@ window.__BASE_URL__  = base;
     });
   };
 
+  // ── Controllo stile mappa sovrapposto alla mappa (top-left, sotto zoom) ──
+  const styleCtrl = (L.control as any)({ position: 'topleft' });
+  styleCtrl.onAdd = () => {
+    const wrap = L.DomUtil.create('div', 'leaflet-map-style-ctrl');
+    wrap.innerHTML = `
+      <div class="ms-label">Mappa</div>
+      <button class="map-style-btn" data-style="light"  title="Standard">STD</button>
+      <button class="map-style-btn" data-style="invert" title="Invertita">INV</button>
+      <button class="map-style-btn" data-style="dark"   title="Scura">DRK</button>
+    `;
+    L.DomEvent.disableClickPropagation(wrap);
+    wrap.querySelectorAll<HTMLElement>('.map-style-btn').forEach(b => {
+      b.addEventListener('click', () => applyMapStyle(b.dataset.style!));
+    });
+    return wrap;
+  };
+  styleCtrl.addTo(map);
+
   applyMapStyle((['dark','light','invert'].includes(localStorage.getItem('brd-map-style')||'')
     ? localStorage.getItem('brd-map-style')!
     : 'dark'));
-  document.querySelectorAll<HTMLElement>('.map-style-btn[data-style]').forEach(b=>{
-    b.addEventListener('click',()=>{
-      const current=localStorage.getItem('brd-map-style')||'dark';
-      const next=b.dataset.style!;
-      localStorage.setItem('brd-map-style',next);
-      if(current==='dark' && next!=='dark'){ location.reload(); return; }
-      applyMapStyle(next);
-    });
-  });
 
   // Legenda
   const leg=(L.control as any)({position:'bottomright'});
@@ -365,8 +368,6 @@ window.__BASE_URL__  = base;
     const gen=g.genere==='Femminile'?tr('gen_Femminile','Femminile'):tr('gen_Maschile','Maschile');
     return `<div class="map-popup"><div class="popup-cat" style="color:${col}">${cats} · ${gen}</div><div class="popup-title">${g.titolo}</div><div class="popup-meta"><span>${ds}</span>${g.luogo?`<span>· ${g.luogo}</span>`:''}</div><div class="popup-stats">${g.distanza_km?`<span>${g.distanza_km} km</span>`:''} ${g.dislivello_m?`<span>+${g.dislivello_m} m</span>`:''} ${g.disciplina?`<span>${T?.['disc_'+g.disciplina]??g.disciplina}</span>`:''}</div><a class="popup-cta" href="${base}/gare/${g.slug}/">${tr('view_route','Vedi percorso →')}</a></div>`;
   };
-
-
 
   type Entry={gara:any;polylines:any[];startMarkers:any[];endMarkers:any[];visible:boolean};
   const entries:Entry[]=[];
@@ -566,15 +567,16 @@ window.__BASE_URL__  = base;
   .search-input::placeholder{color:var(--text3)}
   .topbar-filters{display:flex;gap:.4rem;align-items:center;flex-shrink:0}
   .topbar-filter-label{font-family:var(--font-mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);white-space:nowrap}
-  .map-style-group{display:flex;border:1px solid var(--border);border-radius:3px;overflow:hidden;flex-shrink:0}
-  .map-style-btn{background:none;border:none;border-right:1px solid var(--border);cursor:pointer;padding:.38rem .6rem;font-size:.85rem;color:var(--text2);line-height:1;transition:all .15s}
-  .map-style-btn:last-child{border-right:none}
-  .map-style-btn:hover{background:var(--bg2);color:var(--text)}
-  .map-style-btn.active{background:var(--text);color:var(--bg)}
-  :global(.tiles-invert){filter:invert(100%) hue-rotate(180deg) brightness(0.95) contrast(0.9)!important}
-  :global(.maplibregl-map){z-index:0}
   .topbar-select{font-family:var(--font-mono);font-size:.68rem;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:.38rem .55rem;color:var(--text);cursor:pointer;outline:none;transition:border-color .15s}
   .topbar-select:focus,.topbar-select:hover{border-color:var(--text2)}
+  /* ── Map style picker (controllo Leaflet sovrapposto) ── */
+  :global(.leaflet-map-style-ctrl){background:var(--bg,#fff);border:1px solid var(--border,#ddd);border-radius:4px;padding:.4rem .45rem;box-shadow:0 2px 8px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:.25rem;align-items:stretch;min-width:44px}
+  :global(.ms-label){font-family:var(--font-mono,monospace);font-size:.52rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3,#888);text-align:center;margin-bottom:.1rem}
+  :global(.map-style-btn){background:none;border:1px solid var(--border,#ddd);border-radius:3px;cursor:pointer;padding:.28rem .38rem;font-family:var(--font-mono,monospace);font-size:.62rem;letter-spacing:.06em;color:var(--text2,#555);line-height:1;transition:all .15s;text-align:center}
+  :global(.map-style-btn:hover){background:var(--bg2,#f5f5f5);color:var(--text,#111);border-color:var(--text2,#555)}
+  :global(.map-style-btn.active){background:var(--text,#111);color:var(--bg,#fff);border-color:var(--text,#111)}
+  :global(.tiles-invert){filter:invert(100%) hue-rotate(180deg) brightness(0.95) contrast(0.9)!important}
+  :global(.maplibregl-map){z-index:0}
   #map-container{flex:1;position:relative;overflow:hidden}
   #map{width:100%;height:100%}
   #no-results-map{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;pointer-events:none;z-index:10}
