@@ -1,0 +1,24 @@
+{
+  "name": "BRD Race Database",
+  "short_name": "BRD",
+  "description": "Database gare by Bonvi",
+  "start_url": "/bonvi-race-database/",
+  "scope": "/bonvi-race-database/",
+  "display": "standalone",
+  "background_color": "#f5f2ed",
+  "theme_color": "#d4401a",
+  "icons": [
+    {
+      "src": "/bonvi-race-database/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/bonvi-race-database/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
