@@ -1,0 +1,16 @@
+{
+  "titolo": "Vo",
+  "race_series": "vo",
+  "data": "2026-03-22",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 35.5,
+  "distanza_km": 48.95,
+  "dislivello_m": 407.0,
+  "luogo": "Padova, IT",
+  "slug": "vo-2026-DA"
+}

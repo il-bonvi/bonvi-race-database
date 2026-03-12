@@ -83,5 +83,19 @@
     "categoria_code": "DPRO",
     "tipo": null,
     "n_tappe": null
+  },
+  {
+    "slug": "vo-2026-DA",
+    "titolo": "Vo",
+    "data": "2026-03-22",
+    "year": "2026",
+    "race_series": "vo",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null
   }
 ]
