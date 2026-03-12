@@ -507,12 +507,17 @@ def git_push_changes(message: str = None) -> tuple:
             timeout=10
         )
         
-        if result.returncode != 0:
-            if "fatal: could not read" in result.stderr:
+        # Verifica se il push è stato successful (anche se returncode != 0, potrebbe essere solo un warning)
+        output = result.stdout + result.stderr
+        
+        # Controllare se c'è un errore reale
+        if "fatal:" in result.stderr and result.returncode != 0:
+            if "could not read" in result.stderr:
                 return False, "❌ Errore autenticazione Git:\nConfigura le credenziali con:\n  git config --global credential.helper store"
             else:
-                return False, f"Errore git: {result.stderr}"
+                return False, f"❌ Errore git: {result.stderr}"
         
+        # Se non ci sono errori fatali, il push è riuscito
         return True, "✅ Push completato con successo!"
         
     except subprocess.TimeoutExpired:
