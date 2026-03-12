@@ -1250,7 +1250,7 @@ let map;
             L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
             
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
             
             // Draw gradient-colored polyline
@@ -1515,9 +1515,10 @@ let map;
             setTimeout(() => { if (map) map.invalidateSize(); }, 380);
 
             if (!svMiniMap) {
-                svMiniMap = L.map('sv-minimap', { zoomControl: true, attributionControl: false });
+                svMiniMap = L.map('sv-minimap', { zoomControl: true, attributionControl: true });
                 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    maxZoom: 19
+                    maxZoom: 19,
+                    attribution: 'Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Source: Esri, Maxar, Earthstar Geographics'
                 }).addTo(svMiniMap);
 
                 const latlngs = routeData.points.map(p => [p.lat, p.lon]);
