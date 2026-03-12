@@ -210,7 +210,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           ))}
         </select>
         <select id="mese-select" class="topbar-select" style="display:none">
-          <option value="all" data-i18n-opt="filter_all_m">Tutti</option>
+          <option value="all" data-i18n="filter_all_m">Tutti</option>
           {MESI_IT.map((m, i) => (
             <option value={String(i)} data-i18n-month={i}>{m}</option>
           ))}
@@ -231,31 +231,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 </div>
 </Base>
 
-<script>
-(window as any).__brdTranslations = (window as any).__brdTranslations || {};
-(window as any).__brdTranslations.en = Object.assign(
-  (window as any).__brdTranslations.en || {},
-  {
-    nav_upcoming:'Upcoming Races', nav_archive:'Archive', nav_bmap:'BMAP', nav_project:'The Project',
-    nav_faq:'FAQ', nav_contact:'Contact',
-    filter_year:'Year', filter_month:'Month', filter_gender:'Gender',
-    filter_cat:'Category', filter_disc:'Discipline', filter_reset:'Reset filters',
-    filter_date_label:'Date',
-    filter_all_y:'All', filter_all_m:'All', filter_all_g:'All', filter_all_c:'All', filter_all_d:'All',
-    search_placeholder:'Search by name, location...',
-    stat_on_map:'races on map', no_results:'No results', no_results_sub:'Try changing the filters',
-    cat_Allievi:'U16', cat_Junior:'Junior', cat_U23:'U23', cat_Elite:'Elite',
-    gen_Maschile:'Men', gen_Femminile:'Women',
-    disc_Strada:'Road Race', disc_Criterium:'Criterium', disc_ITT:'ITT', disc_TTT:'TTT', 'disc_Tipo pista':'Track-format',
-    months:['January','February','March','April','May','June','July','August','September','October','November','December'],
-    view_route:'View route →',
-    map_style_label:'Map',
-    map_style_standard:'Standard', map_style_invert:'Inverted', map_style_dark:'Dark',
-    legend_category:'Category',
-  }
-);
-</script>
-
 <script define:vars={{ gareData, base }}>
 window.__GARE_DATA__ = gareData;
 window.__BASE_URL__  = base;
@@ -263,25 +238,70 @@ window.__BASE_URL__  = base;
 
 <script>
 (async () => {
-  const lang = localStorage.getItem('brd-lang') || 'it';
-  const T: any = lang !== 'it' ? ((window as any).__brdTranslations?.en || {}) : null;
-  const tr = (k: string, fb: string) => T?.[k] ?? fb;
+  // ── Dizionario traduzioni EN (inline, nessun problema di timing) ──────────
+  const EN: Record<string, any> = {
+    nav_upcoming: 'Upcoming Races', nav_archive: 'Archive', nav_bmap: 'BMAP',
+    nav_project: 'The Project', nav_faq: 'FAQ', nav_contact: 'Contact',
+    filter_gender: 'Gender', filter_cat: 'Category', filter_disc: 'Discipline',
+    filter_reset: 'Reset filters', filter_date_label: 'Date',
+    filter_all_y: 'All', filter_all_m: 'All', filter_all_g: 'All',
+    filter_all_c: 'All', filter_all_d: 'All',
+    search_placeholder: 'Search by name, location...',
+    stat_on_map: 'races on map',
+    no_results: 'No results', no_results_sub: 'Try changing the filters',
+    cat_Allievi: 'U16', cat_Junior: 'Junior', cat_U23: 'U23', cat_Elite: 'Elite',
+    gen_Maschile: 'Men', gen_Femminile: 'Women',
+    disc_Strada: 'Road Race', disc_Criterium: 'Criterium',
+    disc_ITT: 'ITT', disc_TTT: 'TTT', 'disc_Tipo pista': 'Track-format',
+    months: ['January','February','March','April','May','June','July',
+             'August','September','October','November','December'],
+    view_route: 'View route →',
+    map_style_label: 'Map',
+    map_style_standard: 'Standard', map_style_invert: 'Inverted', map_style_dark: 'Dark',
+    legend_category: 'Category',
+    gen_Maschile_legend: 'Men', gen_Femminile_legend: 'Women',
+  };
 
+  const lang = localStorage.getItem('brd-lang') || 'it';
+  const T: Record<string, any> | null = lang !== 'it' ? EN : null;
+  const tr = (k: string, fb: string): string => T?.[k] ?? fb;
+
+  // ── Applica traduzioni al DOM ─────────────────────────────────────────────
   if (T) {
-    document.querySelectorAll('[data-i18n]').forEach((el: Element) => { const k=(el as HTMLElement).dataset.i18n!; if(T[k]!==undefined) el.textContent=T[k]; });
-    document.querySelectorAll('[data-i18n-placeholder]').forEach((el: Element) => { const k=(el as HTMLElement).dataset.i18nPlaceholder!; if(T[k]!==undefined)(el as HTMLInputElement).placeholder=T[k]; });
-    document.querySelectorAll('[data-i18n-month]').forEach((el: Element) => { const i=parseInt((el as HTMLElement).dataset.i18nMonth!,10); if(!isNaN(i)&&T.months?.[i]) el.textContent=T.months[i]; });
-    document.querySelectorAll('[data-i18n-gen]').forEach((el:Element)=>{ const v=(el as HTMLElement).dataset.i18nGen!; if(T['gen_'+v]) el.textContent=T['gen_'+v]; });
-    document.querySelectorAll('[data-i18n-cat]').forEach((el:Element)=>{ const v=(el as HTMLElement).dataset.i18nCat!; if(T['cat_'+v]) el.textContent=T['cat_'+v]; });
-    document.querySelectorAll('[data-i18n-disc]').forEach((el:Element)=>{ const v=(el as HTMLElement).dataset.i18nDisc!; if(T['disc_'+v]) el.textContent=T['disc_'+v]; });
-    document.querySelectorAll('[data-i18n-opt]').forEach((el:Element)=>{ const k=(el as HTMLElement).dataset.i18nOpt!; if(T[k]!==undefined) el.textContent=T[k]; });
-    // translate month options
-    document.querySelectorAll('option[data-i18n-month]').forEach((el:Element)=>{ const i=parseInt((el as HTMLElement).dataset.i18nMonth!,10); if(!isNaN(i)&&T.months?.[i]) el.textContent=T.months[i]; });
+    document.querySelectorAll('[data-i18n]').forEach((el: Element) => {
+      const k = (el as HTMLElement).dataset.i18n!;
+      if (T[k] !== undefined) el.textContent = T[k];
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el: Element) => {
+      const k = (el as HTMLElement).dataset.i18nPlaceholder!;
+      if (T[k] !== undefined) (el as HTMLInputElement).placeholder = T[k];
+    });
+    document.querySelectorAll('[data-i18n-month]').forEach((el: Element) => {
+      const i = parseInt((el as HTMLElement).dataset.i18nMonth!, 10);
+      if (!isNaN(i) && T.months?.[i]) el.textContent = T.months[i];
+    });
+    document.querySelectorAll('[data-i18n-gen]').forEach((el: Element) => {
+      const v = (el as HTMLElement).dataset.i18nGen!;
+      if (T['gen_' + v]) el.textContent = T['gen_' + v];
+    });
+    document.querySelectorAll('[data-i18n-cat]').forEach((el: Element) => {
+      const v = (el as HTMLElement).dataset.i18nCat!;
+      if (T['cat_' + v]) el.textContent = T['cat_' + v];
+    });
+    document.querySelectorAll('[data-i18n-disc]').forEach((el: Element) => {
+      const v = (el as HTMLElement).dataset.i18nDisc!;
+      if (T['disc_' + v] !== undefined) el.textContent = T['disc_' + v];
+    });
+    // aria-label del bottone menu
+    const menuBtnEl = document.getElementById('menu-btn');
+    if (menuBtnEl) menuBtnEl.setAttribute('aria-label', 'Open menu');
   }
 
-  const MESI = T?.months ? T.months.map((m:string)=>m.slice(0,3)) : ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const MESI = T?.months
+    ? (T.months as string[]).map((m: string) => m.slice(0, 3))
+    : ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 
-  // Carica Leaflet
+  // ── Carica Leaflet + MapLibre ─────────────────────────────────────────────
   if (!(window as any).L) {
     await new Promise<void>((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=()=>res();s.onerror=rej;document.head.appendChild(s);});
     await new Promise<void>((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/maplibre-gl/dist/maplibre-gl.js';s.onload=()=>res();s.onerror=rej;document.head.appendChild(s);});
@@ -306,7 +326,6 @@ window.__BASE_URL__  = base;
   };
 
   // Layer vettoriale dark: OpenFreeMap dark via MapLibre GL Leaflet
-  // Licenza MIT + CC-BY 4.0, nessuna API key, nessuna registrazione
   let darkLayer:any = null;
   const getDarkLayer = () => {
     if(!darkLayer) {
@@ -354,11 +373,14 @@ window.__BASE_URL__  = base;
     ? localStorage.getItem('brd-map-style')!
     : 'dark'));
 
-  // Legenda
+  // ── Legenda ───────────────────────────────────────────────────────────────
   const leg=(L.control as any)({position:'bottomright'});
   leg.onAdd=()=>{
     const d=L.DomUtil.create('div','map-legend');
-    d.innerHTML=`<div class="legend-title">${tr('legend_category','Categoria')}</div>${['Elite','U23','Junior','Allievi'].map(c=>`<div class="legend-row"><span class="legend-dot" style="background:${catColor[c]}"></span>${T?.['cat_'+c]??c}</div>`).join('')}<div class="legend-divider"></div><div class="legend-row"><span class="legend-dot solid"></span>${tr('gen_Maschile','Maschile')}</div><div class="legend-row"><span class="legend-dot dashed"></span>${tr('gen_Femminile','Femminile')}</div>`;
+    const catLabel = tr('legend_category','Categoria');
+    const menLabel = tr('gen_Maschile','Maschile');
+    const womenLabel = tr('gen_Femminile','Femminile');
+    d.innerHTML=`<div class="legend-title">${catLabel}</div>${['Elite','U23','Junior','Allievi'].map(c=>`<div class="legend-row"><span class="legend-dot" style="background:${catColor[c]}"></span>${T?.['cat_'+c]??c}</div>`).join('')}<div class="legend-divider"></div><div class="legend-row"><span class="legend-dot solid"></span>${menLabel}</div><div class="legend-row"><span class="legend-dot dashed"></span>${womenLabel}</div>`;
     return d;
   };
   leg.addTo(map);
