@@ -84,3 +84,24 @@ export function disciplinaIcon(disciplina) {
     'Tipo pista': '◯',
   }[disciplina] ?? '·';
 }
+
+export function formatCategoria(categoria, genere) {
+  /**
+   * Formatta la categoria per il display in italiano.
+   * "Allievi" → "allievi" (maschile) o "allieve" (femminile)
+   * Altre categorie rimangono invariate.
+   * 
+   * Parametri:
+   *   - categoria: string (es. "Allievi", "Junior", etc.)
+   *   - genere: string ("Maschile" o "Femminile")
+   * 
+   * Ritorna:
+   *   - "allievi" se categoria === "Allievi" e genere === "Maschile"
+   *   - "allieve" se categoria === "Allievi" e genere === "Femminile"
+   *   - categoria invariata per altre categorie
+   */
+  if (categoria === 'Allievi') {
+    return genere === 'Femminile' ? 'Allieve' : 'Allievi';
+  }
+  return categoria;
+}

@@ -1,5 +1,5 @@
 ---
-import { formatData, formatDistanza, formatDislivello, disciplinaIcon } from '../../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, disciplinaIcon, formatCategoria } from '../../lib/gare.js';
 
 export async function getStaticPaths() {
   const garaFiles = import.meta.glob('../../../gare-sorgenti/dettagli/*.json', { eager: true });
@@ -466,7 +466,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
       <span class="bar-cat-label">
         {categorie.map((cat: string, idx: number) => (
           <span style={{ color: catColorMap[cat as keyof typeof catColorMap] ?? '#888', fontWeight: 500 }}>
-            {cat}{idx < categorie.length - 1 ? ' / ' : ''}
+            {formatCategoria(cat, gara.genere)}{idx < categorie.length - 1 ? ' / ' : ''}
           </span>
         ))}
         {isCorsaATappe

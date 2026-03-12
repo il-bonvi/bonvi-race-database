@@ -1,5 +1,5 @@
 ---
-import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon } from '../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon, formatCategoria } from '../lib/gare.js';
 const { gara } = Astro.props;
 const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
 const icon  = disciplinaIcon(gara.disciplina);
@@ -33,7 +33,7 @@ const genereColor = gara.genere === 'Femminile'
   <div class="card-top">
     <div class="cat-badges">
       {categorie.map((cat) => (
-        <span class="cat-badge" data-cat={cat} style={`--badge-color: ${catColorMap[cat] ?? '#888'}`}>{cat}</span>
+        <span class="cat-badge" data-cat={cat} style={`--badge-color: ${catColorMap[cat] ?? '#888'}`}>{formatCategoria(cat, gara.genere)}</span>
       ))}
     </div>
     {isCorsaATappe
