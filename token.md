@@ -1,18 +1,8 @@
-# Configurazione GitHub Token
+# GitHub Token - Windows Credential Manager
 
-## Situazione Attuale
+Il token è memorizzato automaticamente nel **Windows Credential Manager**. Quando `gestisci_gare.py` fa push su GitHub, usa questa credenziale.
 
-Il token GitHub è salvato nel **Windows Credential Manager**.
-
-Quando `gestisci_gare.py` esegue `git push`, le credenziali vengono caricate automaticamente da lì.
-
----
-
-## Se Cambi il Token
-
-### Opzione 1: Aggiornamento Semplice (Consigliato)
-
-**Nel PowerShell:**
+## Aggiornare il Token
 
 ```powershell
 $token = "ghp_NUOVO_TOKEN_QUI"
@@ -22,31 +12,9 @@ host=github.com
 username=il-bonvi
 password=$token
 "@ | git credential approve
-
-Write-Host "✅ Token aggiornato!"
 ```
 
-Sostituisci `NUOVO_TOKEN_QUI` con il tuo nuovo token da GitHub.
-
-### Opzione 2: Rimuovere Tutto e Riconfigurare
-
-Se vuoi cancellare le credenziali precedenti e riconfigurare da zero:
-
-#### Passo 1: Rimuovere Credenziali Vecchie
-
-**Nel PowerShell:**
-
-```powershell
-@"
-protocol=https
-host=github.com
-username=il-bonvi
-"@ | git credential reject
-
-Write-Host "✅ Credenziali rimosse"
-```
-
-#### Passo 2: Aggiungere Nuovo Token
+Sostituisci `NUOVO_TOKEN_QUI` con il nuovo PAT da GitHub → Settings → Developer settings → Personal access tokens.
 
 ```powershell
 $token = "ghp_NUOVO_TOKEN_QUI"
