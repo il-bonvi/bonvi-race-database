@@ -1494,6 +1494,38 @@ GPX FILE:     {gpx_info}"""
         if is_new:
             update_slug()
         
+        # ── Gestione Tipo pista: azzera km e dislivello ────────────────────────
+        # Salva i valori di backup per il ripristino
+        km_dislivello_backup = {
+            'distanza_km': entries['distanza_km'].get() if entries['distanza_km'].get() else None,
+            'dislivello_m': entries['dislivello_m'].get() if entries['dislivello_m'].get() else None,
+        }
+        
+        def on_disciplina_change(*args):
+            """Quando disciplina cambia: se è Tipo pista, svuota km e dislivello"""
+            disciplina_val = entries['disciplina'].get()
+            
+            if disciplina_val == "Tipo pista":
+                # Salva i valori attuali prima di cancellare
+                km_dislivello_backup['distanza_km'] = entries['distanza_km'].get() or None
+                km_dislivello_backup['dislivello_m'] = entries['dislivello_m'].get() or None
+                
+                # Svuota i campi
+                entries['distanza_km'].delete(0, tk.END)
+                entries['dislivello_m'].delete(0, tk.END)
+            else:
+                # Se torna a un'altra disciplina e c'è un backup, ripristina
+                if km_dislivello_backup['distanza_km'] and km_dislivello_backup['distanza_km'] != 'None':
+                    entries['distanza_km'].delete(0, tk.END)
+                    entries['distanza_km'].insert(0, str(km_dislivello_backup['distanza_km']))
+                if km_dislivello_backup['dislivello_m'] and km_dislivello_backup['dislivello_m'] != 'None':
+                    entries['dislivello_m'].delete(0, tk.END)
+                    entries['dislivello_m'].insert(0, str(km_dislivello_backup['dislivello_m']))
+        
+        # Se la disciplina è una StringVar, collega il binding
+        if isinstance(entries['disciplina'], tk.StringVar):
+            entries['disciplina'].trace_add("write", on_disciplina_change)
+        
         def load_gpx_file():
             """Carica file GPX e aggiorna i dati della gara"""
             gpx_file = filedialog.askopenfilename(
@@ -1596,6 +1628,11 @@ GPX FILE:     {gpx_info}"""
                     val = val.lower() if val else ""
                                
                 data[key] = val
+            
+            # Se è Tipo pista, forza distanza_km e dislivello_m a None (non conteggiati)
+            if data.get('disciplina') == 'Tipo pista':
+                data['distanza_km'] = None
+                data['dislivello_m'] = None
             
             # Se è nuova gara, genera slug automaticamente
             if is_new and (not new_slug or new_slug.strip() == ""):
@@ -2149,6 +2186,32 @@ GPX FILE:     {gpx_info}"""
         disc_s_menu.config(font=("Helvetica", 9))
         disc_s_menu.grid(row=7, column=1, sticky="ew", pady=3)
         stage_entries['disciplina'] = disc_s_var
+        
+        # ── Gestione Tipo pista per le tappe: azzera km e dislivello ────────────
+        km_dislivello_backup_s = {'distanza_km': None, 'dislivello_m': None}
+        
+        def _on_stage_disciplina_change(*args):
+            """Quando disciplina della tappa cambia: se è Tipo pista, svuota km e dislivello"""
+            disciplina_val = disc_s_var.get()
+            
+            if disciplina_val == "Tipo pista":
+                # Salva i valori attuali prima di cancellare
+                km_dislivello_backup_s['distanza_km'] = stage_entries['distanza_km'].get() or None
+                km_dislivello_backup_s['dislivello_m'] = stage_entries['dislivello_m'].get() or None
+                
+                # Svuota i campi
+                stage_entries['distanza_km'].delete(0, tk.END)
+                stage_entries['dislivello_m'].delete(0, tk.END)
+            else:
+                # Se torna a un'altra disciplina e c'è un backup, ripristina
+                if km_dislivello_backup_s['distanza_km'] and km_dislivello_backup_s['distanza_km'] != 'None':
+                    stage_entries['distanza_km'].delete(0, tk.END)
+                    stage_entries['distanza_km'].insert(0, str(km_dislivello_backup_s['distanza_km']))
+                if km_dislivello_backup_s['dislivello_m'] and km_dislivello_backup_s['dislivello_m'] != 'None':
+                    stage_entries['dislivello_m'].delete(0, tk.END)
+                    stage_entries['dislivello_m'].insert(0, str(km_dislivello_backup_s['dislivello_m']))
+        
+        disc_s_var.trace_add("write", _on_stage_disciplina_change)
 
         _make_detail_field(detail_lf, 8, 'luogo', "Luogo")
 
@@ -2307,6 +2370,12 @@ GPX FILE:     {gpx_info}"""
             stages[idx]['luogo']        = stage_entries['luogo'].get().strip()
             stages[idx]['giri']         = max(1, giri)
             stages[idx]['slug_tappa']   = slug_t_var.get()
+            
+            # Se la tappa è Tipo pista, forza distanza_km e dislivello_m a None (non conteggiati)
+            if stages[idx]['disciplina'] == 'Tipo pista':
+                stages[idx]['distanza_km'] = None
+                stages[idx]['dislivello_m'] = None
+            
             _refresh_stages_list()
 
         tk.Button(detail_lf, text="Applica modifiche tappa", font=("Helvetica", 9, "bold"),

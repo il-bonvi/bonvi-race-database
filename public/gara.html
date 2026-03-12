@@ -811,7 +811,7 @@
                     <div class="stat-label">Lap Time</div>
                     <div class="stat-value" id="stat-laptime">--</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card" id="stat-totaltime-card">
                     <div class="stat-label">Total Time</div>
                     <div class="stat-value" id="stat-time">--</div>
                 </div>
@@ -1158,7 +1158,10 @@ let map;
             // Usa il valore dall'input field
             const velInput = document.getElementById('vel-input');
             const avgSpeed = velInput ? parseFloat(velInput.value) || 38 : 38;
-            const numLaps = window._laps || 1;
+            
+            // Per Tipo pista, forza sempre 1 lap (il GPX è di un giro singolo)
+            const isTrackFormat = window._disciplina === 'Tipo pista';
+            const numLaps = isTrackFormat ? 1 : (window._laps || 1);
             
             // Total time sulla distanza totale (routeData.distance è per singolo giro)
             const totalTimeHours = (routeData.distance * numLaps) / avgSpeed;
@@ -1177,10 +1180,16 @@ let map;
             document.getElementById('stat-avg-alt').innerHTML = 
                 `${Math.round(routeData.avgElevation)}<span class="stat-unit">m</span>`;
             
-            // Se >= 2 laps, mostra le card e i valori dei lap
-            if (numLaps >= 2) {
-                document.getElementById('stat-laps-card').style.display = 'block';
+            // Se è Tipo pista oppure >= 2 laps, mostra le card e i valori dei lap
+            if (numLaps >= 2 || isTrackFormat) {
+                // Per multilap normale, mostra il card dei laps
+                document.getElementById('stat-laps-card').style.display = numLaps >= 2 ? 'block' : 'none';
+                
+                // Per Tipo pista e multilap, mostra il card del lap time
                 document.getElementById('stat-laptime-card').style.display = 'block';
+                
+                // Per Tipo pista, nascondi Total Time (le manche sono variabili)
+                document.getElementById('stat-totaltime-card').style.display = isTrackFormat ? 'none' : 'block';
                 
                 // Label per lap length e lap elevation
                 document.getElementById('stat-distance-label').textContent = 'Lap Length';
@@ -1200,12 +1209,17 @@ let map;
                 const lapTimeString = `${lapHours}:${lapMinutes.toString().padStart(2, '0')}'${lapSeconds.toString().padStart(2, '0')}"`;
                 document.getElementById('stat-laptime').innerHTML = lapTimeString;
                 
-                // Laps
-                document.getElementById('stat-laps').innerHTML = numLaps;
+                // Per multilap normale, mostra il numero dei laps
+                if (numLaps >= 2) {
+                    document.getElementById('stat-laps').innerHTML = numLaps;
+                }
             } else {
                 // Nascondi le card di laps
                 document.getElementById('stat-laps-card').style.display = 'none';
                 document.getElementById('stat-laptime-card').style.display = 'none';
+                
+                // Ripristina Total Time card
+                document.getElementById('stat-totaltime-card').style.display = 'block';
                 
                 // Ripristina i label originali
                 document.getElementById('stat-distance-label').textContent = 'Total Length';
@@ -2768,6 +2782,9 @@ let map;
                 
                 // Salva il numero di giri
                 window._laps = gara.giri || 1;
+                
+                // Salva la disciplina della gara (per Tipo pista)
+                window._disciplina = gara.disciplina || 'Strada';
                 
                 // Imposta il valore dell'input con la velocità della gara
                 const velInput = document.getElementById('vel-input');
