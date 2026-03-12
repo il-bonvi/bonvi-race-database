@@ -274,7 +274,7 @@ def update_gares_index():
 
 CATEGORIE = ["Elite", "U23", "Junior", "Allievi"]
 GENERI = ["Maschile", "Femminile"]
-DISCIPLINE = ["Strada", "Criterium", "Cronometro"]
+DISCIPLINE = ["Strada", "Criterium", "ITT", "TTT", "Tipo pista"]
 
 BG = "#ede9e2"
 ACCENT = "#fc5200"

@@ -16,7 +16,7 @@ export function formatDislivello(m) {
 
 export const GENERI = ['Maschile', 'Femminile'];
 export const CATEGORIE = ['Elite', 'U23', 'Junior', 'Allievi'];
-export const DISCIPLINE = ['Strada', 'Criterium', 'Cronometro'];
+export const DISCIPLINE = ['Strada', 'Criterium', 'ITT', 'TTT', 'Tipo pista'];
 
 export function getCategoriaCode(genere, categoria) {
   /**
@@ -79,6 +79,8 @@ export function disciplinaIcon(disciplina) {
   return {
     'Strada':     '↗',
     'Criterium':  '⟳',
-    'Cronometro': '⏱',
+    'ITT':        '⏱',
+    'TTT':        '⏱⏱',
+    'Tipo pista': '◯',
   }[disciplina] ?? '·';
 }
