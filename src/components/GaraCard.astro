@@ -4,9 +4,9 @@ const { gara } = Astro.props;
 const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
 const icon  = disciplinaIcon(gara.disciplina);
 const base  = import.meta.env.BASE_URL.replace(/\/$/, '');
-const categorie = Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria];
+const categorie: string[] = (Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria]).filter(Boolean);
 // Mappa colori per categorie
-const catColorMap = {
+const catColorMap: Record<string, string> = {
   'Elite':    '#C8A951',
   'U23':      '#4A7FA5',
   'Junior':   '#5C9E6E',
@@ -18,7 +18,7 @@ let borderStyle = '';
 if (categorie.length === 1) {
   borderStyle = catColorMap[categorie[0]] ?? '#888';
 } else {
-  const colors = categorie.map(cat => catColorMap[cat] ?? '#888');
+  const colors = categorie.map((cat: string) => catColorMap[cat] ?? '#888');
   borderStyle = `linear-gradient(90deg, ${colors.join(', ')})`;
 }
 
@@ -33,12 +33,12 @@ const genereColor = gara.genere === 'Femminile'
   <div class="card-top">
     <div class="cat-badges">
       {categorie.map((cat) => (
-        <span class="cat-badge" style={`--badge-color: ${catColorMap[cat] ?? '#888'}`}>{cat}</span>
+        <span class="cat-badge" data-cat={cat} style={`--badge-color: ${catColorMap[cat] ?? '#888'}`}>{cat}</span>
       ))}
     </div>
     {isCorsaATappe
       ? <span class="disc-badge tappe-badge">⛰ {gara.n_tappe} tappe</span>
-      : <span class="disc-badge">{icon} {gara.disciplina ?? '—'}</span>
+      : <span class="disc-badge">{icon} <span class="disc-badge-text" data-disc={gara.disciplina ?? ''}>{gara.disciplina ?? '—'}</span></span>
     }
     <span class="genere-badge">{gara.genere === 'Femminile' ? '♀' : '♂'}</span>
   </div>

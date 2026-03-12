@@ -636,7 +636,7 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
         suggestions = {
             "Strada": "35",
             "Criterium": "40",
-            "Cronometro": "32"
+            "ITT": "32"
         }
         suggested_vel = suggestions.get(disc, "35")
         e_velocita.delete(0, tk.END)

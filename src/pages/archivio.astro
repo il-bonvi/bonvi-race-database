@@ -438,6 +438,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       const val = (el as HTMLElement).getAttribute('data-cat')!;
       if (T['cat_' + val] !== undefined) el.textContent = T['cat_' + val];
     });
+    document.querySelectorAll('.disc-badge-text[data-disc]').forEach((el: Element) => {
+      const val = (el as HTMLElement).getAttribute('data-disc')!;
+      if (T['disc_' + val] !== undefined) el.textContent = T['disc_' + val];
+    });
     document.querySelectorAll('.stat-l[data-i18n-stat]').forEach((el: Element) => {
       const key = (el as HTMLElement).getAttribute('data-i18n-stat')!;
       if (T[key] !== undefined) el.textContent = T[key];
@@ -462,9 +466,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       no_results: 'No races found', no_results_sub: 'Try changing the filters or search query',
       page_archive_tag: 'Archive',
       footer_copy: '© 2026 Andrea Bonvicin — BRD Race Database — AGPL v3 License',
-      cat_Allievi: 'U16', cat_Allieve: 'U16', cat_Junior: 'Junior', cat_U23: 'U23', cat_Elite: 'Elite',
+      cat_Allievi: 'U16', cat_Junior: 'Junior', cat_U23: 'U23', cat_Elite: 'Elite',
       gen_Maschile: 'Men', gen_Femminile: 'Women',
-      disc_Strada: 'Road Race', disc_Criterium: 'Criterium', disc_Cronometro: 'Time Trial',
+      disc_Strada: 'Road Race', disc_Criterium: 'Criterium', disc_ITT: 'ITT', disc_TTT: 'TTT', 'disc_Tipo pista': 'Track-format',
       stat_dist: 'Distance', stat_elev_c: 'Elevation', stat_date: 'Date', stat_speed: 'Est. avg speed',
       months: ['January','February','March','April','May','June','July','August','September','October','November','December'],
     }

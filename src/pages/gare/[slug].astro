@@ -1,10 +1,10 @@
 ---
-import { formatData, formatDistanza, formatDislivello } from '../../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, disciplinaIcon } from '../../lib/gare.js';
 
 export async function getStaticPaths() {
   const garaFiles = import.meta.glob('../../../gare-sorgenti/dettagli/*.json', { eager: true });
   // @ts-ignore
-  return Object.values(garaFiles).map(m => {
+  return Object.values(garaFiles).map((m: any) => {
     const data = m.default ?? m;
     return { params: { slug: data.slug } };
   });
@@ -37,15 +37,15 @@ const catColorMap = {
   'U23':      '#4A7FA5',
   'Junior':   '#5C9E6E',
   'Allievi':  '#A0522D',
-};
-const categorie = Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria];
+} as Record<string, string>;
+const categorie: string[] = (Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria]).filter(Boolean);
 
 // Colore del bordo: solido se singola categoria, gradiente se multiple
 let borderColor = '';
 if (categorie.length === 1) {
   borderColor = catColorMap[categorie[0]] ?? '#888';
 } else {
-  const colors = categorie.map(cat => catColorMap[cat] ?? '#888');
+  const colors = categorie.map((cat: string) => catColorMap[cat] ?? '#888');
   borderColor = `linear-gradient(90deg, ${colors.join(', ')})`;
 }
 
@@ -103,12 +103,6 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
   ? `← ${gara.corsa_a_tappe_titolo}`
   : '← Race DB';
 
-// Mappa disciplina → icona
-const discIconMap: Record<string, string> = {
-  'Strada':     '↗',
-  'Criterium':  '⟳',
-  'Cronometro': '⏱',
-};
 ---
 
 <!DOCTYPE html>
@@ -578,7 +572,7 @@ const discIconMap: Record<string, string> = {
                 <div class="stage-name">{tappa.nome}</div>
                 <div class="stage-sub">
                   {tappa.data && <span>{formatData(tappa.data)}</span>}
-                  {tappa.disciplina && <span>{discIconMap[tappa.disciplina] ?? '·'} {tappa.disciplina}</span>}
+                  {tappa.disciplina && <span>{disciplinaIcon(tappa.disciplina) ?? '·'} {tappa.disciplina}</span>}
                 </div>
                 <div class="stage-stats">
                   {tappa.distanza_km && (

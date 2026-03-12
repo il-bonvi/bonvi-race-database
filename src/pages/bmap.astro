@@ -244,12 +244,14 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     filter_all_y:'All', filter_all_m:'All', filter_all_g:'All', filter_all_c:'All', filter_all_d:'All',
     search_placeholder:'Search by name, location...',
     stat_on_map:'races on map', no_results:'No results', no_results_sub:'Try changing the filters',
-    cat_Allievi:'U16', cat_Allieve:'U16', cat_Junior:'Junior', cat_U23:'U23', cat_Elite:'Elite',
+    cat_Allievi:'U16', cat_Junior:'Junior', cat_U23:'U23', cat_Elite:'Elite',
     gen_Maschile:'Men', gen_Femminile:'Women',
-    disc_Strada:'Road Race', disc_Criterium:'Criterium', disc_Cronometro:'Time Trial',
+    disc_Strada:'Road Race', disc_Criterium:'Criterium', disc_ITT:'ITT', disc_TTT:'TTT', 'disc_Tipo pista':'Track-format',
     months:['January','February','March','April','May','June','July','August','September','October','November','December'],
     view_route:'View route →',
     map_style_label:'Map',
+    map_style_standard:'Standard', map_style_invert:'Inverted', map_style_dark:'Dark',
+    legend_category:'Category',
   }
 );
 </script>
@@ -289,7 +291,7 @@ window.__BASE_URL__  = base;
   const gareData:any[]=(window as any).__GARE_DATA__||[];
   const base:string=(window as any).__BASE_URL__||'';
 
-  const catColor:Record<string,string>={Elite:'#C8A951',U23:'#4A7FA5',Junior:'#5C9E6E',Allievi:'#A0522D',Allieve:'#A0522D'};
+  const catColor:Record<string,string>={Elite:'#C8A951',U23:'#4A7FA5',Junior:'#5C9E6E',Allievi:'#A0522D'};
   const getColor=(g:any)=>catColor[(g.categoria||[])[0]]??'#888';
 
   const map=L.map('map',{center:[46.5,11.0],zoom:5});
@@ -334,13 +336,14 @@ window.__BASE_URL__  = base;
   styleCtrl.onAdd = () => {
     const wrap = L.DomUtil.create('div', 'leaflet-map-style-ctrl');
     wrap.innerHTML = `
-      <div class="ms-label">Mappa</div>
-      <button class="map-style-btn" data-style="light"  title="Standard">STD</button>
-      <button class="map-style-btn" data-style="invert" title="Invertita">INV</button>
-      <button class="map-style-btn" data-style="dark"   title="Scura">DRK</button>
+      <div class="ms-label">${tr('map_style_label','Mappa')}</div>
+      <button class="map-style-btn" data-style="light"  title="${tr('map_style_standard','Standard')}">STD</button>
+      <button class="map-style-btn" data-style="invert" title="${tr('map_style_invert','Invertita')}">INV</button>
+      <button class="map-style-btn" data-style="dark"   title="${tr('map_style_dark','Scura')}">DRK</button>
     `;
     L.DomEvent.disableClickPropagation(wrap);
-    wrap.querySelectorAll<HTMLElement>('.map-style-btn').forEach(b => {
+    Array.from(wrap.querySelectorAll('.map-style-btn')).forEach((buttonEl) => {
+      const b = buttonEl as HTMLElement;
       b.addEventListener('click', () => applyMapStyle(b.dataset.style!));
     });
     return wrap;
@@ -355,7 +358,7 @@ window.__BASE_URL__  = base;
   const leg=(L.control as any)({position:'bottomright'});
   leg.onAdd=()=>{
     const d=L.DomUtil.create('div','map-legend');
-    d.innerHTML=`<div class="legend-title">Categoria</div>${['Elite','U23','Junior','Allievi'].map(c=>`<div class="legend-row"><span class="legend-dot" style="background:${catColor[c]}"></span>${c}</div>`).join('')}<div class="legend-divider"></div><div class="legend-row"><span class="legend-dot solid"></span>${tr('gen_Maschile','Maschile')}</div><div class="legend-row"><span class="legend-dot dashed"></span>${tr('gen_Femminile','Femminile')}</div>`;
+    d.innerHTML=`<div class="legend-title">${tr('legend_category','Categoria')}</div>${['Elite','U23','Junior','Allievi'].map(c=>`<div class="legend-row"><span class="legend-dot" style="background:${catColor[c]}"></span>${T?.['cat_'+c]??c}</div>`).join('')}<div class="legend-divider"></div><div class="legend-row"><span class="legend-dot solid"></span>${tr('gen_Maschile','Maschile')}</div><div class="legend-row"><span class="legend-dot dashed"></span>${tr('gen_Femminile','Femminile')}</div>`;
     return d;
   };
   leg.addTo(map);
@@ -419,7 +422,7 @@ window.__BASE_URL__  = base;
       const poly=L.polyline(pts,{color:col,weight:2.5,opacity:0.75});
       poly.bindPopup(makePopup(g),{maxWidth:260});
       poly.addTo(map);
-      poly.on('click', (e)=>{ L.DomEvent.stopPropagation(e); showEndMarkers(entryRef); });
+      poly.on('click', (e: any)=>{ L.DomEvent.stopPropagation(e); showEndMarkers(entryRef); });
       polylines.push(poly);
     });
 
