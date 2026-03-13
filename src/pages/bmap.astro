@@ -311,7 +311,7 @@ window.__BASE_URL__  = base;
   const gareData:any[]=(window as any).__GARE_DATA__||[];
   const base:string=(window as any).__BASE_URL__||'';
 
-  const catColor:Record<string,string>={Elite:'#C8A951',U23:'#4A7FA5',Junior:'#5C9E6E',Allievi:'#A0522D'};
+  const catColor:Record<string,string>={Elite:'#E91E63',U23:'#1B2ACF',Junior:'#28B534',Allievi:'#FFC107'};
   const getColor=(g:any)=>catColor[(g.categoria||[])[0]]??'#888';
 
   const map=L.map('map',{center:[46.5,11.0],zoom:5});

@@ -7,10 +7,10 @@ const base  = import.meta.env.BASE_URL.replace(/\/$/, '');
 const categorie: string[] = (Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria]).filter(Boolean);
 // Mappa colori per categorie
 const catColorMap: Record<string, string> = {
-  'Elite':    '#C8A951',
-  'U23':      '#4A7FA5',
-  'Junior':   '#5C9E6E',
-  'Allievi':  '#A0522D',
+  'Elite':    '#E91E63',
+  'U23':      '#1B2ACF',
+  'Junior':   '#28B534',
+  'Allievi':  '#FFC107',
 };
 
 // Genera il colore/gradiente per il bordo

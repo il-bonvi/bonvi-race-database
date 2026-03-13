@@ -54,10 +54,10 @@ export function getCategoriaCode(genere, categoria) {
 
 export function categoriaColor(categoria) {
   const colorMap = {
-    'Elite':    '#C8A951',
-    'U23':      '#4A7FA5',
-    'Junior':   '#5C9E6E',
-    'Allievi':  '#A0522D',
+    'Elite':    '#E91E63',
+    'U23':      '#1B2ACF',
+    'Junior':   '#28B534',
+    'Allievi':  '#FFC107',
   };
   
   // Gestisci sia string che array
