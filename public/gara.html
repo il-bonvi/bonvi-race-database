@@ -185,6 +185,33 @@
             aspect-ratio: 900 / 290;
         }
 
+        /* Map style switcher */
+        .map-style-picker {
+            display: flex;
+            gap: 2px;
+            background: rgba(255,255,255,0.88);
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        .map-style-picker button {
+            background: none;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            line-height: 1;
+            padding: 2px 4px;
+            opacity: 0.5;
+            transition: opacity 0.15s;
+        }
+        .map-style-picker button:hover { opacity: 0.8; }
+        .map-style-picker button.active { opacity: 1; background: rgba(0,0,0,0.08); }
+        .tiles-invert {
+            filter: invert(100%) hue-rotate(180deg) brightness(0.95) contrast(0.9) !important;
+        }
+
         #elevation-chart svg text {
             fill: #6b7280;
         }
@@ -1248,10 +1275,43 @@ let map;
         function initMap(gpxText) {
             map = L.map('map');
             L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
+
+            // ── Stili mappa: light (OSM) e dark (OSM invertito) ──
+            const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+            const tileLayers = {
+                light:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            { attribution: OSM_ATTR, maxZoom: 19 }),
+                dark:   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            { attribution: OSM_ATTR, maxZoom: 19, className: 'tiles-invert' }),
+            };
+
+            const applyMapStyle = (id) => {
+                Object.values(tileLayers).forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+                tileLayers[id].addTo(map);
+                localStorage.setItem('gara-map-style', id);
+                document.querySelectorAll('.map-style-picker button[data-style]').forEach(b => {
+                    b.classList.toggle('active', b.dataset.style === id);
+                });
+            };
+
+            // Picker minimale (due icone)
+            const picker = L.control({ position: 'topright' });
+            picker.onAdd = () => {
+                const div = L.DomUtil.create('div', 'map-style-picker');
+                div.innerHTML = `
+                    <button data-style="light" title="Mappa chiara">☀️</button>
+                    <button data-style="dark"  title="Mappa scura">🌙</button>
+                `;
+                L.DomEvent.disableClickPropagation(div);
+                div.querySelectorAll('button[data-style]').forEach(b => {
+                    b.addEventListener('click', () => applyMapStyle(b.dataset.style));
+                });
+                return div;
+            };
+            picker.addTo(map);
+
+            const savedStyle = localStorage.getItem('gara-map-style');
+            applyMapStyle(savedStyle === 'dark' ? 'dark' : 'light');
             
             // Draw gradient-colored polyline
             const gradients = routeData.points.map(p => p.gradient);
