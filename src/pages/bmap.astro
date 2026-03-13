@@ -357,21 +357,45 @@ window.__BASE_URL__  = base;
     return darkLayer;
   };
 
-  // Abilita compact mode su attribution MapLibre (mobile)
-  const enableMapLibreCompact = () => {
-    setTimeout(()=>{
-      document.querySelectorAll<HTMLElement>('.maplibregl-ctrl-attrib').forEach(el=>{
-        if(!el.classList.contains('maplibregl-compact')) el.classList.add('maplibregl-compact');
-        if(!el.querySelector('.maplibregl-ctrl-attrib-button')) {
-          const btn=document.createElement('button');
-          btn.className='maplibregl-ctrl-attrib-button';
-          btn.type='button';
-          btn.setAttribute('aria-label','Toggle attribution');
-          btn.addEventListener('click',e=>{e.stopPropagation();el.classList.toggle('maplibregl-compact-show');});
-          el.appendChild(btn);
-        }
-      });
-    }, 800);
+  // ── Fix attribution mobile: inietta <style> globale al primo caricamento ──
+  // Strategia: mostrare l'attribution per intero (piccola), NO collasso iniziale.
+  // Il collasso iniziale causava il bug "tagliato al primo caricamento".
+  const fixAttrMobile = () => {
+    if(!(/Mobi|Android/i.test(navigator.userAgent) || window.innerWidth<=768)) return;
+    if(document.getElementById('brd-attr-fix')) return;
+    const s=document.createElement('style');
+    s.id='brd-attr-fix';
+    s.textContent=`
+      .leaflet-control-attribution {
+        font-size:0.55rem!important;
+        line-height:1.3!important;
+        white-space:normal!important;
+        max-width:60vw!important;
+        overflow:visible!important;
+        background:rgba(255,255,255,0.8)!important;
+        padding:2px 5px!important;
+      }
+      .maplibregl-ctrl-attrib {
+        font-size:0.55rem!important;
+        line-height:1.3!important;
+        white-space:normal!important;
+        max-width:60vw!important;
+        background:rgba(255,255,255,0.8)!important;
+        padding:2px 5px!important;
+      }
+      .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) {
+        max-width:60vw!important;
+        overflow:visible!important;
+      }
+      .maplibregl-ctrl-attrib-button { display:none!important; }
+      .leaflet-bottom.leaflet-right {
+        padding-bottom:env(safe-area-inset-bottom,0px)!important;
+      }
+      .maplibregl-ctrl-bottom-right {
+        padding-bottom:env(safe-area-inset-bottom,0px)!important;
+      }
+    `;
+    document.head.appendChild(s);
   };
 
   const applyMapStyle=(id:string)=>{
@@ -379,7 +403,6 @@ window.__BASE_URL__  = base;
     if(darkLayer && map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
     if(id==='dark') {
       getDarkLayer().addTo(map);
-      enableMapLibreCompact();
     } else {
       rasterLayers[id]?.addTo(map);
     }
@@ -411,9 +434,10 @@ window.__BASE_URL__  = base;
   applyMapStyle((['dark','light','invert'].includes(localStorage.getItem('brd-map-style')||'')
     ? localStorage.getItem('brd-map-style')!
     : 'dark'));
+  fixAttrMobile();
 
   // ── Legenda ───────────────────────────────────────────────────────────────
-  const leg=(L.control as any)({position:'bottomright'});
+  const leg=(L.control as any)({position:'bottomleft'});
   leg.onAdd=()=>{
     const d=L.DomUtil.create('div','map-legend');
     const catLabel = tr('legend_category','Categoria');
@@ -712,48 +736,19 @@ window.__BASE_URL__  = base;
     .topbar{z-index:1000}
     .mobile-menu-btn{display:block}
     .main{height:100%;height:100dvh}
-    /* ── Leaflet bottom area: spazio per safe-area + attribution ── */
-    :global(.leaflet-bottom){padding-bottom:max(env(safe-area-inset-bottom,0px),4px)}
-    /* ── Leaflet attribution: collassabile con pulsante ∑ ── */
-    :global(.leaflet-control-attribution){
-      max-width:26px;overflow:hidden;white-space:nowrap;
-      cursor:pointer;transition:max-width .3s ease;
-      font-size:.6rem;line-height:1.4;
+    /* Legenda più piccola e sollevata su mobile */
+    :global(.map-legend){
+      font-size:.5rem!important;
+      padding:.35rem .5rem!important;
+      min-width:80px!important;
+      margin-bottom:6px!important;
     }
-    :global(.leaflet-control-attribution.leaflet-control-attribution-expanded){
-      max-width:90vw;white-space:normal;
-    }
-    /* ── MapLibre attribution: collassabile, stesso stile Leaflet ── */
-    :global(.maplibregl-ctrl-bottom-right){
-      padding-bottom:max(env(safe-area-inset-bottom,0px),4px);
-    }
-    :global(.maplibregl-ctrl-attrib){
-      font-size:.6rem!important;
-      background:rgba(255,255,255,.75)!important;
-      padding:0 5px!important;
-      line-height:20px!important;
-    }
-    /* MapLibre compact mode: mostra solo il pulsante ⓘ per default */
-    :global(.maplibregl-ctrl-attrib:not(.maplibregl-compact-show)){
-      max-width:26px;overflow:hidden;
-    }
-    :global(.maplibregl-ctrl-attrib.maplibregl-compact){
-      min-height:20px;
-    }
-    :global(.maplibregl-ctrl-attrib-button){
-      display:block!important;width:20px;height:20px;cursor:pointer;
-    }
-    :global(.maplibregl-ctrl-attrib.maplibregl-compact-show){
-      max-width:90vw;white-space:normal;padding-right:20px!important;
-    }
-    /* Evita sovrapposizione tra legenda e attribution ── */
-    :global(.leaflet-bottom.leaflet-right){
-      display:flex;flex-direction:column;align-items:flex-end;gap:4px;
-      padding-bottom:max(env(safe-area-inset-bottom,0px),6px);
-    }
+    :global(.legend-title){font-size:.46rem!important;margin-bottom:.3rem!important}
+    :global(.legend-row){gap:.35rem!important;margin-bottom:.18rem!important}
+    :global(.legend-dot){width:7px!important;height:7px!important}
+    :global(.legend-divider){margin:.25rem 0!important}
   }
   @media(min-width:769px){
     :global(.leaflet-bottom){padding-bottom:0}
-    :global(.maplibregl-ctrl-attrib){font-size:.65rem!important}
   }
 </style>
