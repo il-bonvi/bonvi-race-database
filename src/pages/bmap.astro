@@ -314,6 +314,27 @@ window.__BASE_URL__  = base;
   const catColor:Record<string,string>={Elite:'#E91E63',U23:'#1B2ACF',Junior:'#28B534',Allievi:'#FFC107'};
   const getColor=(g:any)=>catColor[(g.categoria||[])[0]]??'#888';
 
+  // ── Offset geografico zoom-aware per linee parallele ─────────────────────
+  const pxToDeg=(px:number,lat:number,zoom:number)=>{
+    const metersPerPx=156543.03392*Math.cos(lat*Math.PI/180)/Math.pow(2,zoom);
+    const metersPerDeg=111320*Math.cos(lat*Math.PI/180)||1;
+    return (px*metersPerPx)/metersPerDeg;
+  };
+
+  const applyOffset=(pts:[number,number][],offsetDeg:number):[number,number][]=>{
+    if(Math.abs(offsetDeg)<1e-12) return pts;
+    return pts.map((pt,i)=>{
+      const prev=pts[Math.max(0,i-1)];
+      const next=pts[Math.min(pts.length-1,i+1)];
+      const dLat=next[0]-prev[0];
+      const dLon=next[1]-prev[1];
+      const len=Math.sqrt(dLat*dLat+dLon*dLon)||1;
+      return [pt[0]+(-dLon/len)*offsetDeg, pt[1]+(dLat/len)*offsetDeg] as [number,number];
+    });
+  };
+
+  const OFFSET_PX=1.5; // distanza in pixel tra linee adiacenti
+
   const map=L.map('map',{center:[46.5,11.0],zoom:5});
   const OSM_ATTR='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
@@ -404,15 +425,23 @@ window.__BASE_URL__  = base;
   leg.addTo(map);
 
   const makePopup=(g:any)=>{
-    const col=getColor(g);
     const d=new Date(g.data);
     const ds=`${d.getDate()} ${MESI[d.getMonth()]} ${d.getFullYear()}`;
-    const cats=(g.categoria||[]).map((c:string)=>T?.['cat_'+c]??c).join(' · ');
+    const cats:string[]=g.categoria||[];
+    const catBadges=cats.map((c:string)=>{
+      const col=catColor[c]??'#888';
+      const rawLabel=T?.['cat_'+c]??c;
+      const label=(c==='Allievi'&&g.genere==='Femminile')?'Allieve':rawLabel;
+      return `<span style="color:${col};font-weight:600">${label}</span>`;
+    }).join('<span style="opacity:0.4"> · </span>');
     const gen=g.genere==='Femminile'?tr('gen_Femminile','Femminile'):tr('gen_Maschile','Maschile');
-    return `<div class="map-popup"><div class="popup-cat" style="color:${col}">${cats} · ${gen}</div><div class="popup-title">${g.titolo}</div><div class="popup-meta"><span>${ds}</span>${g.luogo?`<span>· ${g.luogo}</span>`:''}</div><div class="popup-stats">${g.distanza_km?`<span>${g.distanza_km} km</span>`:''} ${g.dislivello_m?`<span>+${g.dislivello_m} m</span>`:''} ${g.disciplina?`<span>${T?.['disc_'+g.disciplina]??g.disciplina}</span>`:''}</div><a class="popup-cta" href="${base}/gare/${g.slug}/">${tr('view_route','Vedi percorso →')}</a></div>`;
+    const genShade=g.genere==='Femminile'
+      ?'radial-gradient(ellipse at 100% 0%, rgba(225,0,100,0.18) 0%, rgba(225,0,100,0.07) 40%, transparent 70%)'
+      :'radial-gradient(ellipse at 100% 0%, rgba(80,150,215,0.28) 0%, rgba(80,150,215,0.10) 40%, transparent 70%)';
+    return `<div class="map-popup" style="background-image:${genShade};background-repeat:no-repeat;"><div class="popup-cat">${catBadges}<span style="opacity:0.5"> · </span><span style="opacity:0.7">${gen}</span></div><div class="popup-title">${g.titolo}</div><div class="popup-meta"><span>${ds}</span>${g.luogo?`<span>· ${g.luogo}</span>`:''}</div><div class="popup-stats">${g.distanza_km?`<span>${g.distanza_km} km</span>`:''} ${g.dislivello_m?`<span>+${g.dislivello_m} m</span>`:''} ${g.disciplina?`<span>${T?.['disc_'+g.disciplina]??g.disciplina}</span>`:''}</div><a class="popup-cta" href="${base}/gare/${g.slug}/">${tr('view_route','Vedi percorso →')}</a></div>`;
   };
 
-  type Entry={gara:any;polylines:any[];startMarkers:any[];endMarkers:any[];visible:boolean};
+  type Entry={gara:any;polylines:any[];startMarkers:any[];endMarkers:any[];visible:boolean;rawPtsList:[number,number][][];cats:string[]};
   const entries:Entry[]=[];
 
   // Stato globale: entry attiva (con start/end marker visibili)
@@ -454,26 +483,51 @@ window.__BASE_URL__  = base;
     }
   });
 
-  gareData.forEach(g=>{
-    const polylines:any[]=[];
-    const col=getColor(g);
-    (g.polylines as [number,number][][]).forEach(pts=>{
-      if(!pts||pts.length===0) return;
-      const poly=L.polyline(pts,{color:col,weight:2.5,opacity:0.75});
-      poly.bindPopup(makePopup(g),{maxWidth:260});
-      poly.addTo(map);
-      poly.on('click', (e: any)=>{ L.DomEvent.stopPropagation(e); showEndMarkers(entryRef); });
-      polylines.push(poly);
+  // Costruisce le polyline offset per una entry al zoom corrente
+  const buildOffsetPolylines=(entry:Entry)=>{
+    // Rimuovi vecchie polyline dalla mappa
+    entry.polylines.forEach(p=>{if(map.hasLayer(p))map.removeLayer(p);});
+    entry.polylines.length=0;
+
+    const g=entry.gara;
+    const cats=entry.cats;
+    const colors=cats.length>0?cats.map((c:string)=>catColor[c]??'#888'):['#888'];
+    const n=colors.length;
+    const zoom=map.getZoom();
+
+    entry.rawPtsList.forEach((rawPts:[number,number][])=>{
+      if(!rawPts||rawPts.length===0) return;
+      // Latitudine centrale della traccia per il calcolo offset
+      const midLat=rawPts[Math.floor(rawPts.length/2)][0];
+      // Offset totale centrato sullo 0: es. n=2 → [-0.5, +0.5]; n=3 → [-1, 0, +1]
+      const offsets=colors.map((_:string,i:number)=> (i-(n-1)/2)*OFFSET_PX );
+
+      colors.forEach((col:string,i:number)=>{
+        const deg=pxToDeg(offsets[i],midLat,zoom);
+        const shifted=applyOffset(rawPts,deg);
+        const poly=L.polyline(shifted,{color:col,weight:2.5/n,opacity:0.75});
+        poly.bindPopup(makePopup(g),{maxWidth:260});
+        poly.on('click',(e:any)=>{ L.DomEvent.stopPropagation(e); showEndMarkers(entry); });
+        if(entry.visible) poly.addTo(map);
+        entry.polylines.push(poly);
+      });
     });
+  };
+
+  gareData.forEach(g=>{
+    const cats:string[]=g.categoria||[];
+    const rawPtsList:([number,number][])[]=(g.polylines as [number,number][][]).filter(pts=>pts&&pts.length>0);
 
     // Start marker — sempre visibile, minimal dot con colore categoria
     const startMarkers: any[] = [];
     if(g.startPt) {
-      const col2 = getColor(g);
+      const markerBg=cats.length>1
+        ?`linear-gradient(90deg,${cats.map((c:string)=>catColor[c]??'#888').join(',')})`
+        :(catColor[cats[0]]??'#888');
       const sm = L.marker(g.startPt, {
         icon: L.divIcon({
           className:'',
-          html:`<div style="width:6px;height:6px;background:${col2};border-radius:50%;box-sizing:border-box;opacity:0.85;"></div>`,
+          html:`<div style="width:6px;height:6px;background:${markerBg};border-radius:50%;box-sizing:border-box;opacity:0.85;"></div>`,
           iconSize:[6,6], iconAnchor:[2.5,2.5], popupAnchor:[0,-5],
         }),
         zIndexOffset:100,
@@ -483,8 +537,14 @@ window.__BASE_URL__  = base;
       sm.addTo(map);
       startMarkers.push(sm);
     }
-    const entryRef: Entry = {gara:g,polylines,startMarkers,endMarkers:[],visible:true};
+    const entryRef: Entry = {gara:g,polylines:[],startMarkers,endMarkers:[],visible:true,rawPtsList,cats};
     entries.push(entryRef);
+    buildOffsetPolylines(entryRef);
+  });
+
+  // Ricalcola offset a ogni cambio di zoom
+  map.on('zoomend',()=>{
+    entries.forEach(e=>{ if(e.cats.length>1) buildOffsetPolylines(e); });
   });
 
   if(entries.length>0){
