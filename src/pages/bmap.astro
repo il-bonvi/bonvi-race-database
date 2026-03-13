@@ -105,8 +105,8 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
     lat:           centerLat,
     lon:           centerLon,
     polylines,
+    gpxKey:        gpxSlugs.join('|'),
     startPt: (() => { for (const gs of gpxSlugs) { const e = gpxEntries[gs]; if (e) return e.start; } return null; })(),
-    // un endPt per ogni tappa/polyline disponibile
     endPts: gpxSlugs.map(gs => gpxEntries[gs]?.end ?? null).filter(Boolean) as [number,number][],
   });
 }
@@ -333,7 +333,7 @@ window.__BASE_URL__  = base;
     });
   };
 
-  const OFFSET_PX=1.5; // distanza in pixel tra linee adiacenti
+  const OFFSET_PX=1.0; // uguale al weight unitario (3/n) → linee perfettamente adiacenti
 
   const map=L.map('map',{center:[46.5,11.0],zoom:5});
   const OSM_ATTR='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
@@ -507,33 +507,151 @@ window.__BASE_URL__  = base;
     }
   });
 
-  // Costruisce le polyline offset per una entry al zoom corrente
-  const buildOffsetPolylines=(entry:Entry)=>{
-    // Rimuovi vecchie polyline dalla mappa
-    entry.polylines.forEach(p=>{if(map.hasLayer(p))map.removeLayer(p);});
-    entry.polylines.length=0;
+  // ── Sistema di rendering tracce con rilevazione sovrapposizioni ───────────
 
-    const g=entry.gara;
-    const cats=entry.cats;
-    const colors=cats.length>0?cats.map((c:string)=>catColor[c]??'#888'):['#888'];
-    const n=colors.length;
-    const zoom=map.getZoom();
+  // Griglia spaziale per rilevare tratti sovrapposti tra GPX diversi
+  // Cella ~13m × 13m (0.00012° ≈ 13m a lat 46°)
+  const CELL_DEG = 0.00012;
+  const MATCH_DIST_DEG = 0.00014; // ~15m: soglia match
 
-    entry.rawPtsList.forEach((rawPts:[number,number][])=>{
-      if(!rawPts||rawPts.length===0) return;
-      // Latitudine centrale della traccia per il calcolo offset
-      const midLat=rawPts[Math.floor(rawPts.length/2)][0];
-      // Offset totale centrato sullo 0: es. n=2 → [-0.5, +0.5]; n=3 → [-1, 0, +1]
-      const offsets=colors.map((_:string,i:number)=> (i-(n-1)/2)*OFFSET_PX );
+  type SegInfo = { entryIdx: number; lat: number; lon: number; color: string };
+  const spatialGrid = new Map<string, SegInfo[]>();
 
-      colors.forEach((col:string,i:number)=>{
-        const deg=pxToDeg(offsets[i],midLat,zoom);
-        const shifted=applyOffset(rawPts,deg);
-        const poly=L.polyline(shifted,{color:col,weight:2.5/n,opacity:0.75});
-        poly.bindPopup(makePopup(g),{maxWidth:260});
-        poly.on('click',(e:any)=>{ L.DomEvent.stopPropagation(e); showEndMarkers(entry); });
-        if(entry.visible) poly.addTo(map);
-        entry.polylines.push(poly);
+  const cellKey = (lat: number, lon: number) =>
+    `${Math.round(lat/CELL_DEG)},${Math.round(lon/CELL_DEG)}`;
+
+  // Popola la griglia con tutti i punti di tutte le entry
+  const buildGrid = () => {
+    spatialGrid.clear();
+    entries.forEach((e, ei) => {
+      if (!e.visible) return;
+      e.cats.forEach((cat: string) => {
+        const col = catColor[cat] ?? '#888';
+        e.rawPtsList.forEach((pts: [number,number][]) => {
+          pts.forEach((pt) => {
+            const k = cellKey(pt[0], pt[1]);
+            if (!spatialGrid.has(k)) spatialGrid.set(k, []);
+            spatialGrid.get(k)!.push({ entryIdx: ei, lat: pt[0], lon: pt[1], color: col });
+          });
+        });
+      });
+    });
+  };
+
+  // Per un punto (lat,lon), restituisce i colori di entry DIVERSE presenti nelle celle vicine entro soglia
+  const nearbyColors = (lat: number, lon: number, selfEntryIdx: number): string[] => {
+    const found = new Map<string, string>();
+    for (let dlat = -1; dlat <= 1; dlat++) {
+      for (let dlon = -1; dlon <= 1; dlon++) {
+        const k = `${Math.round(lat/CELL_DEG)+dlat},${Math.round(lon/CELL_DEG)+dlon}`;
+        const infos = spatialGrid.get(k);
+        if (!infos) continue;
+        infos.forEach(info => {
+          if (info.entryIdx === selfEntryIdx) return;
+          const dist = Math.sqrt(Math.pow(lat - info.lat, 2) + Math.pow(lon - info.lon, 2));
+          if (dist <= MATCH_DIST_DEG) {
+            const key = `${info.entryIdx}:${info.color}`;
+            if (!found.has(key)) found.set(key, info.color);
+          }
+        });
+      }
+    }
+    return [...new Set(found.values())];
+  };
+
+  const makeOffsetPoly = (
+    pts: [number,number][],
+    color: string,
+    allColors: string[],
+    selfColorIdx: number,
+    entry: Entry
+  ) => {
+    const n = allColors.length;
+    const hasExternalOverlap = n > allColors.filter(col =>
+      entry.cats.map((c:string) => catColor[c]??'#888').includes(col)
+    ).length;
+    const baseW = hasExternalOverlap ? 5 : n === 1 ? 2 : n === 2 ? 3 : 4;
+    const w = baseW/n;
+    const zoom = map.getZoom();
+    const midLat = pts[Math.floor(pts.length/2)][0];
+    // Offset = w * (indice - centro): le linee si toccano esattamente
+    const offsetPx = (selfColorIdx - (n-1)/2) * w;
+    const deg = pxToDeg(offsetPx, midLat, zoom);
+    const shifted = applyOffset(pts, deg);
+    const poly = L.polyline(shifted, { color, weight: w, opacity: 0.85 });
+    poly.bindPopup(makePopup(entry.gara), { maxWidth: 260 });
+    poly.on('click', (e: any) => { L.DomEvent.stopPropagation(e); showEndMarkers(entry); });
+    return poly;
+  };
+
+  // Rimuove tutte le polyline di una entry dalla mappa
+  const clearPolylines = (entry: Entry) => {
+    entry.polylines.forEach(p => { if (map.hasLayer(p)) map.removeLayer(p); });
+    entry.polylines.length = 0;
+  };
+
+  // Costruisce le polyline per TUTTE le entry visibili, con rilevazione sovrapposizioni
+  const buildAllPolylines = () => {
+    entries.forEach(clearPolylines);
+    buildGrid();
+
+    const allCatOrder = ['Elite','U23','Junior','Allievi'];
+
+    entries.forEach((entry, ei) => {
+      if (!entry.visible) return;
+      const myCats: string[] = entry.cats;
+      const myColors = myCats.map((c: string) => catColor[c] ?? '#888');
+
+      entry.rawPtsList.forEach((rawPts: [number,number][]) => {
+        if (!rawPts || rawPts.length < 2) return;
+
+        // Per ogni mio colore, costruiamo una serie di segmenti
+        // dove ogni segmento ha un contesto (allColors) stabile
+        myColors.forEach((myCol: string) => {
+          // Stato corrente del run
+          let runPts: [number,number][] = [];
+          let runCtxKey = '';
+          let runAllColors: string[] = [];
+          let runMyIdx = 0;
+
+          const flushRun = () => {
+            if (runPts.length >= 2) {
+              const poly = makeOffsetPoly(runPts, myCol, runAllColors, runMyIdx, entry);
+              if (entry.visible) poly.addTo(map);
+              entry.polylines.push(poly);
+            }
+            runPts = [];
+          };
+
+          rawPts.forEach((pt) => {
+            // Colori di altre entry vicine
+            const others = nearbyColors(pt[0], pt[1], ei);
+            // Insieme totale ordinato per categoria
+            const allColorsSet = new Set([...myColors, ...others]);
+            const allColors = allCatOrder
+              .map(c => catColor[c])
+              .filter(col => col && allColorsSet.has(col)) as string[];
+            // Colori non-standard
+            others.forEach(col => { if (!allColors.includes(col)) allColors.push(col); });
+
+            const myIdx = allColors.indexOf(myCol);
+            const ctxKey = allColors.join(',');
+
+            if (ctxKey !== runCtxKey) {
+              // Flush del run precedente — aggiungi il punto corrente al flush
+              // per garantire continuità visiva
+              if (runPts.length > 0) runPts.push(pt);
+              flushRun();
+              runCtxKey = ctxKey;
+              runAllColors = allColors;
+              runMyIdx = myIdx >= 0 ? myIdx : 0;
+              runPts = [pt];
+            } else {
+              runPts.push(pt);
+            }
+          });
+          flushRun();
+        });
       });
     });
   };
@@ -563,12 +681,56 @@ window.__BASE_URL__  = base;
     }
     const entryRef: Entry = {gara:g,polylines:[],startMarkers,endMarkers:[],visible:true,rawPtsList,cats};
     entries.push(entryRef);
-    buildOffsetPolylines(entryRef);
   });
 
-  // Ricalcola offset a ogni cambio di zoom
+  // Rendering iniziale con rilevazione sovrapposizioni
+  buildAllPolylines();
+
+  // A zoomend: la griglia non cambia, ma gli offset sì → ricostruisce solo le polyline
+  // senza ricalcolare la griglia (performance)
+  let _gridDirty = false; // flag: griglia da ricalcolare al prossimo build
   map.on('zoomend',()=>{
-    entries.forEach(e=>{ if(e.cats.length>1) buildOffsetPolylines(e); });
+    if(_gridDirty){ buildAllPolylines(); _gridDirty=false; }
+    else {
+      // Ricostruisce solo le polyline (offset cambiano con lo zoom) senza rebuildGrid
+      entries.forEach(clearPolylines);
+      const allCatOrder2 = ['Elite','U23','Junior','Allievi'];
+      entries.forEach((entry, ei) => {
+        if (!entry.visible) return;
+        const myColors = entry.cats.map((c: string) => catColor[c] ?? '#888');
+        entry.rawPtsList.forEach((rawPts: [number,number][]) => {
+          if (!rawPts || rawPts.length < 2) return;
+          myColors.forEach((myCol: string) => {
+            let runPts: [number,number][] = [];
+            let runCtxKey = '';
+            let runAllColors: string[] = [];
+            let runMyIdx = 0;
+            const flushRun2 = () => {
+              if (runPts.length >= 2) {
+                const poly = makeOffsetPoly(runPts, myCol, runAllColors, runMyIdx, entry);
+                if (entry.visible) poly.addTo(map);
+                entry.polylines.push(poly);
+              }
+              runPts = [];
+            };
+            rawPts.forEach((pt) => {
+              const others = nearbyColors(pt[0], pt[1], ei);
+              const allColorsSet = new Set([...myColors, ...others]);
+              const allColors = allCatOrder2.map(c=>catColor[c]).filter(col=>col&&allColorsSet.has(col)) as string[];
+              others.forEach(col=>{if(!allColors.includes(col))allColors.push(col);});
+              const myIdx = allColors.indexOf(myCol);
+              const ctxKey = allColors.join(',');
+              if (ctxKey !== runCtxKey) {
+                if (runPts.length > 0) runPts.push(pt);
+                flushRun2();
+                runCtxKey=ctxKey; runAllColors=allColors; runMyIdx=myIdx>=0?myIdx:0; runPts=[pt];
+              } else { runPts.push(pt); }
+            });
+            flushRun2();
+          });
+        });
+      });
+    }
   });
 
   if(entries.length>0){
@@ -595,11 +757,12 @@ window.__BASE_URL__  = base;
     entries.forEach(e=>{
       const show=isVis(e.gara);
       e.visible=show;
-      e.polylines.forEach(p=>{ if(show){if(!map.hasLayer(p))p.addTo(map); p.setStyle({opacity:0.75,weight:2.5});}else{if(map.hasLayer(p))map.removeLayer(p);} });
       e.startMarkers.forEach(m=>{ if(show){if(!map.hasLayer(m))m.addTo(map);}else{if(map.hasLayer(m))map.removeLayer(m);} });
       if(!show) { e.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);}); }
       if(show)n++;
     });
+    _gridDirty=false; // buildAllPolylines chiama buildGrid internamente
+    buildAllPolylines();
     counter.textContent=String(n);
     noRes.style.display=n===0?'flex':'none';
   }
