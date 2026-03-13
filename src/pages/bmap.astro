@@ -511,7 +511,7 @@ window.__BASE_URL__  = base;
     entries.forEach(e=>{
       const show=isVis(e.gara);
       e.visible=show;
-      e.polylines.forEach(p=>{ if(!map.hasLayer(p))p.addTo(map); p.setStyle({opacity:show?0.75:0.06,weight:show?2.5:1.5}); });
+      e.polylines.forEach(p=>{ if(show){if(!map.hasLayer(p))p.addTo(map); p.setStyle({opacity:0.75,weight:2.5});}else{if(map.hasLayer(p))map.removeLayer(p);} });
       e.startMarkers.forEach(m=>{ if(show){if(!map.hasLayer(m))m.addTo(map);}else{if(map.hasLayer(m))map.removeLayer(m);} });
       if(!show) { e.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);}); }
       if(show)n++;
