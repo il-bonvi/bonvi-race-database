@@ -16,7 +16,7 @@
   "tappe": [
     {
       "numero": 1,
-      "nome": "Tappa 1",
+      "nome": "Crono 's-Heerenhoek",
       "slug": "omloop-van-borsele-S1-2026-DJ",
       "data": "2026-04-24",
       "distanza_km": 14.26,
@@ -25,7 +25,7 @@
     },
     {
       "numero": 2,
-      "nome": "Tappa 2",
+      "nome": "'s-Heerenhoek",
       "slug": "omloop-van-borsele-S2-2026-DJ",
       "data": "2026-04-25",
       "distanza_km": 73.04,
@@ -34,7 +34,7 @@
     },
     {
       "numero": 3,
-      "nome": "Tappa 3",
+      "nome": "'s-Heerenhoek",
       "slug": "omloop-van-borsele-S3-2026-DJ",
       "data": "2026-04-26",
       "distanza_km": 70.6,
