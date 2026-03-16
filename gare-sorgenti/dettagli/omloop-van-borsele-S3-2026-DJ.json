@@ -1,0 +1,20 @@
+{
+  "titolo": "Omloop van Borsele — Tappa 3: Tappa 3",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 3",
+  "numero_tappa": 3,
+  "corsa_a_tappe_slug": "omloop-van-borsele-2026-DJ",
+  "corsa_a_tappe_titolo": "Omloop van Borsele",
+  "race_series": "omloop van borsele",
+  "data": "2026-04-26",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 70.6,
+  "dislivello_m": 106.0,
+  "velocita_media_kmh": 39.0,
+  "luogo": "NL",
+  "slug": "omloop-van-borsele-S3-2026-DJ"
+}

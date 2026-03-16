@@ -1,0 +1,20 @@
+{
+  "titolo": "Omloop van Borsele — Tappa 2: Tappa 2",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 2",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "omloop-van-borsele-2026-DJ",
+  "corsa_a_tappe_titolo": "Omloop van Borsele",
+  "race_series": "omloop van borsele",
+  "data": "2026-04-25",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 73.04,
+  "dislivello_m": 95.0,
+  "velocita_media_kmh": 37.5,
+  "luogo": "NL",
+  "slug": "omloop-van-borsele-S2-2026-DJ"
+}

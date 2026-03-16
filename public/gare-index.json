@@ -28,6 +28,20 @@
     "n_tappe": null
   },
   {
+    "slug": "omloop-van-borsele-2026-DJ",
+    "titolo": "Omloop van Borsele",
+    "data": "2026-04-24",
+    "year": "2026",
+    "race_series": "omloop van borsele",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": "corsa_a_tappe",
+    "n_tappe": 3
+  },
+  {
     "slug": "omloop-van-schijndel-2026-DJ",
     "titolo": "Omloop van Schijndel",
     "data": "2026-03-01",
