@@ -12,7 +12,7 @@
   "tipo": "corsa_a_tappe",
   "n_tappe": 3,
   "distanza_km": 157.9,
-  "dislivello_m": 228,
+  "dislivello_m": 158,
   "tappe": [
     {
       "numero": 1,
@@ -20,7 +20,7 @@
       "slug": "omloop-van-borsele-S1-2026-DJ",
       "data": "2026-04-24",
       "distanza_km": 14.26,
-      "dislivello_m": 27.0,
+      "dislivello_m": 16.0,
       "disciplina": "ITT"
     },
     {
@@ -29,7 +29,7 @@
       "slug": "omloop-van-borsele-S2-2026-DJ",
       "data": "2026-04-25",
       "distanza_km": 73.04,
-      "dislivello_m": 95.0,
+      "dislivello_m": 75.0,
       "disciplina": "Strada"
     },
     {
@@ -38,7 +38,7 @@
       "slug": "omloop-van-borsele-S3-2026-DJ",
       "data": "2026-04-26",
       "distanza_km": 70.6,
-      "dislivello_m": 106.0,
+      "dislivello_m": 67.0,
       "disciplina": "Strada"
     }
   ],

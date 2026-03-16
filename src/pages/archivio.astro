@@ -31,7 +31,7 @@ const yearMonthStructure = Array.from(groupedByYear.entries())
   .map(([year, monthsMap]: [any, any]) => ({
     year,
     months: Array.from(monthsMap.entries())
-      .sort(([monthA]: [any, any], [monthB]: [any, any]) => monthB - monthA)
+      .sort(([monthA]: [any, any], [monthB]: [any, any]) => monthA - monthB)
       .map(([month, races]: [any, any]) => ({
         month,
         races: races.slice().sort((a: any, b: any) => new Date(a.data).getTime() - new Date(b.data).getTime()),

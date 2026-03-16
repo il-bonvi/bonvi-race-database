@@ -36,7 +36,7 @@ const yearMonthStructure = Array.from(groupedByYear.entries())
   .map(([year, monthsMap]: [any, any]) => ({
     year,
     months: Array.from(monthsMap.entries())
-      .sort(([monthA]: [any, any], [monthB]: [any, any]) => monthB - monthA)
+      .sort(([monthA]: [any, any], [monthB]: [any, any]) => monthA - monthB)
       .map(([month, races]: [any, any]) => ({
         month,
         races: races.slice().sort((a: any, b: any) => new Date(a.data).getTime() - new Date(b.data).getTime()),
@@ -180,13 +180,13 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
                 {months.map(({ month, races, monthKey }: any) => {
                   const isCurrentMonth = isCurrentYear && month === currentMonth;
                   return (
-                    <div class={`month-group ${isCurrentMonth ? 'expanded' : 'collapsed'}`} data-month={monthKey}>
+                    <div class="month-group expanded" data-month={monthKey}>
                       <button class="month-header" data-month-toggle={monthKey}>
                         <span class="month-chevron">▼</span>
                         <span class="month-label" data-i18n-month={month}>{MONTH_NAMES[month]}</span>
                         <span class="month-count">({races.length})</span>
                       </button>
-                      <div class="month-races" style={`display: ${isCurrentMonth ? 'grid' : 'none'}`}>
+                      <div class="month-races" style="display: grid;">
                         {races.map((g: any) => (
                           <div class="card-wrap"
                             data-anno={new Date(g.data).getFullYear()}
