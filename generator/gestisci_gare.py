@@ -273,6 +273,29 @@ def update_gares_index():
     except Exception:
         pass
 
+
+# ── ESTRAZIONE SERIE ──────────────────────────────────────────────────────────
+
+def get_all_race_series() -> list:
+    """Estrae tutte le serie uniche dai dati delle gare (escludendo tappe individuali)."""
+    series_set = set()
+    
+    for json_file in GARE_DIR.glob("*.json"):
+        try:
+            data = json.loads(json_file.read_text(encoding='utf-8'))
+            # Salta le tappe individuali (mantieni solo corsa_a_tappe e gare singole)
+            if data.get('tipo') == 'tappa':
+                continue
+            
+            race_series = data.get('race_series', '')
+            if race_series:
+                series_set.add(race_series)
+        except Exception:
+            continue
+    
+    return sorted(list(series_set))
+
+
 CATEGORIE = ["Elite", "U23", "Junior", "Allievi"]
 GENERI = ["Maschile", "Femminile"]
 DISCIPLINE = ["Strada", "Criterium", "ITT", "TTT", "Tipo pista"]
@@ -1201,6 +1224,102 @@ GPX FILE:     {gpx_info}"""
         
         self.open_add_race_form(new_data, is_new=True)
     
+    def open_race_series_selector(self, callback, parent_win=None):
+        """Apre una finestra modale per selezionare una serie già inserita
+        
+        Args:
+            callback: funzione da chiamare con la serie selezionata
+            parent_win: finestra padre per posizionamento modale
+        """
+        select_win = tk.Toplevel(parent_win or self.root)
+        select_win.title("Seleziona Serie")
+        select_win.geometry("500x400")
+        select_win.configure(bg=BG)
+        select_win.resizable(True, True)
+        
+        # Header
+        tk.Label(select_win, text="Seleziona una serie esistente", font=("Helvetica", 11, "bold"),
+                bg=BG, fg=FG, pady=8).pack(fill="x", padx=12)
+        
+        # Frame ricerca
+        search_frame = tk.Frame(select_win, bg=BG)
+        search_frame.pack(fill="x", padx=12, pady=(6, 12))
+        
+        tk.Label(search_frame, text="🔍 Ricerca:", font=("Helvetica", 9, "bold"),
+                bg=BG, fg="#7a746b").pack(side="left", padx=(0, 6))
+        
+        search_var = tk.StringVar()
+        search_entry = tk.Entry(search_frame, textvariable=search_var, font=("Helvetica", 10),
+                               bg="white", fg=FG, relief="solid", bd=1)
+        search_entry.pack(side="left", fill="x", expand=True)
+        search_entry.focus()
+        
+        # Frame listbox
+        list_frame = tk.Frame(select_win, bg="white", relief="solid", bd=1)
+        list_frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        
+        scrollbar = tk.Scrollbar(list_frame)
+        scrollbar.pack(side="right", fill="y")
+        
+        series_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, bg="white",
+                                   selectmode="single", font=("Courier", 10), bd=0)
+        series_listbox.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=series_listbox.yview)
+        
+        # Track indici visibili per filtro
+        displayed_indices = []
+        
+        def update_listbox(*args):
+            """Aggiorna listbox filtrando per il testo di ricerca"""
+            nonlocal displayed_indices
+            series_listbox.delete(0, tk.END)
+            displayed_indices = []
+            
+            search_text = search_var.get().lower()
+            all_series = get_all_race_series()
+            
+            for idx, series in enumerate(all_series):
+                if search_text == "" or search_text in series.lower():
+                    series_listbox.insert(tk.END, series)
+                    displayed_indices.append(idx)
+        
+        # Popola inizialmente
+        update_listbox()
+        search_var.trace_add("write", update_listbox)
+        
+        def on_double_click(event):
+            """Doppio click per selezionare"""
+            sel = series_listbox.curselection()
+            if sel:
+                on_select()
+        
+        series_listbox.bind("<Double-Button-1>", on_double_click)
+        
+        def on_select():
+            sel = series_listbox.curselection()
+            if not sel:
+                messagebox.showwarning("Attenzione", "Seleziona una serie prima")
+                return
+            
+            # Recupera la serie selezionata
+            all_series = get_all_race_series()
+            displayed_idx = sel[0]
+            actual_idx = displayed_indices[displayed_idx]
+            selected_series = all_series[actual_idx]
+            
+            # Chiama la callback con la serie selezionata
+            callback(selected_series)
+            select_win.destroy()
+        
+        # Frame bottoni
+        button_frame = tk.Frame(select_win, bg=BG)
+        button_frame.pack(fill="x", padx=12, pady=12)
+        
+        tk.Button(button_frame, text="Seleziona", bg=ACCENT, fg="white", padx=16, pady=6,
+                 relief="flat", bd=0, cursor="hand2", command=on_select).pack(side="left", padx=(0, 6))
+        tk.Button(button_frame, text="Annulla", bg="#d1d5db", fg=FG, padx=16, pady=6,
+                 relief="flat", bd=0, cursor="hand2", command=select_win.destroy).pack(side="left")
+    
     def open_add_race_form(self, initial_data: dict, is_new: bool = False, original_slug: str = ""):
         """Apre il form per compilare/modificare i dettagli della gara"""
         edit_win = tk.Toplevel(self.root)
@@ -1436,10 +1555,34 @@ GPX FILE:     {gpx_info}"""
                 entries[key] = date_entry
             
             else:
-                entry = tk.Entry(edit_win, width=35, font=("Helvetica", 10))
-                entry.insert(0, str(data.get(key, "") or ""))
-                entry.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
-                entries[key] = entry
+                # Caso speciale per race_series: entry + bottone per selezionare da lista
+                if key == "race_series":
+                    f_row = tk.Frame(edit_win, bg=BG)
+                    f_row.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
+                    f_row.grid_columnconfigure(0, weight=1)
+                    
+                    series_entry = tk.Entry(f_row, font=("Helvetica", 10), fg=FG, relief="solid", bd=1)
+                    series_entry.grid(row=0, column=0, sticky="ew")
+                    series_entry.insert(0, str(data.get(key, "") or ""))
+                    
+                    def open_series_selector(series_entry=series_entry, parent=edit_win):
+                        """Callback per il bottone di selezione serie"""
+                        def on_series_selected(selected_series):
+                            series_entry.delete(0, tk.END)
+                            series_entry.insert(0, selected_series)
+                        
+                        self.open_race_series_selector(on_series_selected, parent)
+                    
+                    tk.Button(f_row, text="📋", font=("Helvetica", 11), bg=BG, fg=FG,
+                             relief="flat", bd=0, cursor="hand2",
+                             command=open_series_selector).grid(row=0, column=1, padx=(4,0))
+                    
+                    entries[key] = series_entry
+                else:
+                    entry = tk.Entry(edit_win, width=35, font=("Helvetica", 10))
+                    entry.insert(0, str(data.get(key, "") or ""))
+                    entry.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
+                    entries[key] = entry
         
         # Auto-slug: quando cambia titolo o data, aggiorna slug automaticamente
         slug_manual = tk.BooleanVar(value=False)
