@@ -257,6 +257,7 @@ def update_gares_index():
                 "categoria_code": cat_code,
                 "tipo": gara.get("tipo"),
                 "n_tappe": gara.get("n_tappe"),
+                "wt": gara.get("wt", False),
             })
             
         except Exception:
@@ -416,6 +417,9 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list):
             "luogo":                s.get('luogo') or main_data.get('luogo'),
             "slug":                 stage_slug,
         }
+        # Eredita WT dalla corsa a tappe principale
+        if main_data.get('wt'):
+            stage_data['wt'] = True
         stage_clean = {k: v for k, v in stage_data.items() if v is not None}
         stage_str = json.dumps(stage_clean, ensure_ascii=False, indent=2)
         (GARE_DIR / f"{stage_slug}.json").write_text(stage_str, encoding='utf-8')
@@ -913,6 +917,7 @@ SLUG:         {slug}
 DATA:         {data.get('data', '—')}
 GENERE:       {data.get('genere', '—')}
 CATEGORIE:    {', '.join(data.get('categoria', [])) if isinstance(data.get('categoria'), list) else data.get('categoria', '—')}
+{'WORLD TOUR:   ⭐ SÌ' if data.get('wt') else ''}
 DISCIPLINA:   {data.get('disciplina', '—')}
 DISTANZA:     {data.get('distanza_km', '—')} km
 DISLIVELLO:   {data.get('dislivello_m', '—')} m
@@ -1235,6 +1240,7 @@ GPX FILE:     {gpx_info}"""
             ("genere", "Genere", "combo", GENERI),
             ("categoria", "Categorie", "categoria_checkboxes", CATEGORIE),
             ("disciplina", "Disciplina", "combo", DISCIPLINE),
+            ("wt", "World Tour (WT)", "checkbox"),
             ("gpx_reference", "GPX di riferimento (slug)", "combo_gare", opzioni_gare, opzioni_gare_vals),
         ]
         
@@ -1302,6 +1308,12 @@ GPX FILE:     {gpx_info}"""
                     cat_vars[cat] = var
                 
                 entries[key] = cat_vars
+            
+            elif widget_type == "checkbox":
+                var = tk.BooleanVar(value=bool(data.get(key, False)))
+                cb = tk.Checkbutton(edit_win, text="", variable=var, bg=BG, font=("Helvetica", 10))
+                cb.grid(row=i, column=1, sticky="w", padx=12, pady=6)
+                entries[key] = var
             
             elif widget_type == "date_with_calendar":
                 # Entry data + bottone calendario popup
@@ -1599,6 +1611,14 @@ GPX FILE:     {gpx_info}"""
                     if isinstance(widget, dict):
                         selected_cats = [cat for cat, var in widget.items() if var.get()]
                         data[key] = selected_cats
+                    continue
+                
+                if key == "wt":
+                    # Estrai valore booleano dal checkbox WT
+                    data[key] = widget.get() if hasattr(widget, 'get') else bool(widget)
+                    # Se è False, non lo salvare nel JSON (per ridurre dimensione)
+                    if not data[key] and key in data:
+                        del data[key]
                     continue
                 
                 if key == "gpx_reference":
@@ -2027,16 +2047,24 @@ GPX FILE:     {gpx_info}"""
             cat_vars[cat] = v
         race_entries['categoria'] = cat_vars
 
+        # World Tour (WT)
+        tk.Label(race_frame, text="World Tour (WT)", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=6, column=0, sticky="w", padx=(0, 8), pady=4)
+        wt_var = tk.BooleanVar(value=bool(data.get('wt', False)))
+        tk.Checkbutton(race_frame, text="Corsa di categoria WT", variable=wt_var, bg=BG,
+                       font=("Helvetica", 9)).grid(row=6, column=1, sticky="w", pady=4)
+        race_entries['wt'] = wt_var
+
         # Serie
-        _race_field(race_frame, 6, 'race_series', "Serie")
+        _race_field(race_frame, 7, 'race_series', "Serie")
 
         # Slug (auto-generato)
         tk.Label(race_frame, text="Slug corsa", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
-            row=7, column=0, sticky="w", padx=(0, 8), pady=4)
+            row=8, column=0, sticky="w", padx=(0, 8), pady=4)
         original_slug = data.get('slug', '')
         slug_var = tk.StringVar(value=original_slug)
         slug_entry = tk.Entry(race_frame, textvariable=slug_var, font=("Helvetica", 10), relief="solid", bd=1)
-        slug_entry.grid(row=7, column=1, sticky="ew", pady=4)
+        slug_entry.grid(row=8, column=1, sticky="ew", pady=4)
         race_entries['slug'] = slug_var
         slug_manual = [not is_new]  # se edit, lo slug non viene auto-rigenerato
 
@@ -2563,6 +2591,10 @@ GPX FILE:     {gpx_info}"""
                 'categoria':    cats,
                 'luogo':        luogo or None,
             }
+            
+            # Aggiungi WT se selezionato
+            if race_entries['wt'].get():
+                main['wt'] = True
 
             save_stage_race(race_slug, main, stages)
 
