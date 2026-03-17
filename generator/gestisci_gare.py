@@ -153,9 +153,9 @@ def parse_gpx(gpx_path: Path) -> dict:
             if diff > 0:
                 d_plus += diff
 
-        # Punto centrale per il geocoding
-        mid = coords[len(coords) // 2]
-        center_lat, center_lon = mid[0], mid[1]
+        # Punto di arrivo per il geocoding (ultimo punto del tracciato)
+        finish = coords[-1]
+        center_lat, center_lon = finish[0], finish[1]
 
         return {
             'distanza_km': round(dist_m / 1000, 2),
