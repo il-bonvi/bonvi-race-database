@@ -465,27 +465,46 @@ window.__BASE_URL__  = base;
     return `<div class="map-popup" style="background-image:${genShade};background-repeat:no-repeat;"><div class="popup-cat">${catBadges}<span style="opacity:0.5"> · </span><span style="opacity:0.7">${gen}</span></div><div class="popup-title">${g.titolo}</div><div class="popup-meta"><span>${ds}</span>${g.luogo?`<span>· ${g.luogo}</span>`:''}</div><div class="popup-stats">${g.distanza_km?`<span>${g.distanza_km} km</span>`:''} ${g.dislivello_m?`<span>+${g.dislivello_m} m</span>`:''} ${g.disciplina?`<span>${T?.['disc_'+g.disciplina]??g.disciplina}</span>`:''}</div><a class="popup-cta" href="${base}/gare/${g.slug}/">${tr('view_route','Vedi percorso →')}</a></div>`;
   };
 
-  type Entry={gara:any;polylines:any[];startMarkers:any[];endMarkers:any[];visible:boolean;rawPtsList:[number,number][][];cats:string[]};
+  type Entry={gara:any;polylines:any[];startMarkers:any[];endMarkers:any[];activeStartMarker:any;visible:boolean;rawPtsList:[number,number][][];cats:string[]};
   const entries:Entry[]=[];
 
   // Stato globale: entry attiva (con start/end marker visibili)
   let activeEntry: Entry|null = null;
 
   function showEndMarkers(entry: Entry) {
-    // Nascondi end marker dell'entry precedente
-    if(activeEntry && activeEntry !== entry) {
-      activeEntry.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);});
-      activeEntry.endMarkers=[];
-    }
-    // Toggle: se già attiva chiudi end marker
+    // Toggle: se già attiva chiudi tutto
     if(activeEntry === entry) {
+      // Nascondi end marker
       entry.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);});
       entry.endMarkers=[];
+      // Nascondi start marker grande
+      if(entry.activeStartMarker && map.hasLayer(entry.activeStartMarker)) {
+        map.removeLayer(entry.activeStartMarker);
+      }
+      entry.activeStartMarker=null;
+      // Ripristina opacità normale di tutte le polyline
+      entries.forEach(e=>{
+        e.polylines.forEach(p=>{ if(map.hasLayer(p)) p.setStyle({opacity:0.85}); });
+      });
       activeEntry=null;
       return;
     }
+    
+    // Se c'era un'entry precedente attiva, disattivala
+    if(activeEntry) {
+      activeEntry.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);});
+      activeEntry.endMarkers=[];
+      if(activeEntry.activeStartMarker && map.hasLayer(activeEntry.activeStartMarker)) {
+        map.removeLayer(activeEntry.activeStartMarker);
+      }
+      activeEntry.activeStartMarker=null;
+    }
+    
+    // Attiva la nuova entry
     activeEntry=entry;
     const g=entry.gara;
+    
+    // Mostra end marker
     if(g.endPts?.length && entry.endMarkers.length===0) {
       const endIcon=L.divIcon({
         className:'',
@@ -496,6 +515,26 @@ window.__BASE_URL__  = base;
         L.marker(pt, {icon:endIcon, zIndexOffset:400}).addTo(map)
       );
     }
+    
+    // Mostra start marker grande con icona
+    if(g.startPt) {
+      const cats:string[]=g.categoria||[];
+      const markerBg=cats.length>1
+        ?`linear-gradient(90deg,${cats.map((c:string)=>catColor[c]??'#888').join(',')})`
+        :(catColor[cats[0]]??'#888');
+      const startIcon=L.divIcon({
+        className:'',
+        html:`<div style="width:14px;height:14px;background:${markerBg};border:1.5px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;box-sizing:border-box;">🚩</div>`,
+        iconSize:[14,14], iconAnchor:[7,7],
+      });
+      entry.activeStartMarker = L.marker(g.startPt, {icon:startIcon, zIndexOffset:401}).addTo(map);
+    }
+    
+    // Riduci opacità di tutte le polyline tranne quelle dell'entry attiva
+    entries.forEach(e=>{
+      const targetOpacity = e === entry ? 0.85 : 0.15;
+      e.polylines.forEach(p=>{ if(map.hasLayer(p)) p.setStyle({opacity:targetOpacity}); });
+    });
   }
 
   // Chiudi markers se si clicca sulla mappa (fuori dalle polyline)
@@ -503,6 +542,14 @@ window.__BASE_URL__  = base;
     if(activeEntry){
       activeEntry.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);});
       activeEntry.endMarkers=[];
+      if(activeEntry.activeStartMarker && map.hasLayer(activeEntry.activeStartMarker)) {
+        map.removeLayer(activeEntry.activeStartMarker);
+      }
+      activeEntry.activeStartMarker=null;
+      // Ripristina opacità normale di tutte le polyline
+      entries.forEach(e=>{
+        e.polylines.forEach(p=>{ if(map.hasLayer(p)) p.setStyle({opacity:0.85}); });
+      });
       activeEntry=null;
     }
   });
@@ -579,8 +626,41 @@ window.__BASE_URL__  = base;
     const deg = pxToDeg(offsetPx, midLat, zoom);
     const shifted = applyOffset(pts, deg);
     const poly = L.polyline(shifted, { color, weight: w, opacity: 0.85 });
-    poly.bindPopup(makePopup(entry.gara), { maxWidth: 260 });
-    poly.on('click', (e: any) => { L.DomEvent.stopPropagation(e); showEndMarkers(entry); });
+    poly.on('click', (e: any) => { 
+      L.DomEvent.stopPropagation(e); 
+      showEndMarkers(entry);
+      
+      // Apri popup nel punto più a nord (latitudine massima) della traccia
+      // Usa TUTTI i punti della traccia (entry.rawPtsList), non solo il segmento corrente (shifted)
+      if(entry.rawPtsList && entry.rawPtsList.length > 0) {
+        const allPts = entry.rawPtsList.flat();
+        if(allPts.length > 0) {
+          // Trova il punto con latitudine massima (più a nord)
+          const northPoint = allPts.reduce((p1, p2) => p1[0] > p2[0] ? p1 : p2);
+          const containerPoint = map.latLngToContainerPoint(northPoint);
+          const popupHeight = 220;
+          
+          // Se non c'è spazio sopra, usa anchor inferiore
+          const useBottomAnchor = containerPoint.y < popupHeight;
+          const popupContent = makePopup(entry.gara);
+          
+          // Chiudi popup precedente se esiste
+          map.closePopup();
+          
+          // Crea e apri il popup nel punto nord
+          const popup = L.popup({
+            maxWidth: 260,
+            popupAnchor: useBottomAnchor ? [0, 120] : [0, -120],
+            autoPan: true,
+            autoPanPaddingTopLeft: [50, 50],
+            autoPanPaddingBottomRight: [50, 50]
+          })
+            .setLatLng(northPoint)
+            .setContent(popupContent)
+            .openOn(map);
+        }
+      }
+    });
     return poly;
   };
 
@@ -654,14 +734,23 @@ window.__BASE_URL__  = base;
         });
       });
     });
+    
+    // Applica opacità giuste se c'è un activeEntry
+    if(activeEntry) {
+      entries.forEach(e=>{
+        const targetOpacity = e === activeEntry ? 0.85 : 0.15;
+        e.polylines.forEach(p=>{ if(map.hasLayer(p)) p.setStyle({opacity:targetOpacity}); });
+      });
+    }
   };
 
   gareData.forEach(g=>{
     const cats:string[]=g.categoria||[];
     const rawPtsList:([number,number][])[]=(g.polylines as [number,number][][]).filter(pts=>pts&&pts.length>0);
 
+    const entryRef: Entry = {gara:g,polylines:[],startMarkers:[],endMarkers:[],activeStartMarker:null,visible:true,rawPtsList,cats};
+
     // Start marker — sempre visibile, minimal dot con colore categoria
-    const startMarkers: any[] = [];
     if(g.startPt) {
       const markerBg=cats.length>1
         ?`linear-gradient(90deg,${cats.map((c:string)=>catColor[c]??'#888').join(',')})`
@@ -674,12 +763,44 @@ window.__BASE_URL__  = base;
         }),
         zIndexOffset:100,
       });
-      sm.bindPopup(makePopup(g),{maxWidth:260});
-      sm.on('click',(e:any)=>{ L.DomEvent.stopPropagation(e); showEndMarkers(entryRef); });
+      sm.on('click',(e:any)=>{ 
+        L.DomEvent.stopPropagation(e); 
+        showEndMarkers(entryRef);
+        
+        // Apri popup nel punto più a nord della traccia
+        if(rawPtsList && rawPtsList.length > 0) {
+          const allPts = rawPtsList.flat();
+          if(allPts.length > 0) {
+            // Trova il punto con latitudine massima (più a nord)
+            const northPoint = allPts.reduce((p1, p2) => p1[0] > p2[0] ? p1 : p2);
+            const containerPoint = map.latLngToContainerPoint(northPoint);
+            const popupHeight = 220;
+            
+            // Se non c'è spazio sopra, usa anchor inferiore
+            const useBottomAnchor = containerPoint.y < popupHeight;
+            const popupContent = makePopup(g);
+            
+            // Chiudi popup precedente se esiste
+            map.closePopup();
+            
+            // Crea e apri il popup nel punto nord
+            const popup = L.popup({
+              maxWidth: 260,
+              popupAnchor: useBottomAnchor ? [0, 120] : [0, -120],
+              autoPan: true,
+              autoPanPaddingTopLeft: [50, 50],
+              autoPanPaddingBottomRight: [50, 50]
+            })
+              .setLatLng(northPoint)
+              .setContent(popupContent)
+              .openOn(map);
+          }
+        }
+      });
       sm.addTo(map);
-      startMarkers.push(sm);
+      entryRef.startMarkers.push(sm);
     }
-    const entryRef: Entry = {gara:g,polylines:[],startMarkers,endMarkers:[],visible:true,rawPtsList,cats};
+    
     entries.push(entryRef);
   });
 
@@ -730,6 +851,13 @@ window.__BASE_URL__  = base;
           });
         });
       });
+      // Applica opacità giuste se c'è un activeEntry anche dopo il rebuild da zoom
+      if(activeEntry) {
+        entries.forEach(e=>{
+          const targetOpacity = e === activeEntry ? 0.85 : 0.15;
+          e.polylines.forEach(p=>{ if(map.hasLayer(p)) p.setStyle({opacity:targetOpacity}); });
+        });
+      }
     }
   });
 
@@ -758,7 +886,21 @@ window.__BASE_URL__  = base;
       const show=isVis(e.gara);
       e.visible=show;
       e.startMarkers.forEach(m=>{ if(show){if(!map.hasLayer(m))m.addTo(map);}else{if(map.hasLayer(m))map.removeLayer(m);} });
-      if(!show) { e.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);}); }
+      if(!show) { 
+        e.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);}); 
+        // Se esta entry era attiva, puliscila
+        if(activeEntry === e) {
+          if(e.activeStartMarker && map.hasLayer(e.activeStartMarker)) {
+            map.removeLayer(e.activeStartMarker);
+          }
+          e.activeStartMarker=null;
+          // Ripristina opacità normale di tutte le polyline
+          entries.forEach(en=>{
+            en.polylines.forEach(p=>{ if(map.hasLayer(p)) p.setStyle({opacity:0.85}); });
+          });
+          activeEntry=null;
+        }
+      }
       if(show)n++;
     });
     _gridDirty=false; // buildAllPolylines chiama buildGrid internamente
