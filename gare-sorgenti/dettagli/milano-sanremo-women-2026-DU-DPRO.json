@@ -1,0 +1,17 @@
+{
+  "titolo": "Milano Sanremo Women",
+  "race_series": "sanremo",
+  "data": "2026-03-21",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 41.5,
+  "distanza_km": 155.59,
+  "dislivello_m": 1226.0,
+  "luogo": "Imperia, IT",
+  "slug": "milano-sanremo-women-2026-DU-DPRO"
+}
