@@ -1,0 +1,3 @@
+- catalogo, rinomina, modifica salite
+- WT layout
+- animazione percorsi
