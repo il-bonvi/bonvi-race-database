@@ -15,6 +15,22 @@
     "wt": false
   },
   {
+    "slug": "giro-dell-appennino-2026-DU-DPRO",
+    "titolo": "Giro dell'Appennino",
+    "data": "2026-03-22",
+    "year": "2026",
+    "race_series": "appennino",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23"
+    ],
+    "categoria_code": "DPRO",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "milano-sanremo-women-2026-DU-DPRO",
     "titolo": "Milano Sanremo Women",
     "data": "2026-03-21",
