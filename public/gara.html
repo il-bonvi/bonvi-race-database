@@ -868,12 +868,21 @@
             <div class="panel">
                 <div id="elevation-chart"></div>
                 <div class="gradient-legend">
-                    <div id="selection-stats" style="display:flex;gap:2rem;align-items:center;width:100%;font-size:0.85rem;">
-                        <span style="color:#6b7280;font-size:0.8rem;" id="sel-label">Trascina sul grafico per selezionare una sezione</span>
-                        <span id="sel-dist" style="display:none">📏 <strong id="sel-dist-val">--</strong></span>
-                        <span id="sel-gain" style="display:none">↑ <strong id="sel-gain-val" style="color:#16a34a">--</strong></span>
-                        <span id="sel-loss" style="display:none">↓ <strong id="sel-loss-val" style="color:#2563eb">--</strong></span>
-                        <span id="sel-grade" style="display:none">⛰ <strong id="sel-grade-val">--</strong> media</span>
+                    <div id="selection-stats" style="display:flex;gap:2rem;align-items:center;width:100%;font-size:0.85rem;justify-content:space-between;">
+                        <div style="display:flex;gap:2rem;align-items:center;">
+                            <span style="color:#6b7280;font-size:0.8rem;" id="sel-label">Trascina sul grafico per selezionare una sezione</span>
+                            <span id="sel-dist" style="display:none">📏 <strong id="sel-dist-val">--</strong></span>
+                            <span id="sel-gain" style="display:none">↑ <strong id="sel-gain-val" style="color:#16a34a">--</strong></span>
+                            <span id="sel-loss" style="display:none">↓ <strong id="sel-loss-val" style="color:#2563eb">--</strong></span>
+                            <span id="sel-grade" style="display:none">⛰ <strong id="sel-grade-val">--</strong> media</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:#6b7280;white-space:nowrap;">
+                            <span>Smoothing:</span>
+                            <input type="range" id="smoothing-slider" min="0" max="12" value="3" step="1"
+                                style="width:90px;accent-color:#fc5200;"
+                                oninput="updateSmoothing(this.value)">
+                            <span id="smoothing-label" style="min-width:40px;">3 pt</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -975,6 +984,49 @@
     <script>
 let map;
         let elevationControl;
+        let _smoothingWindow = 3;
+        let _gradientLayers = [];
+
+        function drawGradientPolyline() {
+            if (!routeData || !map) return;
+            _gradientLayers.forEach(l => map.removeLayer(l));
+            _gradientLayers = [];
+            const gradients = routeData.points.map(p => p.gradient);
+            const smoothed = smoothGradient(gradients, _smoothingWindow);
+            for (let i = 1; i < routeData.points.length; i++) {
+                const p1 = routeData.points[i-1], p2 = routeData.points[i];
+                const color = getGradientColor(smoothed[i]);
+                const pl = L.polyline([[p1.lat, p1.lon],[p2.lat, p2.lon]], {
+                    color, weight: 4, opacity: 0.9
+                }).addTo(map);
+                _gradientLayers.push(pl);
+            }
+        }
+
+        function updateSmoothing(val) {
+            val = Math.max(0, Math.min(12, parseInt(val)));
+            _smoothingWindow = val;
+            const slider = document.getElementById('smoothing-slider');
+            if (slider) slider.value = val;
+            const label = document.getElementById('smoothing-label');
+            if (label) label.textContent = val + ' pt';
+            if (routeData) {
+                buildElevationChart(window._currentZoomDomain || null);
+                drawGradientPolyline();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const slider = document.getElementById('smoothing-slider');
+            if (slider) {
+                slider.value = _smoothingWindow;
+                slider.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const delta = e.deltaY < 0 ? 1 : -1;
+                    updateSmoothing(_smoothingWindow + delta);
+                }, { passive: false });
+            }
+        });
         let routeData = null;
         let _hoverMapMarker = null;   // marker arancione hover sul chart
         let _zoomStartMarker = null;  // marker inizio zoom
@@ -1314,20 +1366,7 @@ let map;
             applyMapStyle(savedStyle === 'dark' ? 'dark' : 'light');
             
             // Draw gradient-colored polyline
-            const gradients = routeData.points.map(p => p.gradient);
-            const smoothedGradients = smoothGradient(gradients, 6);
-            
-            for (let i = 1; i < routeData.points.length; i++) {
-                const p1 = routeData.points[i-1];
-                const p2 = routeData.points[i];
-                const color = getGradientColor(smoothedGradients[i]);
-                
-                L.polyline([[p1.lat, p1.lon], [p2.lat, p2.lon]], {
-                    color: color,
-                    weight: 4,
-                    opacity: 0.9
-                }).addTo(map);
-            }
+            drawGradientPolyline();
 
             
             
@@ -1696,6 +1735,7 @@ let map;
 
 
               function buildElevationChart(zoomDomain) {
+            window._currentZoomDomain = zoomDomain || null;
             const pts = routeData.points;
             if (!pts || pts.length < 2) return;
 
@@ -1730,7 +1770,7 @@ let map;
                 const dEle  = pts[i].ele  - pts[i-1].ele;
                 rawG.push(dDist > 0 ? (dEle / dDist) * 100 : 0);
             }
-            const smG = smoothGradient(rawG, 6);
+            const smG = smoothGradient(rawG, _smoothingWindow);
 
             const xScale = d3.scaleLinear().domain([d0, d1]).range([0, W]);
 
