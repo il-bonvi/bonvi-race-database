@@ -1655,10 +1655,10 @@ GPX FILE:     {gpx_info}"""
             update_slug()
         
         # ── Gestione Tipo pista: azzera km e dislivello ────────────────────────
-        # Salva i valori di backup per il ripristino
+        # Salva i valori RAW di backup (per singolo giro) per il ripristino
         km_dislivello_backup = {
-            'distanza_km': entries['distanza_km'].get() if entries['distanza_km'].get() else None,
-            'dislivello_m': entries['dislivello_m'].get() if entries['dislivello_m'].get() else None,
+            'distanza_km': km_raw,
+            'dislivello_m': dislivello_raw,
         }
         
         def on_disciplina_change(*args):
@@ -1666,21 +1666,37 @@ GPX FILE:     {gpx_info}"""
             disciplina_val = entries['disciplina'].get()
             
             if disciplina_val == "Tipo pista":
-                # Salva i valori attuali prima di cancellare
-                km_dislivello_backup['distanza_km'] = entries['distanza_km'].get() or None
-                km_dislivello_backup['dislivello_m'] = entries['dislivello_m'].get() or None
+                # Salva i valori RAW prima di cancellare (per ripristino successivo)
+                try:
+                    km_attuale = float(entries['distanza_km'].get()) if entries['distanza_km'].get() else 0
+                    dislivello_attuale = float(entries['dislivello_m'].get()) if entries['dislivello_m'].get() else 0
+                    giri_correnti = int(entries['giri'].get()) if entries['giri'].get() else 1
+                    if giri_correnti > 0:
+                        km_dislivello_backup['distanza_km'] = round(km_attuale / giri_correnti, 2)
+                        km_dislivello_backup['dislivello_m'] = round(dislivello_attuale / giri_correnti)
+                except:
+                    pass
                 
                 # Svuota i campi
                 entries['distanza_km'].delete(0, tk.END)
                 entries['dislivello_m'].delete(0, tk.END)
             else:
-                # Se torna a un'altra disciplina e c'è un backup, ripristina
-                if km_dislivello_backup['distanza_km'] and km_dislivello_backup['distanza_km'] != 'None':
+                # Se torna a un'altra disciplina e c'è un backup, ripristina moltiplicando per i giri correnti
+                try:
+                    giri_correnti = int(entries['giri'].get()) if entries['giri'].get() else 1
+                    if giri_correnti < 1:
+                        giri_correnti = 1
+                except:
+                    giri_correnti = 1
+                
+                if km_dislivello_backup['distanza_km'] is not None:
+                    km_ripristinato = round(km_dislivello_backup['distanza_km'] * giri_correnti, 2)
                     entries['distanza_km'].delete(0, tk.END)
-                    entries['distanza_km'].insert(0, str(km_dislivello_backup['distanza_km']))
-                if km_dislivello_backup['dislivello_m'] and km_dislivello_backup['dislivello_m'] != 'None':
+                    entries['distanza_km'].insert(0, str(km_ripristinato))
+                if km_dislivello_backup['dislivello_m'] is not None:
+                    dislivello_ripristinato = round(km_dislivello_backup['dislivello_m'] * giri_correnti)
                     entries['dislivello_m'].delete(0, tk.END)
-                    entries['dislivello_m'].insert(0, str(km_dislivello_backup['dislivello_m']))
+                    entries['dislivello_m'].insert(0, str(dislivello_ripristinato))
         
         # Se la disciplina è una StringVar, collega il binding
         if isinstance(entries['disciplina'], tk.StringVar):
