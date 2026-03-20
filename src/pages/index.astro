@@ -20,6 +20,14 @@ gare.sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getT
 const anni = [...new Set(gare.map(g => new Date(g.data).getFullYear()))].sort((a,b) => b-a);
 const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
 
+// Conta le tappe delle corse a tappa come percorsi separati
+const totPercorsi = gare.reduce((s, g) => {
+  if (g.tipo === 'corsa_a_tappe' && g.tappe?.length > 0) {
+    return s + g.tappe.length;
+  }
+  return s + 1;
+}, 0);
+
 const MONTH_NAMES = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const groupedByYear = new Map();
 gare.forEach(g => {
@@ -69,6 +77,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <div class="db-stats">
         <div class="db-stat">
           <span class="db-n" id="count-visible">{gare.length}</span>
+          <span class="db-l" data-i18n="stat_races">corse</span>
+        </div>
+        <div class="db-stat">
+          <span class="db-n">{totPercorsi}</span>
           <span class="db-l" data-i18n="stat_routes">percorsi</span>
         </div>
         <div class="db-stat">
@@ -449,7 +461,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     en: {
       nav_upcoming: 'Upcoming Races', nav_archive: 'Archive', nav_bmap: 'BMAP', nav_project: 'The Project',
       nav_faq: 'FAQ', nav_contact: 'Contact',
-      stat_routes: 'routes', stat_km: 'total km', stat_elev: 'total elevation m',
+      stat_races: 'races', stat_routes: 'routes', stat_km: 'total km', stat_elev: 'total elevation m',
       filter_year: 'Year', filter_gender: 'Gender', filter_cat: 'Category',
       filter_disc: 'Discipline', filter_reset: 'Reset filters',
       filter_all_y: 'All', filter_all_g: 'All', filter_all_c: 'All', filter_all_d: 'All',

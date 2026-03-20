@@ -113,6 +113,17 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
 
 const anniSorted = [...anni].sort((a, b) => b - a);
 const MESI_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+// Conta i percorsi univoci per GPX (ogni slug GPX = 1 percorso)
+// Per corse a tappe: conta ogni tappa
+// Se due gare condividono lo stesso GPX: conta 1 sola volta
+const gpxSlugsSet = new Set<string>();
+gareData.forEach(g => {
+  const slugs = g.gpxKey.split('|').filter(Boolean);
+  slugs.forEach(slug => gpxSlugsSet.add(slug));
+});
+const totPercorsi = gpxSlugsSet.size;
+
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
@@ -139,7 +150,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <div class="db-stats">
         <div class="db-stat">
           <span class="db-n" id="count-visible">{gareData.length}</span>
-          <span class="db-l" data-i18n="stat_on_map">gare sulla mappa</span>
+          <span class="db-l" data-i18n="stat_races">corse sulla mappa</span>
+        </div>
+        <div class="db-stat">
+          <span class="db-n">{totPercorsi}</span>
+          <span class="db-l" data-i18n="stat_routes">percorsi sulla mappa</span>
         </div>
       </div>
 
@@ -247,7 +262,7 @@ window.__BASE_URL__  = base;
     filter_all_y: 'All', filter_all_m: 'All', filter_all_g: 'All',
     filter_all_c: 'All', filter_all_d: 'All',
     search_placeholder: 'Search by name, location...',
-    stat_on_map: 'races on map',
+    stat_races: 'races', stat_routes: 'routes', stat_on_map: 'races on map',
     no_results: 'No results', no_results_sub: 'Try changing the filters',
     cat_Allievi: 'U16', cat_Junior: 'Junior', cat_U23: 'U23', cat_Elite: 'Elite',
     gen_Maschile: 'Men', gen_Femminile: 'Women',
