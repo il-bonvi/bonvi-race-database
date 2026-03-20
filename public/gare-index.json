@@ -1,5 +1,20 @@
 [
   {
+    "slug": "3-giorni-giudicarie-2025-DJ",
+    "titolo": "3 Giorni Giudicarie",
+    "data": "2025-06-27",
+    "year": "2025",
+    "race_series": "3 giorni giudicarie",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": "corsa_a_tappe",
+    "n_tappe": 3,
+    "wt": false
+  },
+  {
     "slug": "bizkaikoloreak-2025-DJ",
     "titolo": "Bizkaikoloreak",
     "data": "2025-08-14",

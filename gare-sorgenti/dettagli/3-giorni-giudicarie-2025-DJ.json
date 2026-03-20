@@ -1,0 +1,46 @@
+{
+  "titolo": "3 Giorni Giudicarie",
+  "race_series": "3 giorni giudicarie",
+  "data": "2025-06-27",
+  "data_inizio": "2025-06-27",
+  "data_fine": "2025-06-29",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "luogo": "Trento, IT",
+  "tipo": "corsa_a_tappe",
+  "n_tappe": 3,
+  "distanza_km": 115.48,
+  "dislivello_m": 933,
+  "tappe": [
+    {
+      "numero": 1,
+      "nome": "Pieve di Bono tipo pista",
+      "slug": "3-giorni-giudicarie-S1-2025-DJ",
+      "data": "2025-06-27",
+      "disciplina": "Tipo pista",
+      "_base_km": 0.98,
+      "_base_elev": 6
+    },
+    {
+      "numero": 2,
+      "nome": "Crono Idroland",
+      "slug": "3-giorni-giudicarie-S2-2025-DJ",
+      "data": "2025-06-27",
+      "distanza_km": 15.27,
+      "dislivello_m": 38.0,
+      "disciplina": "ITT"
+    },
+    {
+      "numero": 3,
+      "nome": "Preore",
+      "slug": "3-giorni-giudicarie-S3-2025-DJ",
+      "data": "2025-06-27",
+      "distanza_km": 100.21,
+      "dislivello_m": 895.0,
+      "disciplina": "Strada"
+    }
+  ],
+  "slug": "3-giorni-giudicarie-2025-DJ"
+}

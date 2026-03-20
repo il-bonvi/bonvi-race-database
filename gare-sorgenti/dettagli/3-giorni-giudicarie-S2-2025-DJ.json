@@ -1,0 +1,20 @@
+{
+  "titolo": "3 Giorni Giudicarie — Tappa 2: Crono Idroland",
+  "tipo": "tappa",
+  "nome_tappa": "Crono Idroland",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "3-giorni-giudicarie-2025-DJ",
+  "corsa_a_tappe_titolo": "3 Giorni Giudicarie",
+  "race_series": "3 giorni giudicarie",
+  "data": "2025-06-27",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "ITT",
+  "distanza_km": 15.27,
+  "dislivello_m": 38.0,
+  "velocita_media_kmh": 40.0,
+  "luogo": "Trento, IT",
+  "slug": "3-giorni-giudicarie-S2-2025-DJ"
+}

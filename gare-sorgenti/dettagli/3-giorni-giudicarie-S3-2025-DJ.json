@@ -1,0 +1,20 @@
+{
+  "titolo": "3 Giorni Giudicarie — Tappa 3: Preore",
+  "tipo": "tappa",
+  "nome_tappa": "Preore",
+  "numero_tappa": 3,
+  "corsa_a_tappe_slug": "3-giorni-giudicarie-2025-DJ",
+  "corsa_a_tappe_titolo": "3 Giorni Giudicarie",
+  "race_series": "3 giorni giudicarie",
+  "data": "2025-06-27",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 100.21,
+  "dislivello_m": 895.0,
+  "velocita_media_kmh": 38.0,
+  "luogo": "Trento, IT",
+  "slug": "3-giorni-giudicarie-S3-2025-DJ"
+}
