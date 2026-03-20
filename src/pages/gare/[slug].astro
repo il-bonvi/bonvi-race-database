@@ -17,8 +17,15 @@ let gara = Object.values(garaFiles).map(m => m.default ?? m).find(g => g.slug ==
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 if (!gara) return Astro.redirect(`${base}/`);
 
+const gareBySlug = new Map(
+  Object.values(garaFiles)
+    .map((m: any) => m.default ?? m)
+    .map((g: any) => [g.slug, g])
+);
+
 const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
 const isTappa = gara.tipo === 'tappa';
+const isTipoPista = gara.disciplina === 'Tipo pista';
 
 // Per navigazione tra tappe: carica la corsa a tappe parent se necessario
 let tappeDelleGara: any[] = [];
@@ -57,7 +64,16 @@ const genereShade = `radial-gradient(ellipse 140px 52px at 260px 0%, rgba(${gene
 
 // Per corse a tappe: ordina tappe per numero
 const tappe = isCorsaATappe && gara.tappe
-  ? [...gara.tappe].sort((a: any, b: any) => (a.numero ?? 0) - (b.numero ?? 0))
+  ? [...gara.tappe]
+      .sort((a: any, b: any) => (a.numero ?? 0) - (b.numero ?? 0))
+      .map((t: any) => {
+        const dettagliTappa = gareBySlug.get(t.slug) || {};
+        return {
+          ...t,
+          _base_km: t._base_km ?? dettagliTappa._base_km,
+          _base_elev: t._base_elev ?? dettagliTappa._base_elev,
+        };
+      })
   : [];
 
 // Per corse a tappe: navigazione tra anni della stessa serie
@@ -337,6 +353,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
       display: flex; gap: 1.1rem; margin-top: 0.25rem;
     }
     .stage-stat { display: flex; flex-direction: column; gap: 0.1rem; }
+    .stage-stats .stage-stat:first-child { min-width: 96px; }
     .stage-stat-v { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 500; color: var(--text); }
     .stage-stat-l { font-family: var(--font-mono); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); }
 
@@ -496,17 +513,35 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
       )}
     </div>
     <div class="bar-stats">
-      {gara.distanza_km && (
-        <div class="bstat">
-          <span class="bstat-v">{formatDistanza(gara.distanza_km)}</span>
-          <span class="bstat-l">{isCorsaATappe ? 'tot dist' : 'dist'}</span>
-        </div>
+      {isTipoPista ? (
+        gara._base_km && (
+          <div class="bstat">
+            <span class="bstat-v">{formatDistanza(gara._base_km)}</span>
+            <span class="bstat-l">dist lap</span>
+          </div>
+        )
+      ) : (
+        gara.distanza_km && (
+          <div class="bstat">
+            <span class="bstat-v">{formatDistanza(gara.distanza_km)}</span>
+            <span class="bstat-l">{isCorsaATappe ? 'tot dist' : 'dist'}</span>
+          </div>
+        )
       )}
-      {gara.dislivello_m && (
-        <div class="bstat">
-          <span class="bstat-v">{formatDislivello(gara.dislivello_m)}</span>
-          <span class="bstat-l">{isCorsaATappe ? 'tot D+' : 'D+'}</span>
-        </div>
+      {isTipoPista ? (
+        gara._base_elev && (
+          <div class="bstat">
+            <span class="bstat-v">{formatDislivello(gara._base_elev)}</span>
+            <span class="bstat-l">D+ lap</span>
+          </div>
+        )
+      ) : (
+        gara.dislivello_m && (
+          <div class="bstat">
+            <span class="bstat-v">{formatDislivello(gara.dislivello_m)}</span>
+            <span class="bstat-l">{isCorsaATappe ? 'tot D+' : 'D+'}</span>
+          </div>
+        )
       )}
       {(gara.data_inizio || gara.data) && (
         <div class="bstat">
@@ -575,17 +610,36 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
                   {tappa.disciplina && <span>{disciplinaIcon(tappa.disciplina) ?? '·'} {tappa.disciplina}</span>}
                 </div>
                 <div class="stage-stats">
-                  {tappa.distanza_km && (
-                    <div class="stage-stat">
-                      <span class="stage-stat-v">{formatDistanza(tappa.distanza_km)}</span>
-                      <span class="stage-stat-l">dist</span>
-                    </div>
-                  )}
-                  {tappa.dislivello_m && (
-                    <div class="stage-stat">
-                      <span class="stage-stat-v">{formatDislivello(tappa.dislivello_m)}</span>
-                      <span class="stage-stat-l">D+</span>
-                    </div>
+                  {tappa.disciplina === 'Tipo pista' ? (
+                    <>
+                      {tappa._base_km && (
+                        <div class="stage-stat">
+                          <span class="stage-stat-v">{formatDistanza(tappa._base_km)}</span>
+                          <span class="stage-stat-l">dist lap</span>
+                        </div>
+                      )}
+                      {tappa._base_elev && (
+                        <div class="stage-stat">
+                          <span class="stage-stat-v">{formatDislivello(tappa._base_elev)}</span>
+                          <span class="stage-stat-l">D+ lap</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {tappa.distanza_km && (
+                        <div class="stage-stat">
+                          <span class="stage-stat-v">{formatDistanza(tappa.distanza_km)}</span>
+                          <span class="stage-stat-l">dist</span>
+                        </div>
+                      )}
+                      {tappa.dislivello_m && (
+                        <div class="stage-stat">
+                          <span class="stage-stat-v">{formatDislivello(tappa.dislivello_m)}</span>
+                          <span class="stage-stat-l">D+</span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

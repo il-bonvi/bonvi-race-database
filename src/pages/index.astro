@@ -80,7 +80,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           <span class="db-l" data-i18n="stat_races">corse</span>
         </div>
         <div class="db-stat">
-          <span class="db-n">{totPercorsi}</span>
+          <span class="db-n" id="routes-visible">{totPercorsi}</span>
           <span class="db-l" data-i18n="stat_routes">percorsi</span>
         </div>
         <div class="db-stat">
@@ -210,6 +210,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
                             data-luogo={(g.luogo ?? '').toLowerCase()}
                             data-km={g.distanza_km ?? 0}
                             data-dislivello={g.dislivello_m ?? 0}
+                            data-percorsi={(g.tipo === 'corsa_a_tappe' && g.tappe?.length > 0) ? g.tappe.length : 1}
                             data-month={monthKey}
                             data-date={new Date(g.data).getTime()}
                           >
@@ -248,6 +249,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const state = { anno: 'all', genere: 'all', categoria: 'all', disciplina: 'all', q: '', sort: 'data-asc' };
   const cards = Array.from(document.querySelectorAll('.card-wrap')) as HTMLElement[];
   const counter = document.getElementById('count-visible') as HTMLElement;
+  const routesCounter = document.getElementById('routes-visible') as HTMLElement;
   const kmCounter = document.getElementById('km-visible') as HTMLElement;
   const dislivelloCounter = document.getElementById('dislivello-visible') as HTMLElement;
   const noRes = document.getElementById('no-results') as HTMLElement;
@@ -275,6 +277,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   function applyAll() {
     let visible = 0;
+    let visibleRoutes = 0;
     let totalKm = 0;
     let totalDislivello = 0;
 
@@ -298,12 +301,14 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       card.style.display = show ? '' : 'none';
       if (show) {
         visible++;
+        visibleRoutes += parseInt(card.dataset.percorsi ?? '1', 10) || 1;
         totalKm += parseFloat(card.dataset.km ?? '0') || 0;
         totalDislivello += parseFloat(card.dataset.dislivello ?? '0') || 0;
       }
     });
 
     counter.textContent = String(visible);
+    routesCounter.textContent = String(visibleRoutes);
     kmCounter.textContent = totalKm.toFixed(0);
     dislivelloCounter.textContent = totalDislivello.toFixed(0);
 

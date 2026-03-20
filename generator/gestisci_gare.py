@@ -397,6 +397,9 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list):
             "disciplina":   s.get('disciplina', 'Strada'),
             "giri":         s.get('giri', 1) if s.get('giri', 1) > 1 else None,
         }
+        if s.get('disciplina') == 'Tipo pista':
+            tappa_meta['_base_km'] = s.get('_base_km')
+            tappa_meta['_base_elev'] = s.get('_base_elev')
         tappe_meta.append({k: v for k, v in tappa_meta.items() if v is not None})
 
     # Aggiorna i campi del main_data
@@ -440,6 +443,12 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list):
             "luogo":                s.get('luogo') or main_data.get('luogo'),
             "slug":                 stage_slug,
         }
+        # Aggiungi i dati del singolo giro se è Tipo pista
+        if s.get('disciplina') == 'Tipo pista':
+            if s.get('_base_km') is not None:
+                stage_data['_base_km'] = s.get('_base_km')
+            if s.get('_base_elev') is not None:
+                stage_data['_base_elev'] = s.get('_base_elev')
         # Eredita WT dalla corsa a tappe principale
         if main_data.get('wt'):
             stage_data['wt'] = True
@@ -1336,6 +1345,11 @@ GPX FILE:     {gpx_info}"""
         dislivello_iniziale = float(data.get('dislivello_m', 0)) or 0
         km_raw = km_iniziale / giri_iniziali if giri_iniziali > 0 else 0
         dislivello_raw = dislivello_iniziale / giri_iniziali if giri_iniziali > 0 else 0
+        if data.get('disciplina') == 'Tipo pista':
+            if data.get('_base_km') is not None:
+                km_raw = float(data.get('_base_km') or 0)
+            if data.get('_base_elev') is not None:
+                dislivello_raw = float(data.get('_base_elev') or 0)
         
         # Ottieni lista dei file GPX disponibili per il riferimento
         gpx_files_list = sorted(GPX_DIR.glob("*-gpx.json"))
@@ -1721,15 +1735,20 @@ GPX FILE:     {gpx_info}"""
                     return
                 
                 # Aggiorna i dati con le informazioni dal GPX
+                is_pista = entries['disciplina'].get() == "Tipo pista"
                 if gpx_data.get('distanza_km'):
-                    data['distanza_km'] = gpx_data['distanza_km']
-                    entries['distanza_km'].delete(0, tk.END)
-                    entries['distanza_km'].insert(0, str(gpx_data['distanza_km']))
+                    km_dislivello_backup['distanza_km'] = gpx_data['distanza_km']
+                    if not is_pista:
+                        data['distanza_km'] = gpx_data['distanza_km']
+                        entries['distanza_km'].delete(0, tk.END)
+                        entries['distanza_km'].insert(0, str(gpx_data['distanza_km']))
                 
                 if gpx_data.get('dislivello_m'):
-                    data['dislivello_m'] = gpx_data['dislivello_m']
-                    entries['dislivello_m'].delete(0, tk.END)
-                    entries['dislivello_m'].insert(0, str(gpx_data['dislivello_m']))
+                    km_dislivello_backup['dislivello_m'] = gpx_data['dislivello_m']
+                    if not is_pista:
+                        data['dislivello_m'] = gpx_data['dislivello_m']
+                        entries['dislivello_m'].delete(0, tk.END)
+                        entries['dislivello_m'].insert(0, str(gpx_data['dislivello_m']))
                 
                 # Salva i punti GPX nei dati (save_race() li sposterà nel file separato)
                 data['gpx_points'] = gpx_data['gpx_points']
@@ -1814,9 +1833,15 @@ GPX FILE:     {gpx_info}"""
                 data[key] = val
             
             # Se è Tipo pista, forza distanza_km e dislivello_m a None (non conteggiati)
+            # e salva SOLO metriche lap in _base_km/_base_elev.
             if data.get('disciplina') == 'Tipo pista':
                 data['distanza_km'] = None
                 data['dislivello_m'] = None
+                data['_base_km'] = km_dislivello_backup.get('distanza_km')
+                data['_base_elev'] = km_dislivello_backup.get('dislivello_m')
+            else:
+                data.pop('_base_km', None)
+                data.pop('_base_elev', None)
             
             # Se è nuova gara, genera slug automaticamente
             if is_new and (not new_slug or new_slug.strip() == ""):
@@ -1905,6 +1930,15 @@ GPX FILE:     {gpx_info}"""
                 _giri = max(1, t.get('giri', 1))
                 _km   = t.get('distanza_km')
                 _elev = t.get('dislivello_m')
+                
+                # Se Tipo pista, usa i dati del singolo giro dal JSON se presenti
+                if tappa_completa.get('disciplina') == 'Tipo pista':
+                    _base_km   = tappa_completa.get('_base_km') or (_km / _giri if _km else None)
+                    _base_elev = tappa_completa.get('_base_elev') or (_elev / _giri if _elev else None)
+                else:
+                    _base_km   = round(_km / _giri, 4) if _km else None
+                    _base_elev = round(_elev / _giri) if _elev else None
+                
                 stages.append({
                     'numero':       t.get('numero', len(stages) + 1),
                     'nome':         t.get('nome', ''),
@@ -1917,8 +1951,8 @@ GPX FILE:     {gpx_info}"""
                     'luogo':        tappa_completa.get('luogo') or t.get('luogo'),
                     'velocita_media_kmh': tappa_completa.get('velocita_media_kmh') or t.get('velocita_media_kmh'),
                     'gpx_points':   gpx_pts,
-                    '_base_km':     round(_km / _giri, 4) if _km else None,
-                    '_base_elev':   round(_elev / _giri) if _elev else None,
+                    '_base_km':     _base_km,
+                    '_base_elev':   _base_elev,
                 })
 
         selected_stage = [None]  # indice tappa selezionata
@@ -2488,14 +2522,20 @@ GPX FILE:     {gpx_info}"""
             except (ValueError, TypeError):
                 giri = 1
             giri = max(1, giri)
+            
+            # Se è Tipo pista, salva solo in _base_km/_base_elev (non in distanza_km/dislivello_m)
+            is_pista = stage_entries['disciplina'].get() == 'Tipo pista'
+            
             if gpx_data.get('distanza_km'):
-                km_val = round(gpx_data['distanza_km'] * giri, 2)
-                stage_entries['distanza_km'].set(str(km_val))
-                stages[idx]['distanza_km'] = km_val
+                if not is_pista:
+                    km_val = round(gpx_data['distanza_km'] * giri, 2)
+                    stage_entries['distanza_km'].set(str(km_val))
+                    stages[idx]['distanza_km'] = km_val
             if gpx_data.get('dislivello_m'):
-                elev_val = round(gpx_data['dislivello_m'] * giri)
-                stage_entries['dislivello_m'].set(str(elev_val))
-                stages[idx]['dislivello_m'] = elev_val
+                if not is_pista:
+                    elev_val = round(gpx_data['dislivello_m'] * giri)
+                    stage_entries['dislivello_m'].set(str(elev_val))
+                    stages[idx]['dislivello_m'] = elev_val
             
             # Auto-rileva luogo dalle coordinate del GPX
             if gpx_data.get('center_lat') and gpx_data.get('center_lon'):
@@ -2581,6 +2621,14 @@ GPX FILE:     {gpx_info}"""
             if stages[idx]['disciplina'] == 'Tipo pista':
                 stages[idx]['distanza_km'] = None
                 stages[idx]['dislivello_m'] = None
+                # Preserva i dati del singolo giro (_base_km e _base_elev) se presenti
+                # (sono stati salvati dal caricamento GPX o dal backup del cambio disciplina)
+                if not stages[idx].get('_base_km'):
+                    if km_dislivello_backup_s['distanza_km'] is not None:
+                        stages[idx]['_base_km'] = km_dislivello_backup_s['distanza_km']
+                if not stages[idx].get('_base_elev'):
+                    if km_dislivello_backup_s['dislivello_m'] is not None:
+                        stages[idx]['_base_elev'] = km_dislivello_backup_s['dislivello_m']
             
             _refresh_stages_list()
 
@@ -2648,10 +2696,15 @@ GPX FILE:     {gpx_info}"""
                 gpx_status_var.set("Nessun GPX caricato")
                 gpx_status_lbl.config(fg="#7a746b")
             
-            # Se la tappa è "Tipo pista", svuota km e dislivello (il callback di cambio disciplina non scatta)
+            # Se la tappa è "Tipo pista", svuota km e dislivello e carica il backup dai dati salvati
             if s.get('disciplina') == 'Tipo pista':
                 stage_entries['distanza_km'].set('')
                 stage_entries['dislivello_m'].set('')
+                # Se presenti nei dati della tappa, carica i dati del singolo giro nel backup
+                if s.get('_base_km') is not None:
+                    km_dislivello_backup_s['distanza_km'] = s.get('_base_km')
+                if s.get('_base_elev') is not None:
+                    km_dislivello_backup_s['dislivello_m'] = s.get('_base_elev')
 
         def _on_stage_select(event):
             sel = stage_listbox.curselection()

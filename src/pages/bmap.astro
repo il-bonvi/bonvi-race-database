@@ -153,7 +153,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           <span class="db-l" data-i18n="stat_races">corse sulla mappa</span>
         </div>
         <div class="db-stat">
-          <span class="db-n">{totPercorsi}</span>
+          <span class="db-n" id="routes-visible">{totPercorsi}</span>
           <span class="db-l" data-i18n="stat_routes">percorsi sulla mappa</span>
         </div>
       </div>
@@ -887,6 +887,7 @@ window.__BASE_URL__  = base;
 
   const state:Record<string,string>={anno:'all',mese:'all',genere:'all',categoria:'all',disciplina:'all',q:''};
   const counter=document.getElementById('count-visible') as HTMLElement;
+  const routesCounter=document.getElementById('routes-visible') as HTMLElement;
   const noRes=document.getElementById('no-results-map') as HTMLElement;
 
   const isVis=(g:any)=>{
@@ -897,6 +898,7 @@ window.__BASE_URL__  = base;
 
   function applyAll(){
     let n=0;
+    const visibleGpxSlugs = new Set<string>();
     entries.forEach(e=>{
       const show=isVis(e.gara);
       e.visible=show;
@@ -916,11 +918,16 @@ window.__BASE_URL__  = base;
           activeEntry=null;
         }
       }
-      if(show)n++;
+      if(show) {
+        n++;
+        const slugs = e.gara.gpxKey.split('|').filter((s: string)=>!!s);
+        slugs.forEach((s: string)=>visibleGpxSlugs.add(s));
+      }
     });
     _gridDirty=false; // buildAllPolylines chiama buildGrid internamente
     buildAllPolylines();
     counter.textContent=String(n);
+    if(routesCounter) routesCounter.textContent=String(visibleGpxSlugs.size);
     noRes.style.display=n===0?'flex':'none';
   }
 

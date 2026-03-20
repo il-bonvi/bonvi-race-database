@@ -2,6 +2,7 @@
 import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon, formatCategoria } from '../lib/gare.js';
 const { gara } = Astro.props;
 const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
+const isTipoPista = gara.disciplina === 'Tipo pista';
 const icon  = disciplinaIcon(gara.disciplina);
 const base  = import.meta.env.BASE_URL.replace(/\/$/, '');
 const categorie: string[] = (Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria]).filter(Boolean);
@@ -51,17 +52,35 @@ const genereColor = gara.genere === 'Femminile'
   </div>
 
   <div class="card-stats">
-    {gara.distanza_km && (
-      <div class="stat">
-        <span class="stat-v">{formatDistanza(gara.distanza_km)}</span>
-        <span class="stat-l">{isCorsaATappe ? 'tot dist' : 'dist'}</span>
-      </div>
+    {isTipoPista ? (
+      gara._base_km && (
+        <div class="stat">
+          <span class="stat-v">{formatDistanza(gara._base_km)}</span>
+          <span class="stat-l">dist lap</span>
+        </div>
+      )
+    ) : (
+      gara.distanza_km && (
+        <div class="stat">
+          <span class="stat-v">{formatDistanza(gara.distanza_km)}</span>
+          <span class="stat-l">{isCorsaATappe ? 'tot dist' : 'dist'}</span>
+        </div>
+      )
     )}
-    {gara.dislivello_m && (
-      <div class="stat">
-        <span class="stat-v">{formatDislivello(gara.dislivello_m)}</span>
-        <span class="stat-l">{isCorsaATappe ? 'tot D+' : 'D+'}</span>
-      </div>
+    {isTipoPista ? (
+      gara._base_elev && (
+        <div class="stat">
+          <span class="stat-v">{formatDislivello(gara._base_elev)}</span>
+          <span class="stat-l">D+ lap</span>
+        </div>
+      )
+    ) : (
+      gara.dislivello_m && (
+        <div class="stat">
+          <span class="stat-v">{formatDislivello(gara.dislivello_m)}</span>
+          <span class="stat-l">{isCorsaATappe ? 'tot D+' : 'D+'}</span>
+        </div>
+      )
     )}
     {(isCorsaATappe ? (gara.data_inizio || gara.data) : gara.data) && (
       <div class="stat stat-date">
