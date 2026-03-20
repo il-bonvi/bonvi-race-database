@@ -2387,21 +2387,35 @@ GPX FILE:     {gpx_info}"""
             disciplina_val = disc_s_var.get()
             
             if disciplina_val == "Tipo pista":
-                # Salva i valori attuali prima di cancellare
-                km_dislivello_backup_s['distanza_km'] = stage_entries['distanza_km'].get() or None
-                km_dislivello_backup_s['dislivello_m'] = stage_entries['dislivello_m'].get() or None
+                # Salva i valori RAW prima di cancellare (per ripristino successivo)
+                try:
+                    km_attuale = float(stage_entries['distanza_km'].get()) if stage_entries['distanza_km'].get() else 0
+                    dislivello_attuale = float(stage_entries['dislivello_m'].get()) if stage_entries['dislivello_m'].get() else 0
+                    giri_correnti = int(stage_entries['giri'].get()) if stage_entries['giri'].get() else 1
+                    if giri_correnti > 0:
+                        km_dislivello_backup_s['distanza_km'] = round(km_attuale / giri_correnti, 2)
+                        km_dislivello_backup_s['dislivello_m'] = round(dislivello_attuale / giri_correnti)
+                except:
+                    pass
                 
-                # Svuota i campi
-                stage_entries['distanza_km'].delete(0, tk.END)
-                stage_entries['dislivello_m'].delete(0, tk.END)
+                # Svuota i campi usando il widget Entry direttamente
+                stage_entries['distanza_km'].set('')
+                stage_entries['dislivello_m'].set('')
             else:
-                # Se torna a un'altra disciplina e c'è un backup, ripristina
-                if km_dislivello_backup_s['distanza_km'] and km_dislivello_backup_s['distanza_km'] != 'None':
-                    stage_entries['distanza_km'].delete(0, tk.END)
-                    stage_entries['distanza_km'].insert(0, str(km_dislivello_backup_s['distanza_km']))
-                if km_dislivello_backup_s['dislivello_m'] and km_dislivello_backup_s['dislivello_m'] != 'None':
-                    stage_entries['dislivello_m'].delete(0, tk.END)
-                    stage_entries['dislivello_m'].insert(0, str(km_dislivello_backup_s['dislivello_m']))
+                # Se torna a un'altra disciplina e c'è un backup, ripristina moltiplicando per i giri correnti
+                try:
+                    giri_correnti = int(stage_entries['giri'].get()) if stage_entries['giri'].get() else 1
+                    if giri_correnti < 1:
+                        giri_correnti = 1
+                except:
+                    giri_correnti = 1
+                
+                if km_dislivello_backup_s['distanza_km'] is not None:
+                    km_ripristinato = round(km_dislivello_backup_s['distanza_km'] * giri_correnti, 2)
+                    stage_entries['distanza_km'].set(str(km_ripristinato))
+                if km_dislivello_backup_s['dislivello_m'] is not None:
+                    dislivello_ripristinato = round(km_dislivello_backup_s['dislivello_m'] * giri_correnti)
+                    stage_entries['dislivello_m'].set(str(dislivello_ripristinato))
         
         disc_s_var.trace_add("write", _on_stage_disciplina_change)
 
@@ -2612,6 +2626,11 @@ GPX FILE:     {gpx_info}"""
             if idx is None or idx >= len(stages):
                 return
             s = stages[idx]
+            
+            # Reset backup quando carica una tappa nuova
+            km_dislivello_backup_s['distanza_km'] = None
+            km_dislivello_backup_s['dislivello_m'] = None
+            
             numero_tappa_var.set(int(s.get('numero', idx + 1)))
             stage_entries['nome'].set(s.get('nome', ''))
             stage_entries['data'].set(s.get('data', ''))
@@ -2628,6 +2647,11 @@ GPX FILE:     {gpx_info}"""
             else:
                 gpx_status_var.set("Nessun GPX caricato")
                 gpx_status_lbl.config(fg="#7a746b")
+            
+            # Se la tappa è "Tipo pista", svuota km e dislivello (il callback di cambio disciplina non scatta)
+            if s.get('disciplina') == 'Tipo pista':
+                stage_entries['distanza_km'].set('')
+                stage_entries['dislivello_m'].set('')
 
         def _on_stage_select(event):
             sel = stage_listbox.curselection()
