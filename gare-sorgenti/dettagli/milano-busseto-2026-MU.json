@@ -1,0 +1,16 @@
+{
+  "titolo": "Milano Busseto",
+  "race_series": "milano busseto",
+  "data": "2026-04-11",
+  "genere": "Maschile",
+  "categoria": [
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 146.49,
+  "dislivello_m": 1736.0,
+  "luogo": "Parma, IT",
+  "slug": "milano-busseto-2026-MU"
+}

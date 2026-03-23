@@ -1,0 +1,16 @@
+{
+  "titolo": "Reda",
+  "race_series": "reda",
+  "data": "2026-04-05",
+  "genere": "Maschile",
+  "categoria": [
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 41.0,
+  "distanza_km": 148.14,
+  "dislivello_m": 1543.0,
+  "luogo": "Ravenna, IT",
+  "slug": "reda-2026-MU"
+}

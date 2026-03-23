@@ -46,6 +46,21 @@
     "wt": false
   },
   {
+    "slug": "milano-busseto-2026-MU",
+    "titolo": "Milano Busseto",
+    "data": "2026-04-11",
+    "year": "2026",
+    "race_series": "milano busseto",
+    "genere": "Maschile",
+    "categoria": [
+      "U23"
+    ],
+    "categoria_code": "MU",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "milano-sanremo-women-2026-DU-DPRO",
     "titolo": "Milano Sanremo Women",
     "data": "2026-03-21",
@@ -117,6 +132,21 @@
       "Junior"
     ],
     "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "reda-2026-MU",
+    "titolo": "Reda",
+    "data": "2026-04-05",
+    "year": "2026",
+    "race_series": "reda",
+    "genere": "Maschile",
+    "categoria": [
+      "U23"
+    ],
+    "categoria_code": "MU",
     "tipo": null,
     "n_tappe": null,
     "wt": false
