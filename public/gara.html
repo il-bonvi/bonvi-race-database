@@ -334,6 +334,97 @@
             color: #6b7280;
         }
 
+        /* ── Climb Params Panel ── */
+        .climbs-params-btn {
+            background: none;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s;
+            font-family: 'Inter', sans-serif;
+        }
+        .climbs-params-btn:hover {
+            border-color: #fc5200;
+            color: #fc5200;
+        }
+        .climbs-params-panel {
+            display: none;
+            padding: 1rem 1.25rem;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .climbs-params-panel.open {
+            display: flex;
+        }
+        .param-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 130px;
+        }
+        .param-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .param-input {
+            width: 100%;
+            padding: 5px 8px;
+            font-size: 0.88rem;
+            border: 1px solid #d1d5db;
+            border-radius: 5px;
+            font-family: 'Inter', sans-serif;
+            background: white;
+            color: #1a1a1a;
+            transition: border-color 0.15s;
+        }
+        .param-input:focus {
+            outline: none;
+            border-color: #fc5200;
+        }
+        .param-hint {
+            font-size: 0.68rem;
+            color: #9ca3af;
+        }
+        .params-apply-btn {
+            padding: 6px 16px;
+            background: #fc5200;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: background 0.15s;
+            align-self: flex-end;
+        }
+        .params-apply-btn:hover { background: #e04800; }
+        .params-reset-btn {
+            padding: 6px 12px;
+            background: white;
+            color: #6b7280;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.15s;
+            align-self: flex-end;
+        }
+        .params-reset-btn:hover { border-color: #6b7280; color: #1a1a1a; }
+
         .difficulty-legend {
             padding: 1rem 1.25rem;
             border-top: 1px solid #e5e7eb;
@@ -907,6 +998,39 @@
             <div class="climbs-section" id="climbs-section" style="display: none;">
                 <div class="climbs-header">
                     <div class="climbs-title">⛰️ Salite Rilevate <span id="climbs-count" style="color: #6b7280; font-weight: 400; font-size: 0.9rem;"></span></div>
+                    <button class="climbs-params-btn" onclick="toggleClimbParams()" id="climbs-params-btn">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        Parametri
+                    </button>
+                </div>
+                <div class="climbs-params-panel" id="climbs-params-panel">
+                    <div class="param-group">
+                        <label class="param-label">Pendenza min. inizio</label>
+                        <input type="number" class="param-input" id="param-min-grade" value="3.5" min="1" max="15" step="0.5">
+                        <span class="param-hint">% — soglia per iniziare una salita</span>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Pendenza max. fine</label>
+                        <input type="number" class="param-input" id="param-max-grade-end" value="1" min="0" max="5" step="0.5">
+                        <span class="param-hint">% — soglia per terminare una salita</span>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Segmenti minimi</label>
+                        <input type="number" class="param-input" id="param-min-segments" value="7" min="2" max="30" step="1">
+                        <span class="param-hint">× 50 m = lunghezza minima</span>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Gap massimo</label>
+                        <input type="number" class="param-input" id="param-max-gap" value="5" min="0" max="20" step="1">
+                        <span class="param-hint">segmenti di pianura tollerati</span>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Difficoltà minima</label>
+                        <input type="number" class="param-input" id="param-min-difficulty" value="20" min="1" max="200" step="5">
+                        <span class="param-hint">pendenza² × km (filtra salitelle)</span>
+                    </div>
+                    <button class="params-apply-btn" onclick="applyClimbParams()">▶ Ricalcola</button>
+                    <button class="params-reset-btn" onclick="resetClimbParams()">Reset</button>
                 </div>
                 <div id="climbs-list" class="climbs-list"></div>
                 <div class="difficulty-legend" style="display: block;">
@@ -2154,15 +2278,57 @@ let map;
 
         
         // Climb Detection Functions
+        const CLIMB_PARAMS_DEFAULTS = {
+            minGrade: 3.5,
+            maxGradeEnd: 1,
+            minSegments: 7,
+            maxGap: 5,
+            minDifficulty: 20
+        };
+
+        function toggleClimbParams() {
+            const panel = document.getElementById('climbs-params-panel');
+            const btn = document.getElementById('climbs-params-btn');
+            panel.classList.toggle('open');
+            btn.style.color = panel.classList.contains('open') ? '#fc5200' : '';
+            btn.style.borderColor = panel.classList.contains('open') ? '#fc5200' : '';
+        }
+
+        function applyClimbParams() {
+            // Reset slider initialization so it recalculates on next climb selection
+            const slider = document.getElementById('sections-slider');
+            if (slider) slider.removeAttribute('data-initialized');
+            // Hide detail chart
+            closeClimbDetail();
+            // Re-run detection
+            detectAndDisplayClimbs();
+        }
+
+        function resetClimbParams() {
+            document.getElementById('param-min-grade').value      = CLIMB_PARAMS_DEFAULTS.minGrade;
+            document.getElementById('param-max-grade-end').value  = CLIMB_PARAMS_DEFAULTS.maxGradeEnd;
+            document.getElementById('param-min-segments').value   = CLIMB_PARAMS_DEFAULTS.minSegments;
+            document.getElementById('param-max-gap').value        = CLIMB_PARAMS_DEFAULTS.maxGap;
+            document.getElementById('param-min-difficulty').value = CLIMB_PARAMS_DEFAULTS.minDifficulty;
+            applyClimbParams();
+        }
+
         function detectAndDisplayClimbs() {
             if (!routeData || !routeData.points) return;
+
+            // Read params from UI (with fallback to defaults)
+            const pMinGrade      = parseFloat(document.getElementById('param-min-grade')?.value)      || CLIMB_PARAMS_DEFAULTS.minGrade;
+            const pMaxGradeEnd   = parseFloat(document.getElementById('param-max-grade-end')?.value)  || CLIMB_PARAMS_DEFAULTS.maxGradeEnd;
+            const pMinSegments   = parseInt(document.getElementById('param-min-segments')?.value)      || CLIMB_PARAMS_DEFAULTS.minSegments;
+            const pMaxGap        = parseInt(document.getElementById('param-max-gap')?.value)           ?? CLIMB_PARAMS_DEFAULTS.maxGap;
+            const pMinDifficulty = parseFloat(document.getElementById('param-min-difficulty')?.value)  || CLIMB_PARAMS_DEFAULTS.minDifficulty;
             
             const SECTION_LENGTH = 50; // meters
-            const MIN_SEGMENTS = 7; 
-            const MIN_GRADE = 3.5;
-            const MAX_GRADE_END = 1;
-            const MAX_GAP_SEGMENTS = 5;
-            const MIN_DIFFICULTY = 20;
+            const MIN_SEGMENTS = pMinSegments;
+            const MIN_GRADE = pMinGrade;
+            const MAX_GRADE_END = pMaxGradeEnd;
+            const MAX_GAP_SEGMENTS = pMaxGap;
+            const MIN_DIFFICULTY = pMinDifficulty;
             
             const sections = [];
             let currentStartIndex = 0;
