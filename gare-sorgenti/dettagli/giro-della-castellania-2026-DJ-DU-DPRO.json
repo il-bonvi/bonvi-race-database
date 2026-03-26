@@ -1,0 +1,18 @@
+{
+  "titolo": "Giro della Castellania",
+  "race_series": "giro della castellania",
+  "data": "2026-04-11",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 78.47,
+  "dislivello_m": 824.0,
+  "luogo": "Novara, IT",
+  "slug": "giro-della-castellania-2026-DJ-DU-DPRO"
+}

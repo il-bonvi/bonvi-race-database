@@ -46,6 +46,23 @@
     "wt": false
   },
   {
+    "slug": "giro-della-castellania-2026-DJ-DU-DPRO",
+    "titolo": "Giro della Castellania",
+    "data": "2026-04-11",
+    "year": "2026",
+    "race_series": "giro della castellania",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DPRO",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "milano-busseto-2026-MU",
     "titolo": "Milano Busseto",
     "data": "2026-04-11",
