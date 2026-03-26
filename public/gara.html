@@ -2999,6 +2999,15 @@ let map;
                         );
                     }
                 });
+                slider.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const delta = e.deltaY < 0 ? 1 : -1;
+                    const newVal = Math.min(slider.max, Math.max(slider.min, parseInt(slider.value) + delta));
+                    if (newVal !== parseInt(slider.value)) {
+                        slider.value = newVal;
+                        slider.dispatchEvent(new Event('input'));
+                    }
+                }, { passive: false });
             }
         });
 
