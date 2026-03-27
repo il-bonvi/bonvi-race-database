@@ -1,0 +1,18 @@
+{
+  "titolo": "Fossano",
+  "race_series": "fossano",
+  "data": "2026-04-12",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 7,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 88.27,
+  "dislivello_m": 371.0,
+  "luogo": "Cuneo, IT",
+  "slug": "fossano-2026-DJ-DU-DPRO"
+}
