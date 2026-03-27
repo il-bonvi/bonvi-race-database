@@ -139,6 +139,23 @@
     "wt": false
   },
   {
+    "slug": "pasqualando-2026-DJ-DU-DPRO",
+    "titolo": "Pasqualando",
+    "data": "2026-04-05",
+    "year": "2026",
+    "race_series": "pasqualando",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DPRO",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "piccolo-trofeo-alfredo-binda-2026-DJ",
     "titolo": "Piccolo Trofeo Alfredo Binda",
     "data": "2026-03-15",

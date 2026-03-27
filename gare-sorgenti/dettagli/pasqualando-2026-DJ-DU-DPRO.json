@@ -1,0 +1,18 @@
+{
+  "titolo": "Pasqualando",
+  "race_series": "pasqualando",
+  "data": "2026-04-05",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Criterium",
+  "giri": 29,
+  "velocita_media_kmh": 40.5,
+  "distanza_km": 63.22,
+  "dislivello_m": 87.0,
+  "luogo": "Pisa, IT",
+  "slug": "pasqualando-2026-DJ-DU-DPRO"
+}
