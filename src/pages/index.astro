@@ -297,7 +297,13 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       const q = state.q.toLowerCase();
       const matchQ = !q || titolo.includes(q) || luogo.includes(q);
 
-      const show = matchAnno && matchGenere && matchCategoria && matchDisciplina && matchQ;
+      // Nascondi gare passate (data < oggi)
+      const cardDate = new Date(Number(card.dataset.date ?? 0));
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const isFuture = cardDate >= today;
+
+      const show = matchAnno && matchGenere && matchCategoria && matchDisciplina && matchQ && isFuture;
       card.style.display = show ? '' : 'none';
       if (show) {
         visible++;
