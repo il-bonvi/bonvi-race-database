@@ -15,6 +15,21 @@
     "wt": false
   },
   {
+    "slug": "bianconese-2026-DJ",
+    "titolo": "Bianconese",
+    "data": "2026-04-18",
+    "year": "2026",
+    "race_series": "bianconese",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "bizkaikoloreak-2025-DJ",
     "titolo": "Bizkaikoloreak",
     "data": "2025-08-14",
@@ -75,6 +90,21 @@
       "Junior"
     ],
     "categoria_code": "DPRO",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "gossolengo-2026-DJ",
+    "titolo": "Gossolengo",
+    "data": "2026-04-19",
+    "year": "2026",
+    "race_series": "gossolengo",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
     "tipo": null,
     "n_tappe": null,
     "wt": false
