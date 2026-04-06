@@ -1,0 +1,16 @@
+{
+  "titolo": "Pianezze",
+  "race_series": "pianezze",
+  "data": "2026-04-19",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 35.0,
+  "distanza_km": 59.3,
+  "dislivello_m": 533.0,
+  "luogo": "Vicenza, IT",
+  "slug": "pianezze-2026-DA"
+}
