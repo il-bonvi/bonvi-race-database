@@ -233,6 +233,21 @@
     "wt": false
   },
   {
+    "slug": "resana-2026-DA",
+    "titolo": "Resana",
+    "data": "2026-04-12",
+    "year": "2026",
+    "race_series": "resana",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "tour-du-gevaudan-occitanie-femmes-2025-DJ",
     "titolo": "Tour du Gévaudan Occitanie femmes",
     "data": "2025-05-10",
