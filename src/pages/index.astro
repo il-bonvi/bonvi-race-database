@@ -10,14 +10,8 @@ let gare = Object.values(garaFiles).map((m: any) => m.default ?? m);
 // Nasconde le singole tappe (le corse a tappe si vedono tramite la card principale)
 gare = gare.filter((g: any) => g.tipo !== 'tappa');
 
-// Filtra solo gare future (da oggi in poi)
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-gare = gare.filter((g: any) => new Date(g.data) >= today);
-
 gare.sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
-const anni = [...new Set(gare.map(g => new Date(g.data).getFullYear()))].sort((a,b) => b-a);
 const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
 
 // Conta le tappe delle corse a tappa come percorsi separati
@@ -52,6 +46,8 @@ const yearMonthStructure = Array.from(groupedByYear.entries())
       }))
   }));
 
+const today = new Date();
+today.setHours(0, 0, 0, 0);
 const currentYear = today.getFullYear();
 const currentMonth = today.getMonth();
 
@@ -94,16 +90,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       </div>
 
       <div class="filters">
-
-        <div class="filter-group">
-          <div class="filter-label" data-i18n="filter_year">Anno</div>
-          <div class="filter-pills">
-            <button class="pill active" data-group="anno" data-val="all" data-i18n="filter_all_y">Tutti</button>
-            {anni.map(a => (
-              <button class="pill" data-group="anno" data-val={String(a)}>{a}</button>
-            ))}
-          </div>
-        </div>
 
         <div class="filter-group">
           <div class="filter-label" data-i18n="filter_gender">Genere</div>
@@ -409,6 +395,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   document.querySelectorAll('.sidebar-page-btn').forEach(btn => {
     btn.addEventListener('click', closeDrawer);
   });
+
+  // Applica i filtri al caricamento della pagina per nascondere le gare passate
+  applyAll();
 
   // ── i18n runtime ──────────────────────────────
   // Inline minimal i18n to avoid ES module import issues with Astro scripts
