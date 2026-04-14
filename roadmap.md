@@ -1,3 +1,4 @@
+- migliorare recap corse a tappe
 - catalogo, rinomina, modifica salite
 - WT layout
 - animazione percorsi
