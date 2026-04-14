@@ -110,6 +110,36 @@
     "wt": false
   },
   {
+    "slug": "maser-2026-DA",
+    "titolo": "Maser",
+    "data": "2026-04-26",
+    "year": "2026",
+    "race_series": "maser",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "maser-2026-DJ",
+    "titolo": "Maser",
+    "data": "2026-04-26",
+    "year": "2026",
+    "race_series": "maser",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "milano-busseto-2026-MU",
     "titolo": "Milano Busseto",
     "data": "2026-04-11",

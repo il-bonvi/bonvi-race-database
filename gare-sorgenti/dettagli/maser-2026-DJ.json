@@ -1,0 +1,16 @@
+{
+  "titolo": "Maser",
+  "race_series": "maser",
+  "data": "2026-04-26",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 38.0,
+  "distanza_km": 72.5,
+  "dislivello_m": 393.0,
+  "luogo": "Treviso, IT",
+  "slug": "maser-2026-DJ"
+}
