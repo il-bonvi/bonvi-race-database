@@ -154,6 +154,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         </select>
       </div>
       <LangSwitcher />
+      <a href="https://ko-fi.com/andreabonvicin" target="_blank" rel="noopener" class="topbar-kofi-btn">☕ <span data-i18n="kofi_btn">Sostieni</span></a>
     </div>
 
     <div class="timeline" id="gare-timeline">
@@ -471,6 +472,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       card_cta: 'View route →',
       empty_title: 'Empty database', empty_sub: 'Add the first route following the README instructions',
       no_results: 'No races found', no_results_sub: 'Try changing the filters or search query',
+      kofi_btn: 'Support',
       footer_copy: '© 2026 Andrea Bonvicin — BRD Race Database — AGPL v3 License',
       cat_Allievi: 'U16', cat_Junior: 'Junior', cat_U23: 'U23', cat_Elite: 'Elite',
       gen_Maschile: 'Men', gen_Femminile: 'Women',
@@ -605,6 +607,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   }
   .sidebar-page-btn:hover { color: var(--text); border-color: var(--text2); }
 
+  .sidebar-page-btn-kofi { color: #FF5E5B; border-color: #FF5E5B; }
+  .sidebar-page-btn-kofi:hover { color: #fff; background: #FF5E5B; border-color: #FF5E5B; }
+
   /* ── MOBILE MENU BTN (hidden on desktop) ── */
   .mobile-menu-btn {
     display: none;
@@ -721,14 +726,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   .empty-title { font-family: var(--font-display); font-size: 1.25rem; color: var(--text2); margin-bottom: 0.5rem; }
   .empty-sub { font-size: 0.82rem; line-height: 1.6; }
 
-  footer {
-    grid-column: 1 / -1; grid-row: 2;
-    text-align: center; padding: 1rem 1.25rem;
-    background: var(--bg2); color: var(--text2);
-    font-size: 0.8rem; border-top: 1px solid var(--border); flex-shrink: 0;
-  }
+  footer { grid-column: 1 / -1; grid-row: 2; text-align: center; padding: 1rem 1.25rem; background: var(--bg2); color: var(--text2); font-size: 0.8rem; border-top: 1px solid var(--border); flex-shrink: 0; }
   footer a { color: var(--text2); text-decoration: none; font-weight: 500; transition: color 0.2s; }
   footer a:hover { color: var(--accent); }
+  .topbar-kofi-btn { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #FF5E5B; text-decoration: none; padding: 0.4rem 0.75rem; border: 1px solid #FF5E5B; border-radius: 3px; background: transparent; transition: all 0.15s; flex-shrink: 0; font-weight: 600; }
+  .topbar-kofi-btn:hover { color: #fff; background: #FF5E5B; border-color: #FF5E5B; }
 
   @media (max-width: 768px) {
     .layout { grid-template-columns: 1fr; }

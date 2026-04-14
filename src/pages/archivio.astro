@@ -160,6 +160,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         </select>
       </div>
       <LangSwitcher />
+      <a href="https://ko-fi.com/andreabonvicin" target="_blank" rel="noopener" class="topbar-kofi-btn">☕ <span data-i18n="kofi_btn">Sostieni</span></a>
     </div>
 
     <div class="timeline" id="gare-timeline">
@@ -481,6 +482,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       card_cta: 'View route →',
       empty_title: 'Empty archive', empty_sub: 'No past races yet',
       no_results: 'No races found', no_results_sub: 'Try changing the filters or search query',
+      kofi_btn: 'Support',
       page_archive_tag: 'Archive',
       footer_copy: '© 2026 Andrea Bonvicin — BRD Race Database — AGPL v3 License',
       cat_Allievi: 'U16', cat_Junior: 'Junior', cat_U23: 'U23', cat_Elite: 'Elite',
@@ -599,6 +601,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   footer { grid-column: 1 / -1; grid-row: 2; text-align: center; padding: 1rem 1.25rem; background: var(--bg2); color: var(--text2); font-size: 0.8rem; width: 100%; box-sizing: border-box; border-top: 1px solid var(--border); flex-shrink: 0; }
   footer a { color: var(--text2); text-decoration: none; font-weight: 500; transition: color 0.2s; }
   footer a:hover { color: var(--accent); }
+  .topbar-kofi-btn { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #FF5E5B; text-decoration: none; padding: 0.4rem 0.75rem; border: 1px solid #FF5E5B; border-radius: 3px; background: transparent; transition: all 0.15s; flex-shrink: 0; font-weight: 600; }
+  .topbar-kofi-btn:hover { color: #fff; background: #FF5E5B; border-color: #FF5E5B; }
 
   @media (max-width: 768px) {
     .layout { grid-template-columns: 1fr; }
