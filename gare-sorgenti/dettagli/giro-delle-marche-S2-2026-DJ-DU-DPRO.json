@@ -1,0 +1,22 @@
+{
+  "titolo": "Giro delle Marche — Tappa 2: Tappa 2",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 2",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "giro-delle-marche-2026-DJ-DU-DPRO",
+  "corsa_a_tappe_titolo": "Giro delle Marche",
+  "race_series": "giro delle marche",
+  "data": "2026-05-10",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 92.72,
+  "dislivello_m": 1534.0,
+  "velocita_media_kmh": 37.0,
+  "luogo": "Ascoli Piceno, IT",
+  "slug": "giro-delle-marche-S2-2026-DJ-DU-DPRO"
+}

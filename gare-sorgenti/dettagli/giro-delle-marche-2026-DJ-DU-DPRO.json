@@ -1,0 +1,40 @@
+{
+  "titolo": "Giro delle Marche",
+  "race_series": "giro delle marche",
+  "data": "2026-05-09",
+  "data_inizio": "2026-05-09",
+  "data_fine": "2026-05-10",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "luogo": "Ascoli Piceno, IT",
+  "tipo": "corsa_a_tappe",
+  "n_tappe": 2,
+  "distanza_km": 182.57,
+  "dislivello_m": 2764,
+  "tappe": [
+    {
+      "numero": 1,
+      "nome": "Tappa 1",
+      "slug": "giro-delle-marche-S1-2026-DJ-DU-DPRO",
+      "data": "2026-05-09",
+      "distanza_km": 89.85,
+      "dislivello_m": 1230.0,
+      "disciplina": "Strada",
+      "giri": 15
+    },
+    {
+      "numero": 2,
+      "nome": "Tappa 2",
+      "slug": "giro-delle-marche-S2-2026-DJ-DU-DPRO",
+      "data": "2026-05-10",
+      "distanza_km": 92.72,
+      "dislivello_m": 1534.0,
+      "disciplina": "Strada"
+    }
+  ],
+  "slug": "giro-delle-marche-2026-DJ-DU-DPRO"
+}

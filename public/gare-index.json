@@ -95,6 +95,23 @@
     "wt": false
   },
   {
+    "slug": "giro-delle-marche-2026-DJ-DU-DPRO",
+    "titolo": "Giro delle Marche",
+    "data": "2026-05-09",
+    "year": "2026",
+    "race_series": "giro delle marche",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DPRO",
+    "tipo": "corsa_a_tappe",
+    "n_tappe": 2,
+    "wt": false
+  },
+  {
     "slug": "gossolengo-2026-DJ",
     "titolo": "Gossolengo",
     "data": "2026-04-19",
