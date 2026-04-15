@@ -95,7 +95,52 @@
             gap: 0.3rem;
             margin-bottom: 0.4rem;
         }
-        
+
+        .laps-visualizer {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .laps-visualizer label {
+            font-size: 0.85rem;
+            color: #6b7280;
+            font-weight: 400;
+            white-space: nowrap;
+        }
+
+        .laps-visualizer select {
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            background: #fff;
+            color: #1a1a1a;
+            font-size: 0.85rem;
+            padding: 4px 6px;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+        }
+
+        .laps-visualizer-note {
+            font-size: 0.8rem;
+            color: #6b7280;
+            white-space: nowrap;
+            margin-left: 0.25rem;
+        }
+
+        .top-controls-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .top-controls-row .sv-hint {
+            flex: 1 1 360px;
+            min-width: 260px;
+        }
+
         .stat-card {
             background: white;
             padding: 0.75rem 1rem;
@@ -706,6 +751,10 @@
             .stat-label { font-size: 0.65rem; margin-bottom: 0.2rem; }
             .stat-value { font-size: 1.2rem; }
             .stat-unit  { font-size: 0.75rem; }
+            .top-controls-row { margin-bottom: 0.4rem; }
+            .top-controls-row .sv-hint { min-width: 0; flex-basis: 100%; }
+            .laps-visualizer { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+            .laps-visualizer-note { width: 100%; white-space: normal; }
             #map { height: 55vw; min-height: 220px; max-height: 350px; }
             /* elevation-chart height: gestita dal viewBox SVG */
             .upload-section { padding: 1.5rem 1rem; }
@@ -790,8 +839,13 @@
         </div>
         
         <div id="data-content">
-            <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+            <div class="top-controls-row">
                 <p class="sv-hint" style="flex: 1; margin: 0;">👆 Premi il tasto destro sulla mappa o sull'altimetria per esplorare il punto in Street View. Attenzione, l'orientamento potrebbe essere errato.</p>
+                <div id="laps-visualizer" class="laps-visualizer" style="display:none;">
+                    <label for="laps-view-select">Visualizza:</label>
+                    <select id="laps-view-select"></select>
+                    <span class="laps-visualizer-note" id="laps-view-note"></span>
+                </div>
                 <div style="display: flex; align-items: center; gap: 0.5rem; white-space: nowrap;">
                     <label for="vel-input" style="font-size: 0.85rem; color: #6b7280;">avg speed:</label>
                     <input type="number" id="vel-input" min="5" max="100" step="0.5" value="38" style="width: 70px; padding: 4px 6px; font-size: 0.9rem; border: 1px solid #d1d5db; border-radius: 4px;">
@@ -980,6 +1034,7 @@ let map;
         let elevationControl;
         let _smoothingWindow = 3;
         let _gradientLayers = [];
+    let baseRouteData = null;
 
         function drawGradientPolyline() {
             if (!routeData || !map) return;
@@ -1206,7 +1261,7 @@ let map;
                 });
             }
             
-            routeData = {
+            const singleLapRouteData = {
                 points: processedPoints,
                 distance: distance / 1000,
                 elevationGain,
@@ -1214,20 +1269,152 @@ let map;
                 minElevation,
                 avgElevation: sumElevation / points.length
             };
-            
-            updateStats();
+
+            baseRouteData = singleLapRouteData;
+            // Se il JSON non contiene "giri", prova a dedurli dai totali gara.
+            window._laps = inferLapsFromRaceTotals(singleLapRouteData);
             
             uploadSection.style.display = 'none';
             dataContent.style.display = 'block';
             const rb = document.getElementById('reset-bar');
             if (rb) rb.style.display = 'flex';
-            
+
+            setupLapsVisualizer();
+            applyDisplayLaps(1);
+        }
+
+        function normalizeLapsValue(raw, fallback = 1) {
+            const parsed = parseInt(raw, 10);
+            if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+            return parsed;
+        }
+
+        function inferLapsFromRaceTotals(singleLapData) {
+            const declaredLaps = normalizeLapsValue(window._laps, 1);
+            if (declaredLaps > 1) return declaredLaps;
+
+            const lapKm = singleLapData?.distance;
+            const lapElev = singleLapData?.elevationGain;
+            const totalKm = parseFloat(window._raceDistanceKm);
+            const totalElev = parseFloat(window._raceElevationGain);
+
+            const inferFromRatio = (total, lap, tolerance = 0.2) => {
+                if (!Number.isFinite(total) || !Number.isFinite(lap) || total <= 0 || lap <= 0) return 1;
+                const ratio = total / lap;
+                const rounded = Math.round(ratio);
+                if (rounded < 2) return 1;
+                if (Math.abs(ratio - rounded) <= tolerance) return rounded;
+                return 1;
+            };
+
+            const inferredByKm = inferFromRatio(totalKm, lapKm, 0.25);
+            if (inferredByKm > 1) return inferredByKm;
+
+            const inferredByElev = inferFromRatio(totalElev, lapElev, 0.35);
+            if (inferredByElev > 1) return inferredByElev;
+
+            return 1;
+        }
+
+        function buildMultiLapRouteData(singleLapData, laps) {
+            const safeLaps = Math.max(1, normalizeLapsValue(laps, 1));
+            const lapDistanceMeters = singleLapData.distance * 1000;
+            const lapPoints = singleLapData.points || [];
+
+            if (safeLaps === 1 || lapPoints.length === 0) {
+                return {
+                    ...singleLapData,
+                    points: lapPoints.map((p) => ({ ...p }))
+                };
+            }
+
+            const repeatedPoints = [];
+            for (let lap = 0; lap < safeLaps; lap++) {
+                for (let i = 0; i < lapPoints.length; i++) {
+                    if (lap > 0 && i === 0) continue;
+                    const p = lapPoints[i];
+                    repeatedPoints.push({
+                        ...p,
+                        dist: p.dist + (lap * lapDistanceMeters)
+                    });
+                }
+            }
+
+            return {
+                ...singleLapData,
+                points: repeatedPoints,
+                distance: singleLapData.distance * safeLaps,
+                elevationGain: singleLapData.elevationGain * safeLaps
+            };
+        }
+
+        function setupLapsVisualizer() {
+            const wrap = document.getElementById('laps-visualizer');
+            const select = document.getElementById('laps-view-select');
+            const note = document.getElementById('laps-view-note');
+            if (!wrap || !select || !note) return;
+
+            const maxLaps = Math.max(1, normalizeLapsValue(window._laps, 1));
+            if (maxLaps <= 1) {
+                wrap.style.display = 'none';
+                return;
+            }
+
+            wrap.style.display = 'flex';
+            select.innerHTML = '';
+
+            const optOne = document.createElement('option');
+            optOne.value = '1';
+            optOne.textContent = '1 giro';
+            select.appendChild(optOne);
+
+            const optMax = document.createElement('option');
+            optMax.value = String(maxLaps);
+            optMax.textContent = `${maxLaps} giri (completo)`;
+            select.appendChild(optMax);
+
+            if (!select.dataset.bound) {
+                select.addEventListener('change', (event) => {
+                    const selected = normalizeLapsValue(event.target.value, 1);
+                    applyDisplayLaps(selected);
+                });
+                select.dataset.bound = '1';
+            }
+
+            select.value = '1';
+        }
+
+        function applyDisplayLaps(rawLaps) {
+            if (!baseRouteData) return;
+
+            const maxLaps = Math.max(1, normalizeLapsValue(window._laps, 1));
+            const requested = normalizeLapsValue(rawLaps, 1);
+            const displayLaps = requested >= maxLaps ? maxLaps : 1;
+            window._displayLaps = displayLaps;
+
+            routeData = buildMultiLapRouteData(baseRouteData, displayLaps);
+            updateStats();
+
+            const select = document.getElementById('laps-view-select');
+            if (select) select.value = String(displayLaps);
+
+            if (map) {
+                map.remove();
+                map = null;
+            }
+            _gradientLayers = [];
+            climbPolylines = [];
+            _selectedClimbMarkers = null;
+
             setTimeout(() => {
-                initMap(gpxText);
-            }, 100);
+                initMap(null);
+            }, 80);
         }
         
         function updateStats() {
+            const statsSource = baseRouteData || routeData;
+            if (!statsSource) return;
+
             // Usa il valore dall'input field
             const velInput = document.getElementById('vel-input');
             const avgSpeed = velInput ? parseFloat(velInput.value) || 38 : 38;
@@ -1236,8 +1423,8 @@ let map;
             const isTrackFormat = window._disciplina === 'Tipo pista';
             const numLaps = isTrackFormat ? 1 : (window._laps || 1);
             
-            // Total time sulla distanza totale (routeData.distance è per singolo giro)
-            const totalTimeHours = (routeData.distance * numLaps) / avgSpeed;
+            // Total time sulla distanza totale (statsSource.distance è per singolo giro)
+            const totalTimeHours = (statsSource.distance * numLaps) / avgSpeed;
             const hours = Math.floor(totalTimeHours);
             const minutes = Math.floor((totalTimeHours - hours) * 60);
             const seconds = Math.floor(((totalTimeHours - hours) * 60 - minutes) * 60);
@@ -1247,11 +1434,11 @@ let map;
             document.getElementById('stat-time').innerHTML = 
                 `${timeString}`;
             document.getElementById('stat-max-alt').innerHTML = 
-                `${Math.round(routeData.maxElevation)}<span class="stat-unit">m</span>`;
+                `${Math.round(statsSource.maxElevation)}<span class="stat-unit">m</span>`;
             document.getElementById('stat-min-alt').innerHTML = 
-                `${Math.round(routeData.minElevation)}<span class="stat-unit">m</span>`;
+                `${Math.round(statsSource.minElevation)}<span class="stat-unit">m</span>`;
             document.getElementById('stat-avg-alt').innerHTML = 
-                `${Math.round(routeData.avgElevation)}<span class="stat-unit">m</span>`;
+                `${Math.round(statsSource.avgElevation)}<span class="stat-unit">m</span>`;
             
             // Se è Tipo pista oppure >= 2 laps, mostra le card e i valori dei lap
             if (numLaps >= 2 || isTrackFormat) {
@@ -1270,12 +1457,12 @@ let map;
                 
                 // Lap length e elevation (distance e elevationGain sono già per singolo giro)
                 document.getElementById('stat-distance').innerHTML = 
-                    `${routeData.distance.toFixed(2)}<span class="stat-unit">km</span>`;
+                    `${statsSource.distance.toFixed(2)}<span class="stat-unit">km</span>`;
                 document.getElementById('stat-gain').innerHTML = 
-                    `${Math.round(routeData.elevationGain)}<span class="stat-unit">m</span>`;
+                    `${Math.round(statsSource.elevationGain)}<span class="stat-unit">m</span>`;
                 
                 // Lap time
-                const lapTimeHours = routeData.distance / avgSpeed;
+                const lapTimeHours = statsSource.distance / avgSpeed;
                 const lapHours = Math.floor(lapTimeHours);
                 const lapMinutes = Math.floor((lapTimeHours - lapHours) * 60);
                 const lapSeconds = Math.floor(((lapTimeHours - lapHours) * 60 - lapMinutes) * 60);
@@ -1300,9 +1487,9 @@ let map;
                 
                 // Mostra valori totali
                 document.getElementById('stat-distance').innerHTML = 
-                    `${routeData.distance.toFixed(2)}<span class="stat-unit">km</span>`;
+                    `${statsSource.distance.toFixed(2)}<span class="stat-unit">km</span>`;
                 document.getElementById('stat-gain').innerHTML = 
-                    `${Math.round(routeData.elevationGain)}<span class="stat-unit">m</span>`;
+                    `${Math.round(statsSource.elevationGain)}<span class="stat-unit">m</span>`;
             }
         }
         
@@ -1319,6 +1506,11 @@ let map;
         });
         
         function initMap(gpxText) {
+            if (map) {
+                map.remove();
+                map = null;
+            }
+
             map = L.map('map');
             L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
 
@@ -2186,6 +2378,12 @@ let map;
         function detectAndDisplayClimbs() {
             if (!routeData || !routeData.points) return;
 
+            // Reset stato visuale prima di ridisegnare
+            climbPolylines.forEach(marker => map.removeLayer(marker));
+            climbPolylines = [];
+            closeClimbDetail();
+            detectedClimbs = [];
+
             // Read params from UI (with fallback to defaults)
             const pMinGrade      = parseFloat(document.getElementById('param-min-grade')?.value)      || CLIMB_PARAMS_DEFAULTS.minGrade;
             const pMaxGradeEnd   = parseFloat(document.getElementById('param-max-grade-end')?.value)  || CLIMB_PARAMS_DEFAULTS.maxGradeEnd;
@@ -2300,6 +2498,8 @@ let map;
                 displayClimbsUI(sections);
                 drawClimbsOnMap();
                 document.getElementById('climbs-section').style.display = 'block';
+            } else {
+                document.getElementById('climbs-section').style.display = 'none';
             }
         }
         
@@ -2593,13 +2793,7 @@ let map;
                 
                 // FORZA l'ultimo blocco ad arrivare esattamente a climb.distance
                 if (i === groupedSections.length - 1) {
-                    console.log('LAST BLOCK DEBUG:');
-                    console.log('- actualEndIdx:', actualEndIdx);
-                    console.log('- climb.endIndex:', climb.endIndex);
-                    console.log('- endDist calculated:', endDist);
-                    console.log('- climb.distance:', climb.distance);
                     endDist = climb.distance;
-                    console.log('- endDist FORCED to:', endDist);
                 }
                 
                 sectionData.push({
@@ -2677,17 +2871,6 @@ let map;
                 const x2 = xScale(section.endDist);
                 const y1 = yScale(section.startEle);
                 const y2 = yScale(section.endEle);
-                
-                // DEBUG ultimo blocco
-                if (idx === sectionData.length - 1) {
-                    console.log('DRAW LAST BLOCK:');
-                    console.log('- section.endDist:', section.endDist);
-                    console.log('- totalDist:', totalDist);
-                    console.log('- xScale domain:', xScale.domain());
-                    console.log('- xScale range:', xScale.range());
-                    console.log('- x2 calculated:', x2);
-                    console.log('- chartWidth:', chartWidth);
-                }
                 
                 // Per l'ULTIMO blocco, estendi x2 fino al bordo (compensando l'offset 3D)
                 const x2Final = (idx === sectionData.length - 1) ? x2 + offsetX : x2;
@@ -2884,10 +3067,12 @@ let map;
         function resetApp() {
             // Reset stato
             routeData = null;
+            baseRouteData = null;
             if (map) { map.remove(); map = null; }
             svMiniMap = null; svMarker = null; svPolyline = null; svMainMarker = null;
             window._elevXScale = null; window._elevYScale = null;
             window._elevG = null; window._elevMargin = null;
+            window._displayLaps = 1;
 
             // Reset UI
             document.getElementById('data-content').style.display = 'none';
@@ -2897,6 +3082,8 @@ let map;
             document.getElementById('climbs-section').style.display = 'none';
             document.getElementById('climb-detail-chart').classList.remove('active');
             document.getElementById('fileInput').value = '';
+            const lapsWrap = document.getElementById('laps-visualizer');
+            if (lapsWrap) lapsWrap.style.display = 'none';
         }
 
         // ── AUTO-LOAD DA PARAMETRO URL (?gara=slug&base=/path) ───────────────────────
@@ -2904,6 +3091,7 @@ let map;
             const searchParams = new URLSearchParams(location.search);
             const slug = searchParams.get('gara');
             const baseParam = searchParams.get('base') || '';
+            const cacheBust = searchParams.get('v') || String(Date.now());
             if (!slug) return;
 
             // Nascondi sezione upload
@@ -2911,7 +3099,7 @@ let map;
             if (us) us.style.display = 'none';
 
             try {
-                const detailsPath = (baseParam ? baseParam + '/' : '') + 'gare-sorgenti/dettagli/' + slug + '.json';
+                const detailsPath = (baseParam ? baseParam + '/' : '') + 'gare-sorgenti/dettagli/' + slug + '.json?v=' + encodeURIComponent(cacheBust);
                 const res = await fetch(detailsPath);
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const gara = await res.json();
@@ -2927,7 +3115,11 @@ let map;
                 window._velocitaMedia = gara.velocita_media_kmh || null;
                 
                 // Salva il numero di giri
-                window._laps = gara.giri || 1;
+                window._laps = Math.max(1, parseInt(gara.giri, 10) || 1);
+
+                // Salva i totali dichiarati nel JSON (usati come fallback per inferire i giri)
+                window._raceDistanceKm = gara.distanza_km || null;
+                window._raceElevationGain = gara.dislivello_m || null;
                 
                 // Salva la disciplina della gara (per Tipo pista)
                 window._disciplina = gara.disciplina || 'Strada';
@@ -2942,14 +3134,14 @@ let map;
                 let gpxPoints = null;
                 const gpxSlug = gara.gpx_reference || slug;
                 try {
-                    const gpxPath = (baseParam ? baseParam + '/' : '') + 'gare-sorgenti/gpx/' + gpxSlug + '-gpx.json';
+                    const gpxPath = (baseParam ? baseParam + '/' : '') + 'gare-sorgenti/gpx/' + gpxSlug + '-gpx.json?v=' + encodeURIComponent(cacheBust);
                     const gpxRes = await fetch(gpxPath);
                     if (gpxRes.ok) {
                         const gpxFile = await gpxRes.json();
                         gpxPoints = gpxFile.gpx_points;
                     }
                 } catch (e) {
-                    console.warn('Errore caricamento GPX:', e);
+                    // Errore caricamento GPX - ignora e usa fallback
                 }
 
                 // Avvia elaborazione con i punti GPX dal JSON
@@ -2961,7 +3153,6 @@ let map;
                     throw new Error('Nessun punto GPX nel JSON');
                 }
             } catch (e) {
-                console.error('Auto-load fallito:', e);
                 const us2 = document.getElementById('upload-section');
                 if (us2) us2.style.display = 'block';
                 const zone = document.getElementById('uploadZone');

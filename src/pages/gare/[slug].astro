@@ -796,7 +796,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
   ) : (
     <!-- ── GPX VIEWER (gara normale o singola tappa) ─────────────────────── -->
     <>
-      <iframe class="report-frame" src={`${base}/gara.html?gara=${slug}&base=${base}&embed=1`} title={gara.titolo}></iframe>
+      <iframe class="report-frame" src={`${base}/gara.html?gara=${slug}&base=${base}&embed=1&v=${Date.now()}`} title={gara.titolo}></iframe>
     </>
   )}
 
