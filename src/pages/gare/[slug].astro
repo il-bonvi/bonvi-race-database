@@ -916,25 +916,29 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
         const points = stageGpxData[tappa.numero] || [];
         if (points.length === 0) continue;
 
-        let stageDist = 0;
-        for (let i = 0; i < points.length; i++) {
-          const point = points[i];
-          let lat, lon, ele = 0;
-          if (Array.isArray(point)) { [lat, lon, ele] = point; }
-          else if (typeof point === 'object' && point !== null) { lat = point.lat; lon = point.lon; ele = point.ele || 0; }
-          else continue;
-
-          if (i > 0) {
-            const prev = points[i - 1];
-            let prevLat, prevLon;
-            if (Array.isArray(prev)) { [prevLat, prevLon] = prev; }
-            else if (typeof prev === 'object' && prev !== null) { prevLat = prev.lat; prevLon = prev.lon; }
+        // Ripeti il profilo per ogni giro della tappa
+        const numLaps = tappa.giri || 1;
+        for (let lap = 0; lap < numLaps; lap++) {
+          let stageDist = 0;
+          for (let i = 0; i < points.length; i++) {
+            const point = points[i];
+            let lat, lon, ele = 0;
+            if (Array.isArray(point)) { [lat, lon, ele] = point; }
+            else if (typeof point === 'object' && point !== null) { lat = point.lat; lon = point.lon; ele = point.ele || 0; }
             else continue;
-            stageDist += haversine(prevLat, prevLon, lat, lon) / 1000;
+
+            if (i > 0) {
+              const prev = points[i - 1];
+              let prevLat, prevLon;
+              if (Array.isArray(prev)) { [prevLat, prevLon] = prev; }
+              else if (typeof prev === 'object' && prev !== null) { prevLat = prev.lat; prevLon = prev.lon; }
+              else continue;
+              stageDist += haversine(prevLat, prevLon, lat, lon) / 1000;
+            }
+            combinedProfile.push({ dist: cumulativeDist + stageDist, ele, stageNum: tappa.numero, color: colors[tappa.numero] || '#888' });
           }
-          combinedProfile.push({ dist: cumulativeDist + stageDist, ele, stageNum: tappa.numero, color: colors[tappa.numero] || '#888' });
+          cumulativeDist += stageDist;
         }
-        cumulativeDist += stageDist;
       }
 
       if (combinedProfile.length === 0) {
