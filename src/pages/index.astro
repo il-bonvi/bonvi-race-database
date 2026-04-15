@@ -157,6 +157,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <a href="https://ko-fi.com/andreabonvicin" target="_blank" rel="noopener" class="topbar-kofi-btn">☕ <span data-i18n="kofi_btn">Sostieni</span></a>
     </div>
 
+    <div class="topbar-kofi-row">
+      <a href="https://ko-fi.com/andreabonvicin" target="_blank" rel="noopener">☕ <span data-i18n="kofi_btn">Sostieni</span></a>
+    </div>
+
     <div class="timeline" id="gare-timeline">
       {gare.length === 0 ? (
         <div class="empty">
@@ -641,6 +645,23 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     border-bottom: 1px solid var(--border);
   }
 
+  .topbar-kofi-row {
+    display: none;
+    width: 100%; padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    justify-content: center;
+  }
+  .topbar-kofi-row a {
+    width: 100%; text-align: center;
+    padding: 0.75rem; border: 1px solid var(--border);
+    border-radius: 3px; background: var(--bg2);
+    color: #FF5E5B; text-decoration: none; font-weight: 600;
+    transition: all 0.15s;
+  }
+  .topbar-kofi-row a:hover {
+    background: #FF5E5B; color: white;
+  }
+
   .search-wrap {
     flex: 1; display: flex; align-items: center; gap: 0.6rem;
     background: var(--bg2); border: 1px solid var(--border);
@@ -735,6 +756,18 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   @media (max-width: 768px) {
     .layout { grid-template-columns: 1fr; }
     .mobile-menu-btn { display: flex; align-items: center; }
+
+    .topbar-kofi-btn { display: none; }
+    .topbar-kofi-row { display: flex; }
+    
+    .search-wrap {
+      padding: 0 0.75rem;
+    }
+    .search-icon { font-size: 1.1rem; }
+    .search-input {
+      font-size: 1rem;
+      padding: 0.8rem 0;
+    }
 
     .sidebar {
       position: fixed !important;
