@@ -1,0 +1,16 @@
+{
+  "titolo": "Vicenza Bionde",
+  "race_series": "vicenza bionde",
+  "data": "2026-04-26",
+  "genere": "Maschile",
+  "categoria": [
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 43.0,
+  "distanza_km": 164.79,
+  "dislivello_m": 302.0,
+  "luogo": "Verona, IT",
+  "slug": "vicenza-bionde-2026-MU"
+}

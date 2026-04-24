@@ -157,6 +157,22 @@
     "wt": false
   },
   {
+    "slug": "memorial-giordano-mignolli-2026-MU-MPRO",
+    "titolo": "Memorial Giordano Mignolli",
+    "data": "2026-05-09",
+    "year": "2026",
+    "race_series": "memorial giordano mignolli",
+    "genere": "Maschile",
+    "categoria": [
+      "Elite",
+      "U23"
+    ],
+    "categoria_code": "MPRO",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "milano-busseto-2026-MU",
     "titolo": "Milano Busseto",
     "data": "2026-04-11",
@@ -339,6 +355,21 @@
     "tipo": null,
     "n_tappe": null,
     "wt": true
+  },
+  {
+    "slug": "vicenza-bionde-2026-MU",
+    "titolo": "Vicenza Bionde",
+    "data": "2026-04-26",
+    "year": "2026",
+    "race_series": "vicenza bionde",
+    "genere": "Maschile",
+    "categoria": [
+      "U23"
+    ],
+    "categoria_code": "MU",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
   },
   {
     "slug": "vignola-2026-DJ",
