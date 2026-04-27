@@ -1,0 +1,16 @@
+{
+  "titolo": "Bovolone",
+  "race_series": "bovolone",
+  "data": "2026-05-03",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Criterium",
+  "giri": 21,
+  "velocita_media_kmh": 41.0,
+  "distanza_km": 68.67,
+  "dislivello_m": 84.0,
+  "luogo": "Verona, IT",
+  "slug": "bovolone-2026-DJ"
+}

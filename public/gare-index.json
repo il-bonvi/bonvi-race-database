@@ -45,6 +45,66 @@
     "wt": false
   },
   {
+    "slug": "bovolone-2026-DA",
+    "titolo": "Bovolone",
+    "data": "2026-05-03",
+    "year": "2026",
+    "race_series": "bovolone",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "bovolone-2026-DJ",
+    "titolo": "Bovolone",
+    "data": "2026-05-03",
+    "year": "2026",
+    "race_series": "bovolone",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "cantu-2026-DJ",
+    "titolo": "Cantù",
+    "data": "2026-05-01",
+    "year": "2026",
+    "race_series": "cantù",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "dro-2026-DA",
+    "titolo": "Dro",
+    "data": "2026-04-25",
+    "year": "2026",
+    "race_series": "dro",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "fossano-2026-DJ-DU-DPRO",
     "titolo": "Fossano",
     "data": "2026-04-12",

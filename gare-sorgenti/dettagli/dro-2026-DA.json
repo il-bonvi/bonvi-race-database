@@ -1,0 +1,16 @@
+{
+  "titolo": "Dro",
+  "race_series": "dro",
+  "data": "2026-04-25",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 32.5,
+  "distanza_km": 42.26,
+  "dislivello_m": 325.0,
+  "luogo": "Trento, IT",
+  "slug": "dro-2026-DA"
+}
