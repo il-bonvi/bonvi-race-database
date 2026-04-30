@@ -90,6 +90,21 @@
     "wt": false
   },
   {
+    "slug": "de-nardi-2026-MU",
+    "titolo": "De Nardi",
+    "data": "2026-05-03",
+    "year": "2026",
+    "race_series": "de nardi",
+    "genere": "Maschile",
+    "categoria": [
+      "U23"
+    ],
+    "categoria_code": "MU",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "dro-2026-DA",
     "titolo": "Dro",
     "data": "2026-04-25",
