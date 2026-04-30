@@ -1,3 +1,4 @@
+- cambiare slug pro a elite (perchè ci sono i senza contratto)
 - migliorare recap corse a tappe
 - catalogo, rinomina, modifica salite
 - WT layout
