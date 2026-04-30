@@ -1,0 +1,18 @@
+{
+  "titolo": "Montalto",
+  "race_series": "montalto",
+  "data": "2026-04-30",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 38.0,
+  "distanza_km": 87.79,
+  "dislivello_m": 1104.0,
+  "luogo": "Arezzo, IT",
+  "slug": "montalto-2026-DJ-DU-DPRO"
+}

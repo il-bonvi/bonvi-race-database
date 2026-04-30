@@ -264,6 +264,23 @@
     "wt": true
   },
   {
+    "slug": "montalto-2026-DJ-DU-DPRO",
+    "titolo": "Montalto",
+    "data": "2026-04-30",
+    "year": "2026",
+    "race_series": "montalto",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DPRO",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "nonantola-2026-DJ",
     "titolo": "Nonantola",
     "data": "2026-03-08",
