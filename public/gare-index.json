@@ -90,16 +90,17 @@
     "wt": false
   },
   {
-    "slug": "de-nardi-2026-MU",
+    "slug": "de-nardi-2026-MU-MPRO",
     "titolo": "De Nardi",
     "data": "2026-05-03",
     "year": "2026",
     "race_series": "de nardi",
     "genere": "Maschile",
     "categoria": [
+      "Elite",
       "U23"
     ],
-    "categoria_code": "MU",
+    "categoria_code": "MPRO",
     "tipo": null,
     "n_tappe": null,
     "wt": false
@@ -197,6 +198,21 @@
       "Junior"
     ],
     "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "illasi-2026-DA",
+    "titolo": "Illasi",
+    "data": "2026-05-01",
+    "year": "2026",
+    "race_series": "illasi",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
     "tipo": null,
     "n_tappe": null,
     "wt": false

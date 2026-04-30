@@ -1,0 +1,16 @@
+{
+  "titolo": "Illasi",
+  "race_series": "illasi",
+  "data": "2026-05-01",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "giri": 7,
+  "velocita_media_kmh": 34.0,
+  "distanza_km": 54.18,
+  "dislivello_m": 539.0,
+  "luogo": "Verona, IT",
+  "slug": "illasi-2026-DA"
+}

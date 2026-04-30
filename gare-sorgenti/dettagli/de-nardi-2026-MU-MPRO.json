@@ -4,6 +4,7 @@
   "data": "2026-05-03",
   "genere": "Maschile",
   "categoria": [
+    "Elite",
     "U23"
   ],
   "disciplina": "Strada",
@@ -12,5 +13,5 @@
   "distanza_km": 150.75,
   "dislivello_m": 2114.0,
   "luogo": "Treviso, IT",
-  "slug": "de-nardi-2026-MU"
+  "slug": "de-nardi-2026-MU-MPRO"
 }
