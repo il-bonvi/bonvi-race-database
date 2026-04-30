@@ -1220,6 +1220,62 @@ let map;
             }
             return smoothed;
         }
+
+        // ── Algoritmo LTTB per downsampling intelligente ──
+        // Preserva i picchi/valli mantenendo la forma del profilo
+        function lttb(data, threshold = 1800) {
+            const bucketSize = (data.length - 2) / (threshold - 2);
+            const sampled = [data[0]];
+            let a = 0;
+            
+            for (let i = 0; i < threshold - 2; i++) {
+                const avgRangeStart = Math.floor((i + 1) * bucketSize) + 1;
+                const avgRangeEnd = Math.floor((i + 2) * bucketSize) + 1;
+                const avgRangeLength = avgRangeEnd - avgRangeStart;
+                
+                let avgX = 0, avgY = 0;
+                for (let j = avgRangeStart; j < avgRangeEnd && j < data.length; j++) {
+                    avgX += data[j].dist;
+                    avgY += data[j].ele;
+                }
+                avgX /= avgRangeLength;
+                avgY /= avgRangeLength;
+                
+                const rangeStart = Math.floor(i * bucketSize) + 1;
+                const rangeEnd = Math.floor((i + 1) * bucketSize) + 1;
+                
+                let maxArea = -1;
+                let maxAreaPoint = -1;
+                const p1 = sampled[sampled.length - 1];
+                
+                for (let j = rangeStart; j < rangeEnd && j < data.length; j++) {
+                    const area = Math.abs((p1.dist - data[j].dist) * (avgY - p1.ele) - 
+                                         (p1.dist - avgX) * (data[j].ele - p1.ele)) / 2;
+                    if (area > maxArea) {
+                        maxArea = area;
+                        maxAreaPoint = j;
+                    }
+                }
+                
+                if (maxAreaPoint !== -1) {
+                    sampled.push(data[maxAreaPoint]);
+                    a = maxAreaPoint;
+                }
+            }
+            sampled.push(data[data.length - 1]);
+            return sampled;
+        }
+
+        // ── Downsampling: applica LTTB se dataset è grande e non zoomato ──
+        function getDisplayData(fullData, isZoomed) {
+            // Se zoomato, usa tutti i dati per precisione massima
+            if (isZoomed) return fullData;
+            // Se dataset è grande (>2000 punti), applica downsampling
+            if (fullData.length > 2000) {
+                return lttb(fullData, 1800);
+            }
+            return fullData;
+        }
         
         function processRoute(points, gpxText) {
             let distance = 0;
@@ -2028,14 +2084,29 @@ let map;
             // Area + linea colorate — solo punti nel range visibile
             const chartG = g.append('g').attr('clip-path', 'url(#elev-clip)');
 
-            // Indici nel dataset originale corrispondenti al range
-            const startOrigIdx = fullData.findIndex(d => d.dist >= d0);
-            const endOrigIdx   = fullData.findIndex(d => d.dist >  d1);
-            const iEnd = endOrigIdx === -1 ? fullData.length : endOrigIdx;
+            // ── DOWNSAMPLING INTELLIGENTE ──
+            // Se il dataset è grande e non zoomato, riduci i punti preservando la forma
+            const displayData = getDisplayData(fullData, isZoomed);
 
-            for (let i = Math.max(1, startOrigIdx); i < iEnd; i++) {
-                const p1 = fullData[i-1], p2 = fullData[i];
-                const color = getGradientColor(smG[i]);
+            // Indici nel dataset di display corrispondenti al range
+            const startDisplayIdx = displayData.findIndex(d => d.dist >= d0);
+            const endDisplayIdx   = displayData.findIndex(d => d.dist >  d1);
+            const displayEnd = endDisplayIdx === -1 ? displayData.length : endDisplayIdx;
+
+            // Crea una mappa per interpolazione rapida dei gradienti (usa fullData)
+            function getGradientAtDist(targetDist) {
+                let lo = 0, hi = fullData.length - 1;
+                while (lo < hi - 1) {
+                    const mid = (lo + hi) >> 1;
+                    if (fullData[mid].dist < targetDist) lo = mid; else hi = mid;
+                }
+                const closest = Math.abs(fullData[lo].dist - targetDist) < Math.abs(fullData[hi].dist - targetDist) ? lo : hi;
+                return smG[closest];
+            }
+
+            for (let i = Math.max(1, startDisplayIdx); i < displayEnd; i++) {
+                const p1 = displayData[i-1], p2 = displayData[i];
+                const color = getGradientColor(getGradientAtDist(p2.dist));
                 const path = `M${xScale(p1.dist)},${yScale(p1.ele)} L${xScale(p2.dist)},${yScale(p2.ele)} L${xScale(p2.dist)},${H} L${xScale(p1.dist)},${H} Z`;
                 chartG.append('path').attr('d', path).attr('fill', color).attr('opacity', 0.7).style('pointer-events','none');
                 chartG.append('line')
