@@ -1,0 +1,16 @@
+{
+  "titolo": "Albiano",
+  "race_series": "palù",
+  "data": "2026-05-24",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "giri": 9,
+  "velocita_media_kmh": 35.0,
+  "distanza_km": 51.57,
+  "dislivello_m": 612.0,
+  "luogo": "Trento, IT",
+  "slug": "albiano-2026-DA"
+}

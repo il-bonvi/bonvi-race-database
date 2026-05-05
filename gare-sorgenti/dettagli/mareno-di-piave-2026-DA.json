@@ -1,0 +1,16 @@
+{
+  "titolo": "Mareno di Piave",
+  "race_series": "mareno di piave",
+  "data": "2026-05-10",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 36.0,
+  "distanza_km": 52.98,
+  "dislivello_m": 130.0,
+  "luogo": "Treviso, IT",
+  "slug": "mareno-di-piave-2026-DA"
+}

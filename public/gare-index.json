@@ -15,6 +15,21 @@
     "wt": false
   },
   {
+    "slug": "albiano-2026-DA",
+    "titolo": "Albiano",
+    "data": "2026-05-24",
+    "year": "2026",
+    "race_series": "palù",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "bianconese-2026-DJ",
     "titolo": "Bianconese",
     "data": "2026-04-18",
@@ -218,6 +233,21 @@
     "wt": false
   },
   {
+    "slug": "mareno-di-piave-2026-DA",
+    "titolo": "Mareno di Piave",
+    "data": "2026-05-10",
+    "year": "2026",
+    "race_series": "mareno di piave",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "maser-2026-DA",
     "titolo": "Maser",
     "data": "2026-04-26",
@@ -259,6 +289,21 @@
       "U23"
     ],
     "categoria_code": "MPRO",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "mereto-di-tomba-2026-DA",
+    "titolo": "Mereto di Tomba",
+    "data": "2026-05-17",
+    "year": "2026",
+    "race_series": "mereto di tomba",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
     "tipo": null,
     "n_tappe": null,
     "wt": false
