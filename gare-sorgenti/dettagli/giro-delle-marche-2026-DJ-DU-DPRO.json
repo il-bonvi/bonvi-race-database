@@ -13,8 +13,8 @@
   "luogo": "Ascoli Piceno, IT",
   "tipo": "corsa_a_tappe",
   "n_tappe": 2,
-  "distanza_km": 182.57,
-  "dislivello_m": 2764,
+  "distanza_km": 190.86,
+  "dislivello_m": 3140,
   "tappe": [
     {
       "numero": 1,
@@ -31,8 +31,8 @@
       "nome": "Tappa 2",
       "slug": "giro-delle-marche-S2-2026-DJ-DU-DPRO",
       "data": "2026-05-10",
-      "distanza_km": 92.72,
-      "dislivello_m": 1534.0,
+      "distanza_km": 101.01,
+      "dislivello_m": 1910.0,
       "disciplina": "Strada"
     }
   ],
