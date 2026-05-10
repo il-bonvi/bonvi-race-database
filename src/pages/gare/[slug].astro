@@ -505,12 +505,21 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
       border-color: var(--accent);
     }
 
-    @media (max-width: 600px) {
-      .bar-stats { display: none; }
+    @media (max-width: 768px) {
+      .top-bar {
+        padding: 0 0.75rem;
+        gap: 0.5rem;
+        font-size: 0.85em;
+      }
+      .back { font-size: 0.55rem; max-width: 100px; }
       .bar-cat { display: none; }
       .bar-divider:not(:first-of-type) { display: none; }
       .bar-stages { display: none; }
-      .bar-route-nav { max-width: 50vw; }
+      .bar-title { font-size: 0.9rem; }
+      .bar-route-nav { max-width: 40vw; }
+      .bar-stats { gap: 0.6rem; }
+      .bstat-v { font-size: 0.68rem; }
+      .bstat-l { font-size: 0.48rem; }
       .recap-body { padding: 1.25rem 1rem; }
       .recap-totals { gap: 1.25rem; }
     }
