@@ -206,7 +206,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
                           data-dislivello={g.dislivello_m ?? 0}
                           data-percorsi={(g.tipo === 'corsa_a_tappe' && g.tappe?.length > 0) ? g.tappe.length : 1}
                           data-month={monthKey}
-                          data-date={new Date(g.data).getTime()}
+                          data-date={new Date(g.tipo === 'corsa_a_tappe' && g.data_fine ? g.data_fine : g.data).getTime()}
                         >
                           <GaraCard gara={g} />
                         </div>
