@@ -1,0 +1,18 @@
+{
+  "titolo": "Monza",
+  "race_series": "monza",
+  "data": "2026-05-24",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 14,
+  "velocita_media_kmh": 42.0,
+  "distanza_km": 80.22,
+  "dislivello_m": 280.0,
+  "luogo": "Monza e della Brianza, IT",
+  "slug": "monza-2026-DJ-DU-DPRO"
+}
