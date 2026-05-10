@@ -1,0 +1,17 @@
+{
+  "titolo": "Giro del Porto",
+  "race_series": "giro del porto",
+  "data": "2026-05-17",
+  "genere": "Maschile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "giri": 17,
+  "velocita_media_kmh": 44.0,
+  "distanza_km": 168.3,
+  "dislivello_m": 442.0,
+  "luogo": "Cremona, IT",
+  "slug": "giro-del-porto-2026-MU-MPRO"
+}
