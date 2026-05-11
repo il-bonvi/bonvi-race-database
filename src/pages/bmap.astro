@@ -102,6 +102,7 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
     distanza_km:   g.distanza_km ?? null,
     dislivello_m:  g.dislivello_m ?? null,
     luogo:         g.luogo ?? '',
+    wt:            g.wt === true,
     lat:           centerLat,
     lon:           centerLon,
     polylines,
@@ -270,7 +271,7 @@ window.__BASE_URL__  = base;
     stat_races: 'races', stat_routes: 'routes', stat_on_map: 'races on map',
     no_results: 'No results', no_results_sub: 'Try changing the filters',
     kofi_btn: 'Support',
-    cat_Allievi: 'U16', cat_Junior: 'Junior', cat_U23: 'U23', cat_Elite: 'Elite',
+    cat_WT: 'World Tour', cat_Allievi: 'U16', cat_Junior: 'Junior', cat_U23: 'U23', cat_Elite: 'Elite',
     gen_Maschile: 'Men', gen_Femminile: 'Women',
     disc_Strada: 'Road Race', disc_Criterium: 'Criterium',
     disc_ITT: 'ITT', disc_TTT: 'TTT', 'disc_Tipo pista': 'Track-format',
@@ -332,8 +333,8 @@ window.__BASE_URL__  = base;
   const gareData:any[]=(window as any).__GARE_DATA__||[];
   const base:string=(window as any).__BASE_URL__||'';
 
-  const catColor:Record<string,string>={Elite:'#E91E63',U23:'#1B2ACF',Junior:'#28B534',Allievi:'#FFC107'};
-  const getColor=(g:any)=>catColor[(g.categoria||[])[0]]??'#888';
+  const catColor:Record<string,string>={WT:'#8A2BE2',Elite:'#E91E63',U23:'#1B2ACF',Junior:'#28B534',Allievi:'#FFC107'};
+  const getColor=(g:any)=>g.wt?'#8A2BE2':(catColor[(g.categoria||[])[0]]??'#888');
 
   // ── Offset geografico zoom-aware per linee parallele ─────────────────────
   const pxToDeg=(px:number,lat:number,zoom:number)=>{
@@ -464,7 +465,7 @@ window.__BASE_URL__  = base;
     const catLabel = tr('legend_category','Categoria');
     const menLabel = tr('gen_Maschile','Maschile');
     const womenLabel = tr('gen_Femminile','Femminile');
-    d.innerHTML=`<div class="legend-title">${catLabel}</div>${['Elite','U23','Junior','Allievi'].map(c=>`<div class="legend-row"><span class="legend-dot" style="background:${catColor[c]}"></span>${T?.['cat_'+c]??c}</div>`).join('')}<div class="legend-divider"></div><div class="legend-row"><span class="legend-dot solid"></span>${menLabel}</div><div class="legend-row"><span class="legend-dot dashed"></span>${womenLabel}</div>`;
+    d.innerHTML=`<div class="legend-title">${catLabel}</div>${['WT','Elite','U23','Junior','Allievi'].map(c=>`<div class="legend-row"><span class="legend-dot" style="background:${catColor[c]}"></span>${c==='WT'?'World Tour':(T?.['cat_'+c]??c)}</div>`).join('')}<div class="legend-divider"></div><div class="legend-row"><span class="legend-dot solid"></span>${menLabel}</div><div class="legend-row"><span class="legend-dot dashed"></span>${womenLabel}</div>`;
     return d;
   };
   leg.addTo(map);
@@ -473,12 +474,14 @@ window.__BASE_URL__  = base;
     const d=new Date(g.data);
     const ds=`${d.getDate()} ${MESI[d.getMonth()]} ${d.getFullYear()}`;
     const cats:string[]=g.categoria||[];
-    const catBadges=cats.map((c:string)=>{
-      const col=catColor[c]??'#888';
-      const rawLabel=T?.['cat_'+c]??c;
-      const label=(c==='Allievi'&&g.genere==='Femminile')?'Allieve':rawLabel;
-      return `<span style="color:${col};font-weight:600">${label}</span>`;
-    }).join('<span style="opacity:0.4"> · </span>');
+    const catBadges=g.wt
+      ?`<span style="color:#8A2BE2;font-weight:600">World Tour</span>`
+      :cats.map((c:string)=>{
+        const col=catColor[c]??'#888';
+        const rawLabel=T?.['cat_'+c]??c;
+        const label=(c==='Allievi'&&g.genere==='Femminile')?'Allieve':rawLabel;
+        return `<span style="color:${col};font-weight:600">${label}</span>`;
+      }).join('<span style="opacity:0.4"> · </span>');
     const gen=g.genere==='Femminile'?tr('gen_Femminile','Femminile'):tr('gen_Maschile','Maschile');
     const genShade=g.genere==='Femminile'
       ?'radial-gradient(ellipse at 100% 0%, rgba(225,0,100,0.18) 0%, rgba(225,0,100,0.07) 40%, transparent 70%)'
@@ -540,9 +543,11 @@ window.__BASE_URL__  = base;
     // Mostra start marker grande con icona
     if(g.startPt) {
       const cats:string[]=g.categoria||[];
-      const markerBg=cats.length>1
-        ?`linear-gradient(90deg,${cats.map((c:string)=>catColor[c]??'#888').join(',')})`
-        :(catColor[cats[0]]??'#888');
+      const markerBg=g.wt
+        ?'#8A2BE2'
+        :(cats.length>1
+          ?`linear-gradient(90deg,${cats.map((c:string)=>catColor[c]??'#888').join(',')})`
+          :(catColor[cats[0]]??'#888'));
       const startIcon=L.divIcon({
         className:'',
         html:`<div style="width:14px;height:14px;background:${markerBg};border:1.5px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;box-sizing:border-box;">🚩</div>`,
@@ -773,9 +778,11 @@ window.__BASE_URL__  = base;
 
     // Start marker — sempre visibile, minimal dot con colore categoria
     if(g.startPt) {
-      const markerBg=cats.length>1
-        ?`linear-gradient(90deg,${cats.map((c:string)=>catColor[c]??'#888').join(',')})`
-        :(catColor[cats[0]]??'#888');
+      const markerBg=g.wt
+        ?'#8A2BE2'
+        :(cats.length>1
+          ?`linear-gradient(90deg,${cats.map((c:string)=>catColor[c]??'#888').join(',')})`
+          :(catColor[cats[0]]??'#888'));
       const sm = L.marker(g.startPt, {
         icon: L.divIcon({
           className:'',
@@ -899,7 +906,8 @@ window.__BASE_URL__  = base;
   const isVis=(g:any)=>{
     const q=state.q.toLowerCase();
     const cats:string[]=g.categoria||[];
-    return(state.anno==='all'||String(g.anno)===state.anno)&&(state.mese==='all'||String(g.mese)===state.mese)&&(state.genere==='all'||g.genere===state.genere)&&(state.categoria==='all'||cats.includes(state.categoria))&&(state.disciplina==='all'||g.disciplina===state.disciplina)&&(!q||g.titolo.toLowerCase().includes(q)||g.luogo.toLowerCase().includes(q));
+    const matchesCat=state.categoria==='all'||(g.wt&&state.categoria==='WT')||cats.includes(state.categoria);
+    return(state.anno==='all'||String(g.anno)===state.anno)&&(state.mese==='all'||String(g.mese)===state.mese)&&(state.genere==='all'||g.genere===state.genere)&&matchesCat&&(state.disciplina==='all'||g.disciplina===state.disciplina)&&(!q||g.titolo.toLowerCase().includes(q)||g.luogo.toLowerCase().includes(q));
   };
 
   function applyAll(){

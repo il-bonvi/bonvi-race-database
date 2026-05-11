@@ -153,6 +153,22 @@
     "wt": false
   },
   {
+    "slug": "giro-d-italia-women-2026-DWT",
+    "titolo": "Giro d'Italia Women",
+    "data": "2026-05-30",
+    "year": "2026",
+    "race_series": "giro d'italia",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23"
+    ],
+    "categoria_code": "DELI",
+    "tipo": "corsa_a_tappe",
+    "n_tappe": 9,
+    "wt": true
+  },
+  {
     "slug": "giro-del-porto-2026-MU-MELI",
     "titolo": "Giro del Porto",
     "data": "2026-05-17",
@@ -340,7 +356,7 @@
     "wt": false
   },
   {
-    "slug": "milano-sanremo-women-2026-DU-DELI",
+    "slug": "milano-sanremo-women-2026-DWT",
     "titolo": "Milano Sanremo Women",
     "data": "2026-03-21",
     "year": "2026",
@@ -543,7 +559,7 @@
     "wt": false
   },
   {
-    "slug": "trofeo-alfredo-binda-2026-DU-DELI",
+    "slug": "trofeo-alfredo-binda-2026-DWT",
     "titolo": "Trofeo Alfredo Binda",
     "data": "2026-03-15",
     "year": "2026",

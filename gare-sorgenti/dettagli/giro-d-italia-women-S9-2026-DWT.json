@@ -1,0 +1,22 @@
+{
+  "titolo": "Giro d'Italia Women — Tappa 9: Tappa 9",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 9",
+  "numero_tappa": 9,
+  "corsa_a_tappe_slug": "giro-d-italia-women-2026-DWT",
+  "corsa_a_tappe_titolo": "Giro d'Italia Women",
+  "race_series": "giro d'italia",
+  "data": "2026-06-07",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 143.44,
+  "dislivello_m": 1999.0,
+  "velocita_media_kmh": 35.0,
+  "luogo": "Cuneo, IT",
+  "slug": "giro-d-italia-women-S9-2026-DWT",
+  "wt": true
+}

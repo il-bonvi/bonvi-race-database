@@ -1,0 +1,22 @@
+{
+  "titolo": "Giro d'Italia Women — Tappa 1: Tappa 1",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 1",
+  "numero_tappa": 1,
+  "corsa_a_tappe_slug": "giro-d-italia-women-2026-DWT",
+  "corsa_a_tappe_titolo": "Giro d'Italia Women",
+  "race_series": "giro d'italia",
+  "data": "2026-05-30",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 139.18,
+  "dislivello_m": 169.0,
+  "velocita_media_kmh": 44.0,
+  "luogo": "Ravenna, IT",
+  "slug": "giro-d-italia-women-S1-2026-DWT",
+  "wt": true
+}

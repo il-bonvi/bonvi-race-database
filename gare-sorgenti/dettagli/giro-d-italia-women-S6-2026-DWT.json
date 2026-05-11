@@ -1,0 +1,22 @@
+{
+  "titolo": "Giro d'Italia Women — Tappa 6: Tappa 6",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 6",
+  "numero_tappa": 6,
+  "corsa_a_tappe_slug": "giro-d-italia-women-2026-DWT",
+  "corsa_a_tappe_titolo": "Giro d'Italia Women",
+  "race_series": "giro d'italia",
+  "data": "2026-06-04",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 159.09,
+  "dislivello_m": 555.0,
+  "velocita_media_kmh": 44.0,
+  "luogo": "Reggio nell'Emilia, IT",
+  "slug": "giro-d-italia-women-S6-2026-DWT",
+  "wt": true
+}

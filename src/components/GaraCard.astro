@@ -1,11 +1,15 @@
 ---
-import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon, formatCategoria } from '../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon, formatCategoria, getRaceColorForBorder, WT_COLOR } from '../lib/gare.js';
 const { gara } = Astro.props;
 const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
 const isTipoPista = gara.disciplina === 'Tipo pista';
 const icon  = disciplinaIcon(gara.disciplina);
 const base  = import.meta.env.BASE_URL.replace(/\/$/, '');
 const categorie: string[] = (Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria]).filter(Boolean);
+
+// Verifica se è una gara speciale (Giro d'Italia Women)
+const isSpecialWTRace = gara.slug?.includes('giro-d-italia-women');
+
 // Mappa colori per categorie
 const catColorMap: Record<string, string> = {
   'Elite':    '#E91E63',
@@ -15,13 +19,7 @@ const catColorMap: Record<string, string> = {
 };
 
 // Genera il colore/gradiente per il bordo
-let borderStyle = '';
-if (categorie.length === 1) {
-  borderStyle = catColorMap[categorie[0]] ?? '#888';
-} else {
-  const colors = categorie.map((cat: string) => catColorMap[cat] ?? '#888');
-  borderStyle = `linear-gradient(90deg, ${colors.join(', ')})`;
-}
+const borderStyle = getRaceColorForBorder(gara);
 
 // Shade colore genere
 const genereColor = gara.genere === 'Femminile'
@@ -29,19 +27,23 @@ const genereColor = gara.genere === 'Femminile'
   : 'radial-gradient(ellipse at 100% 0%, rgba(80,150,215,0.22) 0%, rgba(80,150,215,0.08) 35%, transparent 65%)';
 ---
 
-<a href={`${base}/gare/${gara.slug}/`} class={`card${isCorsaATappe ? ' card--tappe' : ''}`} style={`--cat-color: ${borderStyle}; --genere-shade: ${genereColor}`}>
+<a href={`${base}/gare/${gara.slug}/`} class={`card${isCorsaATappe ? ' card--tappe' : ''}${isSpecialWTRace ? ' card--special' : ''}`} style={`--cat-color: ${borderStyle}; --genere-shade: ${genereColor}`}>
 
   <div class="card-top">
     <div class="cat-badges">
-      {categorie.map((cat) => (
-        <span class="cat-badge" data-cat={cat} style={`--badge-color: ${catColorMap[cat] ?? '#888'}`}>{formatCategoria(cat, gara.genere)}</span>
-      ))}
+      {gara.wt ? (
+        <span class="cat-badge wt-badge" style={`--badge-color: ${WT_COLOR}`}>World Tour</span>
+      ) : (
+        categorie.map((cat) => (
+          <span class="cat-badge" data-cat={cat} style={`--badge-color: ${catColorMap[cat] ?? '#888'}`}>{formatCategoria(cat, gara.genere)}</span>
+        ))
+      )}
     </div>
     {isCorsaATappe
       ? <span class="disc-badge tappe-badge">⛰ {gara.n_tappe} tappe</span>
       : <span class="disc-badge">{icon} <span class="disc-badge-text" data-disc={gara.disciplina ?? ''}>{gara.disciplina ?? '—'}</span></span>
     }
-    <span class="genere-badge">{gara.genere === 'Femminile' ? '♀' : '♂'}</span>
+    <span class="genere-badge" class:list={{ 'genere-badge--special': isSpecialWTRace }}>{gara.genere === 'Femminile' ? '♀' : '♂'}</span>
   </div>
 
   <h2 class="card-title">{gara.titolo}</h2>
@@ -163,6 +165,41 @@ const genereColor = gara.genere === 'Femminile'
   }
 
   .genere-badge { font-size: 0.75rem; color: var(--text3); margin-left: auto; }
+
+  .genere-badge--special {
+    font-size: 0.75rem;
+    color: var(--text3);
+  }
+
+  .card--special {
+    background: linear-gradient(135deg, rgba(255, 40, 110, 0.40) 0%, rgba(255, 40, 110, 0.20) 100%);
+    color: #333;
+    border-color: rgba(224, 27, 93, 0.4);
+  }
+
+  .card--special .card-title,
+  .card--special .card-cta,
+  .card--special .stat-v,
+  .card--special .card-sub {
+    color: #333;
+  }
+
+  .card--special .card-sub,
+  .card--special .stat-l,
+  .card--special .genere-badge {
+    color: #666;
+  }
+
+  .card--special .cat-badge,
+  .card--special .disc-badge {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #fff;
+  }
+
+  .card--special .card-stats {
+    border-top-color: rgba(255, 255, 255, 0.3);
+  }
 
   .card-title {
     font-family: var(--font-display);

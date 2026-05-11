@@ -88,6 +88,30 @@ def categoria_code(genere: str, categoria: str) -> str:
     return f"{genere_code}{cat_code}" if genere_code and cat_code else ""
 
 
+def get_slug_suffix(genere: str, categoria: str, is_wt: bool) -> str:
+    """
+    Genera il suffisso dello slug considerando il flag WT.
+    
+    Se is_wt=True:
+      - "Maschile" → "MWT"
+      - "Femminile" → "DWT"
+    
+    Se is_wt=False: usa categoria_code() normale
+    
+    Esempio:
+      - get_slug_suffix("Femminile", "Elite", True) → "DWT"
+      - get_slug_suffix("Femminile", "Elite", False) → "DELI"
+    """
+    if is_wt:
+        genere_map = {
+            "Maschile": "MWT",
+            "Femminile": "DWT"
+        }
+        return genere_map.get(genere, "")
+    else:
+        return categoria_code(genere, categoria)
+
+
 def parse_gpx(gpx_path: Path) -> dict:
     """Estrae distanza (km), dislivello positivo (m) e punti GPX dal file GPX."""
     try:
@@ -1609,8 +1633,11 @@ GPX FILE:     {gpx_info}"""
                     data_str = entries['data'].get().strip()
                     year = data_str.split('-')[0] if data_str and len(data_str) >= 4 else "2026"
                     
-                    # Aggiungi il codice categoria allo slug
+                    # Aggiungi il codice categoria allo slug, considerando il flag WT
                     genere = entries['genere'].get() if isinstance(entries['genere'], tk.StringVar) else ""
+                    
+                    # Estrai il valore di WT dal checkbox
+                    is_wt = entries.get('wt', tk.BooleanVar()).get() if hasattr(entries.get('wt'), 'get') else False
                     
                     # Estrai TUTTE le categorie selezionate e ordinale
                     categoria_order = ['Allievi', 'Junior', 'U23', 'Elite']
@@ -1620,12 +1647,15 @@ GPX FILE:     {gpx_info}"""
                             if cat in entries['categoria'] and entries['categoria'][cat].get():
                                 categorie_selezionate.append(cat)
                     
-                    # Genera i codici categoria per ogni categoria selezionata
+                    # Genera i codici categoria per ogni categoria selezionata (o WT se is_wt=True)
                     cat_codes = []
                     for categoria in categorie_selezionate:
-                        cat_code = categoria_code(genere, categoria)
+                        cat_code = get_slug_suffix(genere, categoria, is_wt)
                         if cat_code:
                             cat_codes.append(cat_code)
+                            # Se WT, aggiungi solo una volta
+                            if is_wt:
+                                break
                     
                     if titolo:
                         new_auto_slug = slugify(titolo) + f"-{year}"
@@ -1657,6 +1687,10 @@ GPX FILE:     {gpx_info}"""
             if isinstance(entries['categoria'], dict):
                 for cat, var in entries['categoria'].items():
                     var.trace_add("write", update_slug)
+            
+            # Collega binding per WT (BooleanVar)
+            if 'wt' in entries and hasattr(entries['wt'], 'trace_add'):
+                entries['wt'].trace_add("write", update_slug)
         
         # Quando l'utente modifica lo slug manualmente, disabilita l'auto-update
         if isinstance(entries['slug'], tk.Entry):
@@ -2268,10 +2302,21 @@ GPX FILE:     {gpx_info}"""
             data_s = race_entries['data_inizio'].get().strip()
             year = data_s.split('-')[0] if len(data_s) >= 4 else "2026"
             genere = race_entries['genere'].get()
+            is_wt = wt_var.get()
             cats = [c for c, v in cat_vars.items() if v.get()]
-            cat_code_str = '-'.join(
-                categoria_code(genere, c) for c in ['Allievi', 'Junior', 'U23', 'Elite'] if c in cats
-            )
+            
+            # Genera il suffisso categoria considerando WT
+            cat_codes = []
+            for cat in ['Allievi', 'Junior', 'U23', 'Elite']:
+                if cat in cats:
+                    cat_code = get_slug_suffix(genere, cat, is_wt)
+                    if cat_code:
+                        cat_codes.append(cat_code)
+                        # Se WT, aggiungi solo una volta
+                        if is_wt:
+                            break
+            
+            cat_code_str = '-'.join(cat_codes)
             if titolo:
                 new_slug = slugify(titolo) + f"-{year}"
                 if cat_code_str:
@@ -2284,6 +2329,7 @@ GPX FILE:     {gpx_info}"""
         race_entries['titolo'].trace_add("write", _auto_slug)
         race_entries['data_inizio'].trace_add("write", _auto_slug)
         genere_var.trace_add("write", _auto_slug)
+        wt_var.trace_add("write", _auto_slug)
         for v in cat_vars.values():
             v.trace_add("write", _auto_slug)
         slug_entry.bind("<KeyPress>", lambda e: slug_manual.__setitem__(0, True))

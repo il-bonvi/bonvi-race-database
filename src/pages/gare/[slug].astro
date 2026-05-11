@@ -26,6 +26,7 @@ const gareBySlug = new Map(
 const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
 const isTappa = gara.tipo === 'tappa';
 const isTipoPista = gara.disciplina === 'Tipo pista';
+const isSpecialWTRace = gara.slug?.includes('giro-d-italia-women');
 const allRaces = Object.values(garaFiles).map((m: any) => m.default ?? m);
 
 const normalizeCategoria = (cat: unknown): string[] =>
@@ -49,17 +50,20 @@ if (isTappa && gara.corsa_a_tappe_slug) {
 }
 
 // Per il colore della top bar, genera colore solido o gradiente
+const WT_COLOR = '#8A2BE2';
 const catColorMap = {
   'Elite':    '#E91E63',
   'U23':      '#1B2ACF',
   'Junior':   '#28B534',
   'Allievi':  '#FFC107',
 } as Record<string, string>;
-const categorie: string[] = (Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria]).filter(Boolean);
+const categorie: string[] = gara.wt ? [] : (Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria]).filter(Boolean);
 
-// Colore del bordo: solido se singola categoria, gradiente se multiple
+// Colore del bordo: solido se singola categoria, gradiente se multiple (o purple per WT)
 let borderColor = '';
-if (categorie.length === 1) {
+if (gara.wt === true) {
+  borderColor = WT_COLOR;
+} else if (categorie.length === 1) {
   borderColor = catColorMap[categorie[0]] ?? '#888';
 } else {
   const colors = categorie.map((cat: string) => catColorMap[cat] ?? '#888');
@@ -251,6 +255,44 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
       -webkit-font-smoothing: antialiased;
       display: flex;
       flex-direction: column;
+    }
+
+    /* ── SPECIAL STYLING FOR GIRO D'ITALIA WOMEN ── */
+    body.body-special-wt-recap .top-bar {
+      background: linear-gradient(90deg, #00A3E0 0%, #FF286E 50%, #8A316C 100%);
+    }
+    body.body-special-wt-recap .top-bar::after {
+      display: none;
+    }
+    body.body-special-wt-recap .recap-totals {
+      gap: 0;
+      padding: 1.5rem;
+      background: linear-gradient(90deg, rgba(0, 163, 224, 0.08) 0%, rgba(255, 40, 110, 0.08) 50%, rgba(138, 49, 108, 0.08) 100%);
+      border: 1px solid rgba(0, 163, 224, 0.2);
+      border-radius: 4px;
+      margin-top: 1.5rem;
+    }
+    body.body-special-wt-recap .recap-total-block {
+      flex: 1;
+      padding: 0 1.5rem;
+      position: relative;
+    }
+    body.body-special-wt-recap .recap-total-block:nth-child(1) {
+      border-right: 2px solid rgba(0, 163, 224, 0.3);
+      color: #00A3E0;
+    }
+    body.body-special-wt-recap .recap-total-block:nth-child(2) {
+      border-right: 2px solid rgba(255, 40, 110, 0.3);
+      color: #FF286E;
+    }
+    body.body-special-wt-recap .recap-total-block:nth-child(3) {
+      color: #8A316C;
+    }
+    body.body-special-wt-recap .recap-total-v {
+      font-weight: 600;
+    }
+    body.body-special-wt-recap .recap-total-l {
+      font-size: 0.65rem;
     }
 
     /* ── TOP BAR ── */
@@ -562,9 +604,80 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
     }
     .elevation-legend-item { display: flex; align-items: center; gap: 0.4rem; }
     .elevation-legend-color { width: 12px; height: 12px; border-radius: 2px; }
+
+    /* ── SPECIAL STYLING FOR GIRO D'ITALIA WOMEN ── */
+    body.body-special-wt {
+      background: linear-gradient(135deg, rgba(255, 40, 110, 0.08) 0%, rgba(255, 40, 110, 0.04) 100%);
+    }
+    body.body-special-wt .top-bar {
+      background: linear-gradient(90deg, rgba(255, 40, 110, 0.05) 0%, rgba(255, 40, 110, 0.02) 100%);
+    }
+    body.body-special-wt .recap-body {
+      background: linear-gradient(180deg, rgba(255, 40, 110, 0.03) 0%, rgba(255, 40, 110, 0.01) 100%);
+    }
+    body.body-special-wt .stage-card {
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), rgba(255, 40, 110, 0.02));
+    }
+
+    /* ── SPECIAL STYLING FOR GIRO D'ITALIA WOMEN RECAP ── */
+    body.body-special-wt-recap {
+      background: linear-gradient(135deg, rgba(0, 163, 224, 0.04) 0%, rgba(255, 40, 110, 0.06) 50%, rgba(138, 49, 108, 0.04) 100%);
+    }
+    body.body-special-wt-recap .top-bar {
+      background: var(--bg2) !important;
+      background-image: none !important;
+    }
+    body.body-special-wt-recap .top-bar::after {
+      display: none;
+    }
+    body.body-special-wt-recap .recap-body {
+      background: linear-gradient(135deg, rgba(0, 163, 224, 0.03) 0%, rgba(255, 40, 110, 0.05) 50%, rgba(138, 49, 108, 0.03) 100%);
+    }
+    body.body-special-wt-recap .recap-totals {
+      gap: 0;
+      padding: 1.5rem;
+      background: linear-gradient(90deg, rgba(0, 163, 224, 0.20) 0%, rgba(255, 40, 110, 0.20) 50%, rgba(138, 49, 108, 0.20) 100%);
+      border: 2px solid rgba(0, 163, 224, 0.4);
+      border-radius: 4px;
+      margin-top: 1.5rem;
+      border-top: none;
+    }
+    body.body-special-wt-recap .recap-total-block {
+      flex: 1;
+      padding: 0 1.5rem;
+      position: relative;
+    }
+    body.body-special-wt-recap .recap-total-block:nth-child(1) {
+      border-right: 2px solid rgba(0, 163, 224, 0.5);
+    }
+    body.body-special-wt-recap .recap-total-block:nth-child(1) .recap-total-v {
+      color: #00A3E0;
+      font-weight: 700;
+    }
+    body.body-special-wt-recap .recap-total-block:nth-child(2) {
+      border-right: 2px solid rgba(255, 40, 110, 0.5);
+    }
+    body.body-special-wt-recap .recap-total-block:nth-child(2) .recap-total-v {
+      color: #FF286E;
+      font-weight: 700;
+    }
+    body.body-special-wt-recap .recap-total-block:nth-child(3) .recap-total-v {
+      color: #8A316C;
+      font-weight: 700;
+    }
+    body.body-special-wt-recap .recap-total-v {
+      font-weight: 600;
+    }
+    body.body-special-wt-recap .stage-card {
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.98), rgba(0, 163, 224, 0.03) 33%, rgba(255, 40, 110, 0.04) 66%, rgba(138, 49, 108, 0.03));
+      border-color: rgba(138, 49, 108, 0.3);
+    }
+    body.body-special-wt-recap .stage-card::before {
+      background: linear-gradient(90deg, #00A3E0 0%, #FF286E 50%, #8A316C 100%);
+    }
   </style>
 </head>
-<body class={isCorsaATappe ? 'body-stage-race' : ''}>
+<body class={`${isCorsaATappe ? 'body-stage-race' : ''}${isSpecialWTRace && isCorsaATappe ? ' body-special-wt-recap' : ''}`}>
   <!-- ── TOP BAR (comune a tutti i tipi) ────────────────────────────────── -->
   <div class="top-bar" style={{
     "--cat-color": borderColor,
@@ -586,11 +699,15 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
     <div class="bar-divider"></div>
     <span class="bar-cat">
       <span class="bar-cat-label">
-        {categorie.map((cat: string, idx: number) => (
-          <span style={{ color: catColorMap[cat as keyof typeof catColorMap] ?? '#888', fontWeight: 500 }}>
-            {formatCategoria(cat, gara.genere)}{idx < categorie.length - 1 ? ' / ' : ''}
-          </span>
-        ))}
+        {gara.wt === true ? (
+          <span style={{ color: WT_COLOR, fontWeight: 500 }}>World Tour</span>
+        ) : (
+          categorie.map((cat: string, idx: number) => (
+            <span style={{ color: catColorMap[cat as keyof typeof catColorMap] ?? '#888', fontWeight: 500 }}>
+              {formatCategoria(cat, gara.genere)}{idx < categorie.length - 1 ? ' / ' : ''}
+            </span>
+          ))
+        )}
         {isCorsaATappe
           ? <span style="color:var(--text3)"> · {gara.n_tappe} tappe</span>
           : <span style="color:var(--text3)"> · {gara.disciplina}</span>

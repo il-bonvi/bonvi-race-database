@@ -1,0 +1,22 @@
+{
+  "titolo": "Giro d'Italia Women — Tappa 2: Tappa 2",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 2",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "giro-d-italia-women-2026-DWT",
+  "corsa_a_tappe_titolo": "Giro d'Italia Women",
+  "race_series": "giro d'italia",
+  "data": "2026-05-31",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 155.62,
+  "dislivello_m": 458.0,
+  "velocita_media_kmh": 42.0,
+  "luogo": "Venezia, IT",
+  "slug": "giro-d-italia-women-S2-2026-DWT",
+  "wt": true
+}

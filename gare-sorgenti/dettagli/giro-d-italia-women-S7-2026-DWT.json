@@ -1,0 +1,22 @@
+{
+  "titolo": "Giro d'Italia Women — Tappa 7: Tappa 7",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 7",
+  "numero_tappa": 7,
+  "corsa_a_tappe_slug": "giro-d-italia-women-2026-DWT",
+  "corsa_a_tappe_titolo": "Giro d'Italia Women",
+  "race_series": "giro d'italia",
+  "data": "2026-06-05",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 159.2,
+  "dislivello_m": 862.0,
+  "velocita_media_kmh": 38.0,
+  "luogo": "Pavia, IT",
+  "slug": "giro-d-italia-women-S7-2026-DWT",
+  "wt": true
+}

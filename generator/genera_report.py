@@ -288,6 +288,30 @@ def categoria_code(genere: str, categoria: str) -> str:
     return f"{genere_code}{cat_code}" if genere_code and cat_code else ""
 
 
+def get_slug_suffix(genere: str, categoria: str, is_wt: bool) -> str:
+    """
+    Genera il suffisso dello slug considerando il flag WT.
+    
+    Se is_wt=True:
+      - "Maschile" → "MWT"
+      - "Femminile" → "DWT"
+    
+    Se is_wt=False: usa categoria_code() normale
+    
+    Esempio:
+      - get_slug_suffix("Femminile", "Elite", True) → "DWT"
+      - get_slug_suffix("Femminile", "Elite", False) → "DELI"
+    """
+    if is_wt:
+        genere_map = {
+            "Maschile": "MWT",
+            "Femminile": "DWT"
+        }
+        return genere_map.get(genere, "")
+    else:
+        return categoria_code(genere, categoria)
+
+
 # ── CALENDARIO POPUP ─────────────────────────────────────────────────────────
 
 def _show_calendar(parent, target_entry, BG, ACCENT, FG, on_date_selected=None):
@@ -553,15 +577,16 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
             if data_str and len(data_str) >= 4:
                 year = data_str.split('-')[0]
             
-            # Aggiungi il codice categoria allo slug
+            # Aggiungi il codice categoria allo slug, considerando il flag WT
             genere = cb_genere.get()
             categoria = cb_cat.get()
-            cat_code = categoria_code(genere, categoria)
+            is_wt = wt_var.get()
+            cat_suffix = get_slug_suffix(genere, categoria, is_wt)
             
             if year:
-                slug = f"{titolo_slug}-{year}-{cat_code}" if cat_code else f"{titolo_slug}-{year}"
+                slug = f"{titolo_slug}-{year}-{cat_suffix}" if cat_suffix else f"{titolo_slug}-{year}"
             else:
-                slug = f"{titolo_slug}-{cat_code}" if cat_code else titolo_slug
+                slug = f"{titolo_slug}-{cat_suffix}" if cat_suffix else titolo_slug
             
             e_slug.insert(0, slug)
     
@@ -573,6 +598,7 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
     e_data.bind("<FocusOut>", update_slug)
     cb_genere.bind("<<ComboboxSelected>>", update_slug)
     cb_cat.bind("<<ComboboxSelected>>", update_slug)
+    wt_var.trace_add("write", update_slug)
     e_slug.bind("<KeyPress>", lambda e: slug_manual.set(True))
     update_slug()
 
@@ -645,6 +671,12 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
     # Inizializza con default e collega il callback
     cb_disc.bind("<<ComboboxSelected>>", suggest_velocity)
     suggest_velocity()  # Imposta il valore iniziale
+
+    # Checkbox per WT (World Tour)
+    wt_var = tk.BooleanVar(value=False)
+    wt_check = tk.Checkbutton(frame2, text="Corsa di categoria WT", variable=wt_var, 
+                              bg=BG, fg=FG, font=("Helvetica", 10))
+    wt_check.grid(row=3, column=0, sticky="w", padx=(0,8), pady=(4,0))
 
     tk.Label(frame2, text="Opzioni GPX", font=FONT_LABEL, bg=BG, fg="#7a746b",
              anchor="w").grid(row=3, column=0, columnspan=3, sticky="w", pady=(10,1))
@@ -741,6 +773,7 @@ def ask_metadata(default_title: str, gpx_path_initial: Path, gpx_data: dict, luo
             "dislivello_m": num_or_none(e_dp.get()),
             "velocita_media_kmh": num_or_none(e_velocita.get()),
             "luogo":        e_luogo.get().strip() or None,
+            "wt":           wt_var.get(),
             "note":         e_note.get("1.0", tk.END).strip() or None,
         })
         

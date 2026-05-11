@@ -1,0 +1,22 @@
+{
+  "titolo": "Giro d'Italia Women — Tappa 5: Tappa 5",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 5",
+  "numero_tappa": 5,
+  "corsa_a_tappe_slug": "giro-d-italia-women-2026-DWT",
+  "corsa_a_tappe_titolo": "Giro d'Italia Women",
+  "race_series": "giro d'italia",
+  "data": "2026-06-03",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 145.54,
+  "dislivello_m": 3293.0,
+  "velocita_media_kmh": 33.0,
+  "luogo": "Belluno, IT",
+  "slug": "giro-d-italia-women-S5-2026-DWT",
+  "wt": true
+}

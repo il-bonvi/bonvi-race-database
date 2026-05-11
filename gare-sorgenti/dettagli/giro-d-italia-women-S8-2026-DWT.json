@@ -1,0 +1,22 @@
+{
+  "titolo": "Giro d'Italia Women — Tappa 8: Tappa 8",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 8",
+  "numero_tappa": 8,
+  "corsa_a_tappe_slug": "giro-d-italia-women-2026-DWT",
+  "corsa_a_tappe_titolo": "Giro d'Italia Women",
+  "race_series": "giro d'italia",
+  "data": "2026-06-06",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 104.85,
+  "dislivello_m": 2782.0,
+  "velocita_media_kmh": 31.0,
+  "luogo": "Torino, IT",
+  "slug": "giro-d-italia-women-S8-2026-DWT",
+  "wt": true
+}
