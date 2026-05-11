@@ -3,7 +3,7 @@
   "tipo": "tappa",
   "nome_tappa": "Tappa 1",
   "numero_tappa": 1,
-  "corsa_a_tappe_slug": "giro-delle-marche-2026-DJ-DU-DPRO",
+  "corsa_a_tappe_slug": "giro-delle-marche-2026-DJ-DU-DELI",
   "corsa_a_tappe_titolo": "Giro delle Marche",
   "race_series": "giro delle marche",
   "data": "2026-05-09",
@@ -18,5 +18,6 @@
   "dislivello_m": 1230.0,
   "velocita_media_kmh": 38.0,
   "luogo": "Ascoli Piceno, IT",
-  "slug": "giro-delle-marche-S1-2026-DJ-DU-DPRO"
+  "slug": "giro-delle-marche-S1-2026-DJ-DU-DELI"
 }
+

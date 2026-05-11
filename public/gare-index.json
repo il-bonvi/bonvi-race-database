@@ -105,7 +105,7 @@
     "wt": false
   },
   {
-    "slug": "de-nardi-2026-MU-MPRO",
+    "slug": "de-nardi-2026-MU-MELI",
     "titolo": "De Nardi",
     "data": "2026-05-03",
     "year": "2026",
@@ -115,7 +115,7 @@
       "Elite",
       "U23"
     ],
-    "categoria_code": "MPRO",
+    "categoria_code": "MELI",
     "tipo": null,
     "n_tappe": null,
     "wt": false
@@ -136,7 +136,7 @@
     "wt": false
   },
   {
-    "slug": "fossano-2026-DJ-DU-DPRO",
+    "slug": "fossano-2026-DJ-DU-DELI",
     "titolo": "Fossano",
     "data": "2026-04-12",
     "year": "2026",
@@ -147,13 +147,13 @@
       "U23",
       "Junior"
     ],
-    "categoria_code": "DPRO",
+    "categoria_code": "DELI",
     "tipo": null,
     "n_tappe": null,
     "wt": false
   },
   {
-    "slug": "giro-del-porto-2026-MU-MPRO",
+    "slug": "giro-del-porto-2026-MU-MELI",
     "titolo": "Giro del Porto",
     "data": "2026-05-17",
     "year": "2026",
@@ -163,13 +163,13 @@
       "Elite",
       "U23"
     ],
-    "categoria_code": "MPRO",
+    "categoria_code": "MELI",
     "tipo": null,
     "n_tappe": null,
     "wt": false
   },
   {
-    "slug": "giro-dell-appennino-2026-DU-DPRO",
+    "slug": "giro-dell-appennino-2026-DU-DELI",
     "titolo": "Giro dell'Appennino",
     "data": "2026-03-22",
     "year": "2026",
@@ -179,13 +179,13 @@
       "Elite",
       "U23"
     ],
-    "categoria_code": "DPRO",
+    "categoria_code": "DELI",
     "tipo": null,
     "n_tappe": null,
     "wt": false
   },
   {
-    "slug": "giro-della-castellania-2026-DJ-DU-DPRO",
+    "slug": "giro-della-castellania-2026-DJ-DU-DELI",
     "titolo": "Giro della Castellania",
     "data": "2026-04-11",
     "year": "2026",
@@ -196,13 +196,13 @@
       "U23",
       "Junior"
     ],
-    "categoria_code": "DPRO",
+    "categoria_code": "DELI",
     "tipo": null,
     "n_tappe": null,
     "wt": false
   },
   {
-    "slug": "giro-delle-marche-2026-DJ-DU-DPRO",
+    "slug": "giro-delle-marche-2026-DJ-DU-DELI",
     "titolo": "Giro delle Marche",
     "data": "2026-05-09",
     "year": "2026",
@@ -213,7 +213,7 @@
       "U23",
       "Junior"
     ],
-    "categoria_code": "DPRO",
+    "categoria_code": "DELI",
     "tipo": "corsa_a_tappe",
     "n_tappe": 2,
     "wt": false
@@ -294,7 +294,7 @@
     "wt": false
   },
   {
-    "slug": "memorial-giordano-mignolli-2026-MU-MPRO",
+    "slug": "memorial-giordano-mignolli-2026-MU-MELI",
     "titolo": "Memorial Giordano Mignolli",
     "data": "2026-05-09",
     "year": "2026",
@@ -304,7 +304,7 @@
       "Elite",
       "U23"
     ],
-    "categoria_code": "MPRO",
+    "categoria_code": "MELI",
     "tipo": null,
     "n_tappe": null,
     "wt": false
@@ -340,7 +340,7 @@
     "wt": false
   },
   {
-    "slug": "milano-sanremo-women-2026-DU-DPRO",
+    "slug": "milano-sanremo-women-2026-DU-DELI",
     "titolo": "Milano Sanremo Women",
     "data": "2026-03-21",
     "year": "2026",
@@ -350,13 +350,13 @@
       "Elite",
       "U23"
     ],
-    "categoria_code": "DPRO",
+    "categoria_code": "DELI",
     "tipo": null,
     "n_tappe": null,
     "wt": true
   },
   {
-    "slug": "montalto-2026-DJ-DU-DPRO",
+    "slug": "montalto-2026-DJ-DU-DELI",
     "titolo": "Montalto",
     "data": "2026-05-02",
     "year": "2026",
@@ -367,13 +367,13 @@
       "U23",
       "Junior"
     ],
-    "categoria_code": "DPRO",
+    "categoria_code": "DELI",
     "tipo": null,
     "n_tappe": null,
     "wt": false
   },
   {
-    "slug": "monza-2026-DJ-DU-DPRO",
+    "slug": "monza-2026-DJ-DU-DELI",
     "titolo": "Monza",
     "data": "2026-05-24",
     "year": "2026",
@@ -384,7 +384,7 @@
       "U23",
       "Junior"
     ],
-    "categoria_code": "DPRO",
+    "categoria_code": "DELI",
     "tipo": null,
     "n_tappe": null,
     "wt": false
@@ -435,7 +435,7 @@
     "wt": false
   },
   {
-    "slug": "pasqualando-2026-DJ-DU-DPRO",
+    "slug": "pasqualando-2026-DJ-DU-DELI",
     "titolo": "Pasqualando",
     "data": "2026-04-05",
     "year": "2026",
@@ -446,7 +446,7 @@
       "U23",
       "Junior"
     ],
-    "categoria_code": "DPRO",
+    "categoria_code": "DELI",
     "tipo": null,
     "n_tappe": null,
     "wt": false
@@ -543,7 +543,7 @@
     "wt": false
   },
   {
-    "slug": "trofeo-alfredo-binda-2026-DU-DPRO",
+    "slug": "trofeo-alfredo-binda-2026-DU-DELI",
     "titolo": "Trofeo Alfredo Binda",
     "data": "2026-03-15",
     "year": "2026",
@@ -553,13 +553,13 @@
       "Elite",
       "U23"
     ],
-    "categoria_code": "DPRO",
+    "categoria_code": "DELI",
     "tipo": null,
     "n_tappe": null,
     "wt": true
   },
   {
-    "slug": "trofeo-matteotti-2026-MU-MPRO",
+    "slug": "trofeo-matteotti-2026-MU-MELI",
     "titolo": "Trofeo Matteotti",
     "data": "2026-05-17",
     "year": "2026",
@@ -569,7 +569,7 @@
       "Elite",
       "U23"
     ],
-    "categoria_code": "MPRO",
+    "categoria_code": "MELI",
     "tipo": null,
     "n_tappe": null,
     "wt": false

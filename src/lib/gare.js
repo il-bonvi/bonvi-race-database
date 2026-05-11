@@ -27,12 +27,12 @@ export function getCategoriaCode(genere, categoria) {
    *   - "Femminile" → D
    * 
    * Categoria:
-   *   - "Elite" → PRO
+   *   - "Elite" → ELI
    *   - "U23" → U
    *   - "Junior" → J
    *   - "Allievi" → A
    * 
-   * Esempio: getCategoriaCode("Femminile", "Elite") → "DPRO"
+   * Esempio: getCategoriaCode("Femminile", "Elite") → "DELI"
    */
   const genereMap = {
     'Maschile': 'M',
@@ -40,7 +40,7 @@ export function getCategoriaCode(genere, categoria) {
   };
   
   const categoriaMap = {
-    'Elite': 'PRO',
+    'Elite': 'ELI',
     'U23': 'U',
     'Junior': 'J',
     'Allievi': 'A'

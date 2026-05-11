@@ -263,12 +263,12 @@ def categoria_code(genere: str, categoria: str) -> str:
       - "Femminile" → D
     
     Categoria:
-      - "Elite" → PRO
+      - "Elite" → ELI
       - "U23" → U
       - "Junior" → J
       - "Allievi" → A
     
-    Esempio: categoria_code("Femminile", "Elite") → "DPRO"
+    Esempio: categoria_code("Femminile", "Elite") → "DELI"
     """
     genere_map = {
         "Maschile": "M",
@@ -276,7 +276,7 @@ def categoria_code(genere: str, categoria: str) -> str:
     }
     
     categoria_map = {
-        "Elite": "PRO",
+        "Elite": "ELI",
         "U23": "U",
         "Junior": "J",
         "Allievi": "A"
