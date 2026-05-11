@@ -512,6 +512,22 @@
     "wt": false
   },
   {
+    "slug": "romanengo-2026-DA-DJ",
+    "titolo": "Romanengo",
+    "data": "2026-05-23",
+    "year": "2026",
+    "race_series": "romanengo",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior",
+      "Allievi"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "tour-du-gevaudan-occitanie-femmes-2025-DJ",
     "titolo": "Tour du Gévaudan Occitanie femmes",
     "data": "2025-05-10",
@@ -541,6 +557,22 @@
     "tipo": null,
     "n_tappe": null,
     "wt": true
+  },
+  {
+    "slug": "trofeo-matteotti-2026-MU-MPRO",
+    "titolo": "Trofeo Matteotti",
+    "data": "2026-05-17",
+    "year": "2026",
+    "race_series": "trofeo matteotti",
+    "genere": "Maschile",
+    "categoria": [
+      "Elite",
+      "U23"
+    ],
+    "categoria_code": "MPRO",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
   },
   {
     "slug": "vicenza-bionde-2026-MU",

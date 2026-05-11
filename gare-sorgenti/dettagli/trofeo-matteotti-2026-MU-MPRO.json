@@ -1,0 +1,17 @@
+{
+  "titolo": "Trofeo Matteotti",
+  "race_series": "trofeo matteotti",
+  "data": "2026-05-17",
+  "genere": "Maschile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 153.2,
+  "dislivello_m": 2417.0,
+  "luogo": "Firenze, IT",
+  "slug": "trofeo-matteotti-2026-MU-MPRO"
+}

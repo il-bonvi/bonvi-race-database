@@ -1,0 +1,17 @@
+{
+  "titolo": "Romanengo",
+  "race_series": "romanengo",
+  "data": "2026-05-23",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior",
+    "Allievi"
+  ],
+  "disciplina": "ITT",
+  "giri": 1,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 12.67,
+  "dislivello_m": 16.0,
+  "luogo": "Cremona, IT",
+  "slug": "romanengo-2026-DA-DJ"
+}
