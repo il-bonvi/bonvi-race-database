@@ -1,6 +1,6 @@
-BUG!!: su mobile non si vedono i km ecc in alto a dx 
-- cambiare slug pro a elite (perchè ci sono i senza contratto)
+- cambiare WT in CATEGORIA!
+- WT layout
+
 - migliorare recap corse a tappe
 - catalogo, rinomina, modifica salite
-- WT layout
 - animazione percorsi
