@@ -1,0 +1,20 @@
+{
+  "titolo": "Watersley Ladies Challenge — Tappa 1: Munstergeleen  ›  Watersley",
+  "tipo": "tappa",
+  "nome_tappa": "Munstergeleen  ›  Watersley",
+  "numero_tappa": 1,
+  "corsa_a_tappe_slug": "watersley-ladies-challenge-2026-DJ",
+  "corsa_a_tappe_titolo": "Watersley Ladies Challenge",
+  "race_series": "watersley ladies challenge",
+  "data": "2026-07-24",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "ITT",
+  "distanza_km": 6.37,
+  "dislivello_m": 74.0,
+  "velocita_media_kmh": 42.0,
+  "luogo": "NL",
+  "slug": "watersley-ladies-challenge-S1-2026-DJ"
+}

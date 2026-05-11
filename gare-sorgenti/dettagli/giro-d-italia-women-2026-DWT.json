@@ -18,7 +18,7 @@
   "tappe": [
     {
       "numero": 1,
-      "nome": "Tappa 1",
+      "nome": "Cesenatico  ›  Ravenna",
       "slug": "giro-d-italia-women-S1-2026-DWT",
       "data": "2026-05-30",
       "distanza_km": 139.18,
@@ -27,7 +27,7 @@
     },
     {
       "numero": 2,
-      "nome": "Tappa 2",
+      "nome": "Roncade H-Farm  ›  Caorle",
       "slug": "giro-d-italia-women-S2-2026-DWT",
       "data": "2026-05-31",
       "distanza_km": 155.62,
@@ -36,7 +36,7 @@
     },
     {
       "numero": 3,
-      "nome": "Tappa 3",
+      "nome": "Bibione  ›  Buja",
       "slug": "giro-d-italia-women-S3-2026-DWT",
       "data": "2026-06-01",
       "distanza_km": 156.04,
@@ -45,7 +45,7 @@
     },
     {
       "numero": 4,
-      "nome": "Tappa 4",
+      "nome": "Belluno  ›  Nevegal",
       "slug": "giro-d-italia-women-S4-2026-DWT",
       "data": "2026-06-02",
       "distanza_km": 12.79,
@@ -54,7 +54,7 @@
     },
     {
       "numero": 5,
-      "nome": "Tappa 5",
+      "nome": "Longarone  ›  Sante Stefano di Cadore",
       "slug": "giro-d-italia-women-S5-2026-DWT",
       "data": "2026-06-03",
       "distanza_km": 145.54,
@@ -63,7 +63,7 @@
     },
     {
       "numero": 6,
-      "nome": "Tappa 6",
+      "nome": "Ala  ›  Brescello",
       "slug": "giro-d-italia-women-S6-2026-DWT",
       "data": "2026-06-04",
       "distanza_km": 159.09,
@@ -72,7 +72,7 @@
     },
     {
       "numero": 7,
-      "nome": "Tappa 7",
+      "nome": "Sorbolo Mezzani  ›  Salice Terme",
       "slug": "giro-d-italia-women-S7-2026-DWT",
       "data": "2026-06-05",
       "distanza_km": 159.2,
@@ -81,7 +81,7 @@
     },
     {
       "numero": 8,
-      "nome": "Tappa 8",
+      "nome": "Rivoli  ›  Sestriere",
       "slug": "giro-d-italia-women-S8-2026-DWT",
       "data": "2026-06-06",
       "distanza_km": 104.85,
@@ -90,7 +90,7 @@
     },
     {
       "numero": 9,
-      "nome": "Tappa 9",
+      "nome": "Saluzzo  ›  Saluzzo",
       "slug": "giro-d-italia-women-S9-2026-DWT",
       "data": "2026-06-07",
       "distanza_km": 143.44,

@@ -634,5 +634,20 @@
     "tipo": null,
     "n_tappe": null,
     "wt": false
+  },
+  {
+    "slug": "watersley-ladies-challenge-2026-DJ",
+    "titolo": "Watersley Ladies Challenge",
+    "data": "2026-07-24",
+    "year": "2026",
+    "race_series": "watersley ladies challenge",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": "corsa_a_tappe",
+    "n_tappe": 3,
+    "wt": false
   }
 ]

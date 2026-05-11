@@ -1,0 +1,20 @@
+{
+  "titolo": "Watersley Ladies Challenge — Tappa 2: Watersley  ›  Watersley",
+  "tipo": "tappa",
+  "nome_tappa": "Watersley  ›  Watersley",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "watersley-ladies-challenge-2026-DJ",
+  "corsa_a_tappe_titolo": "Watersley Ladies Challenge",
+  "race_series": "watersley ladies challenge",
+  "data": "2026-07-25",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 76.83,
+  "dislivello_m": 665.0,
+  "velocita_media_kmh": 37.0,
+  "luogo": "NL",
+  "slug": "watersley-ladies-challenge-S2-2026-DJ"
+}
