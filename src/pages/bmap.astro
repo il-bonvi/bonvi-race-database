@@ -68,13 +68,15 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
   let centerLat: number | null = null;
   let centerLon: number | null = null;
   const polylines: [number, number][][] = [];
+  const polylineToTappeIdx: number[] = []; // traccia quale tappa corrisponde a ogni polyline
 
   // Decimazione basata sulla distanza effettiva del percorso
   // Formula: ~1 punto ogni 50m (distanza * 20), con un minimo di 300 per brevi distanze
   const distanza = g.distanza_km ?? 0;
   const MAX = Math.max(300, Math.ceil(distanza * 20));
 
-  for (const gs of gpxSlugs) {
+  for (let tIdx = 0; tIdx < gpxSlugs.length; tIdx++) {
+    const gs = gpxSlugs[tIdx];
     const entry = gpxEntries[gs];
     if (!entry) continue;
     if (centerLat === null) { centerLat = entry.lat; centerLon = entry.lon; }
@@ -83,6 +85,7 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
     const step = entry.ptsBruti.length > MAX ? Math.floor(entry.ptsBruti.length / MAX) : 1;
     const decimated = entry.ptsBruti.filter((_, i) => i % step === 0);
     polylines.push(decimated);
+    polylineToTappeIdx.push(tIdx); // Registra quale tappa corrisponde a questo polyline
   }
 
   if (centerLat === null) continue; // nessun GPX → escludi dalla mappa
@@ -99,6 +102,8 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
     genere:        g.genere ?? '',
     categoria:     Array.isArray(g.categoria) ? g.categoria : (g.categoria ? [g.categoria] : []),
     disciplina:    g.disciplina ?? '',
+    tipo:          g.tipo ?? '',
+    tappe:         g.tappe?.map((t: any) => ({ disciplina: t.disciplina })) ?? [],
     distanza_km:   g.distanza_km ?? null,
     dislivello_m:  g.dislivello_m ?? null,
     luogo:         g.luogo ?? '',
@@ -106,6 +111,7 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
     lat:           centerLat,
     lon:           centerLon,
     polylines,
+    polylineToTappeIdx,
     gpxKey:        gpxSlugs.join('|'),
     startPt: (() => { for (const gs of gpxSlugs) { const e = gpxEntries[gs]; if (e) return e.start; } return null; })(),
     endPts: gpxSlugs.map(gs => gpxEntries[gs]?.end ?? null).filter(Boolean) as [number,number][],
@@ -173,7 +179,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
         <div class="filter-group">
           <div class="filter-label" data-i18n="filter_cat">Categoria</div>
-          <div class="filter-pills">
+          <div class="filter-pills" data-filter-group="categoria">
             <button class="pill active" data-group="categoria" data-val="all" data-i18n="filter_all_c">Tutte</button>
             {CATEGORIE.map((c: string) => (
               <button class="pill" data-group="categoria" data-val={c} data-i18n-cat={c}>{c}</button>
@@ -183,7 +189,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
         <div class="filter-group">
           <div class="filter-label" data-i18n="filter_disc">Disciplina</div>
-          <div class="filter-pills">
+          <div class="filter-pills" data-filter-group="disciplina">
             <button class="pill active" data-group="disciplina" data-val="all" data-i18n="filter_all_d">Tutte</button>
             {DISCIPLINE.map((d: string) => (
               <button class="pill" data-group="disciplina" data-val={d} data-i18n-disc={d}>{d}</button>
@@ -489,8 +495,16 @@ window.__BASE_URL__  = base;
     return `<div class="map-popup" style="background-image:${genShade};background-repeat:no-repeat;"><div class="popup-cat">${catBadges}<span style="opacity:0.5"> · </span><span style="opacity:0.7">${gen}</span></div><div class="popup-title">${g.titolo}</div><div class="popup-meta"><span>${ds}</span>${g.luogo?`<span>· ${g.luogo}</span>`:''}</div><div class="popup-stats">${g.distanza_km?`<span>${g.distanza_km} km</span>`:''} ${g.dislivello_m?`<span>+${g.dislivello_m} m</span>`:''} ${g.disciplina?`<span>${T?.['disc_'+g.disciplina]??g.disciplina}</span>`:''}</div><a class="popup-cta" href="${base}/gare/${g.slug}/">${tr('view_route','Vedi percorso →')}</a></div>`;
   };
 
-  type Entry={gara:any;polylines:any[];startMarkers:any[];endMarkers:any[];activeStartMarker:any;visible:boolean;rawPtsList:[number,number][][];cats:string[]};
+  type Entry={gara:any;polylines:any[];startMarkers:any[];endMarkers:any[];activeStartMarker:any;visible:boolean;rawPtsList:[number,number][][];cats:string[];polylineToTappeIdx:number[]};
   const entries:Entry[]=[];
+
+  // Stato globale e filtri
+  const state:Record<string,string>={anno:'all',mese:'all',genere:'all',q:''};
+  const categorieSelezionate = new Set<string>();
+  const disciplineSelezionate = new Set<string>();
+  const counter=document.getElementById('count-visible') as HTMLElement;
+  const routesCounter=document.getElementById('routes-visible') as HTMLElement;
+  const noRes=document.getElementById('no-results-map') as HTMLElement;
 
   // Stato globale: entry attiva (con start/end marker visibili)
   let activeEntry: Entry|null = null;
@@ -535,13 +549,28 @@ window.__BASE_URL__  = base;
         html:`<div style="width:14px;height:14px;background:#fff;border:1.5px solid #555;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;box-sizing:border-box;">🏁</div>`,
         iconSize:[14,14], iconAnchor:[7,7],
       });
-      entry.endMarkers = g.endPts.map((pt: [number,number]) =>
+      
+      // Filtra gli endMarkers in base al filtro disciplina per le corse a tappe
+      const endPtsToShow = g.endPts.map((pt: [number,number], idx: number) => {
+        // Se è una corsa a tappe con filtro disciplina attivo, controlla se questa tappa matcha
+        if (g.tipo === 'corsa_a_tappe' && disciplineSelezionate.size > 0) {
+          if (idx >= 0 && idx < g.tappe.length) {
+            const tappaDisciplina = g.tappe[idx]?.disciplina;
+            if (!tappaDisciplina || !disciplineSelezionate.has(tappaDisciplina)) {
+              return null; // Questa tappa non matcha il filtro, salta l'endMarker
+            }
+          }
+        }
+        return pt;
+      }).filter((pt: [number,number]|null) => pt !== null);
+      
+      entry.endMarkers = endPtsToShow.map((pt: [number,number]) =>
         L.marker(pt, {icon:endIcon, zIndexOffset:400}).addTo(map)
       );
     }
     
-    // Mostra start marker grande con icona
-    if(g.startPt) {
+    // Mostra start marker grande con icona — ma solo se la prima tappa matcha il filtro disciplina
+    if(g.startPt && shouldShowStartMarker(g)) {
       const cats:string[]=g.categoria||[];
       const markerBg=g.wt
         ?'#8A2BE2'
@@ -702,14 +731,28 @@ window.__BASE_URL__  = base;
     buildGrid();
 
     const allCatOrder = ['Elite','U23','Junior','Allievi'];
+    const hasVisiblePolyline = new Map<any, boolean>(); // Traccia se entry ha almeno 1 polyline visibile
 
     entries.forEach((entry, ei) => {
       if (!entry.visible) return;
+      hasVisiblePolyline.set(entry, false);
       const myCats: string[] = entry.cats;
       const myColors = myCats.map((c: string) => catColor[c] ?? '#888');
 
-      entry.rawPtsList.forEach((rawPts: [number,number][]) => {
+      entry.rawPtsList.forEach((rawPts: [number,number][], ptIdx: number) => {
+        // Se è una corsa a tappe con filtro disciplina, filtra i polylines
+        if (entry.gara.tipo === 'corsa_a_tappe' && disciplineSelezionate.size > 0) {
+          const tappeIdx = entry.polylineToTappeIdx[ptIdx];
+          if (tappeIdx >= 0 && tappeIdx < entry.gara.tappe.length) {
+            const tappaDisciplina = entry.gara.tappe[tappeIdx]?.disciplina;
+            if (!tappaDisciplina || !disciplineSelezionate.has(tappaDisciplina)) {
+              return; // Salta questo polyline
+            }
+          }
+        }
+        
         if (!rawPts || rawPts.length < 2) return;
+        hasVisiblePolyline.set(entry, true);
 
         // Per ogni mio colore, costruiamo una serie di segmenti
         // dove ogni segmento ha un contesto (allColors) stabile
@@ -761,6 +804,13 @@ window.__BASE_URL__  = base;
       });
     });
     
+    // Nascondi startMarkers di entry che non hanno polylines visibili (filtrate via)
+    entries.forEach(entry => {
+      if (!hasVisiblePolyline.get(entry)) {
+        entry.startMarkers.forEach(m=>{ if(map.hasLayer(m)) map.removeLayer(m); });
+      }
+    });
+    
     // Applica opacità giuste se c'è un activeEntry
     if(activeEntry) {
       entries.forEach(e=>{
@@ -774,7 +824,7 @@ window.__BASE_URL__  = base;
     const cats:string[]=g.categoria||[];
     const rawPtsList:([number,number][])[]=(g.polylines as [number,number][][]).filter(pts=>pts&&pts.length>0);
 
-    const entryRef: Entry = {gara:g,polylines:[],startMarkers:[],endMarkers:[],activeStartMarker:null,visible:true,rawPtsList,cats};
+    const entryRef: Entry = {gara:g,polylines:[],startMarkers:[],endMarkers:[],activeStartMarker:null,visible:true,rawPtsList,cats,polylineToTappeIdx:g.polylineToTappeIdx||[]};
 
     // Start marker — sempre visibile, minimal dot con colore categoria
     if(g.startPt) {
@@ -797,7 +847,20 @@ window.__BASE_URL__  = base;
         
         // Apri popup nel punto più a nord della traccia
         if(rawPtsList && rawPtsList.length > 0) {
-          const allPts = rawPtsList.flat();
+          // Se è una corsa a tappe con filtro disciplina, usa solo i punti delle tappe visibili
+          let ptsToUse = rawPtsList;
+          if (g.tipo === 'corsa_a_tappe' && disciplineSelezionate.size > 0) {
+            ptsToUse = rawPtsList.filter((_, ptIdx) => {
+              const tappeIdx = entryRef.polylineToTappeIdx[ptIdx];
+              if (tappeIdx >= 0 && tappeIdx < g.tappe.length) {
+                const tappaDisciplina = g.tappe[tappeIdx]?.disciplina;
+                return tappaDisciplina && disciplineSelezionate.has(tappaDisciplina);
+              }
+              return true;
+            });
+          }
+          
+          const allPts = ptsToUse.flat();
           if(allPts.length > 0) {
             // Trova il punto con latitudine massima (più a nord)
             const northPoint = allPts.reduce((p1, p2) => p1[0] > p2[0] ? p1 : p2);
@@ -843,12 +906,27 @@ window.__BASE_URL__  = base;
     else {
       // Ricostruisce solo le polyline (offset cambiano con lo zoom) senza rebuildGrid
       entries.forEach(clearPolylines);
+      const hasVisiblePolyline = new Map<any, boolean>(); // Traccia se entry ha almeno 1 polyline visibile
+      
       const allCatOrder2 = ['Elite','U23','Junior','Allievi'];
       entries.forEach((entry, ei) => {
         if (!entry.visible) return;
+        hasVisiblePolyline.set(entry, false);
         const myColors = entry.cats.map((c: string) => catColor[c] ?? '#888');
-        entry.rawPtsList.forEach((rawPts: [number,number][]) => {
+        entry.rawPtsList.forEach((rawPts: [number,number][], ptIdx: number) => {
+          // Se è una corsa a tappe con filtro disciplina, filtra i polylines
+          if (entry.gara.tipo === 'corsa_a_tappe' && disciplineSelezionate.size > 0) {
+            const tappeIdx = entry.polylineToTappeIdx[ptIdx];
+            if (tappeIdx >= 0 && tappeIdx < entry.gara.tappe.length) {
+              const tappaDisciplina = entry.gara.tappe[tappeIdx]?.disciplina;
+              if (!tappaDisciplina || !disciplineSelezionate.has(tappaDisciplina)) {
+                return; // Salta questo polyline
+              }
+            }
+          }
+          
           if (!rawPts || rawPts.length < 2) return;
+          hasVisiblePolyline.set(entry, true);
           myColors.forEach((myCol: string) => {
             let runPts: [number,number][] = [];
             let runCtxKey = '';
@@ -879,6 +957,14 @@ window.__BASE_URL__  = base;
           });
         });
       });
+      
+      // Nascondi startMarkers di entry che non hanno polylines visibili (filtrate via)
+      entries.forEach(entry => {
+        if (!hasVisiblePolyline.get(entry)) {
+          entry.startMarkers.forEach(m=>{ if(map.hasLayer(m)) map.removeLayer(m); });
+        }
+      });
+      
       // Applica opacità giuste se c'è un activeEntry anche dopo il rebuild da zoom
       if(activeEntry) {
         entries.forEach(e=>{
@@ -898,25 +984,62 @@ window.__BASE_URL__  = base;
     }
   }
 
-  const state:Record<string,string>={anno:'all',mese:'all',genere:'all',categoria:'all',disciplina:'all',q:''};
-  const counter=document.getElementById('count-visible') as HTMLElement;
-  const routesCounter=document.getElementById('routes-visible') as HTMLElement;
-  const noRes=document.getElementById('no-results-map') as HTMLElement;
-
   const isVis=(g:any)=>{
     const q=state.q.toLowerCase();
     const cats:string[]=g.categoria||[];
-    const matchesCat=state.categoria==='all'||(g.wt&&state.categoria==='WT')||cats.includes(state.categoria);
-    return(state.anno==='all'||String(g.anno)===state.anno)&&(state.mese==='all'||String(g.mese)===state.mese)&&(state.genere==='all'||g.genere===state.genere)&&matchesCat&&(state.disciplina==='all'||g.disciplina===state.disciplina)&&(!q||g.titolo.toLowerCase().includes(q)||g.luogo.toLowerCase().includes(q));
+    
+    let matchesCat = true;
+    if (categorieSelezionate.size > 0) {
+      let matches = false;
+      if (categorieSelezionate.has('WT') && g.wt === true) {
+        matches = true;
+      }
+      const otherSelected = Array.from(categorieSelezionate).filter(cat => cat !== 'WT');
+      if (otherSelected.some((c: string) => cats.includes(c))) {
+        matches = true;
+      }
+      matchesCat = matches;
+    }
+    
+    let matchesDisc = true;
+    if (disciplineSelezionate.size > 0) {
+      if (g.tipo === 'corsa_a_tappe' && !g.disciplina) {
+        // Per corse a tappe senza disciplina principale, controlla le tappe
+        matchesDisc = g.tappe?.some((t: any) => disciplineSelezionate.has(t.disciplina)) ?? false;
+      } else {
+        matchesDisc = disciplineSelezionate.has(g.disciplina);
+      }
+    }
+    
+    return(state.anno==='all'||String(g.anno)===state.anno)&&(state.mese==='all'||String(g.mese)===state.mese)&&(state.genere==='all'||g.genere===state.genere)&&matchesCat&&matchesDisc&&(!q||g.titolo.toLowerCase().includes(q)||g.luogo.toLowerCase().includes(q));
   };
+
+  // Helper: controlla se il startMarker dovrebbe essere visibile (prima tappa deve matchare il filtro disciplina)
+  function shouldShowStartMarker(g: any): boolean {
+    if (disciplineSelezionate.size === 0) return true; // Senza filtro, mostra sempre
+    if (g.tipo !== 'corsa_a_tappe') return true; // Solo corse a tappe controllano la prima tappa
+    
+    const firstTappa = g.tappe?.[0];
+    if (!firstTappa || !firstTappa.disciplina) return true; // Se non esiste tappa 0, mostra comunque
+    return disciplineSelezionate.has(firstTappa.disciplina);
+  }
 
   function applyAll(){
     let n=0;
     const visibleGpxSlugs = new Set<string>();
+    
+    // Se activeEntry esiste e il filtro disciplina è attivo, resetta gli endMarkers
+    // così che vengono ricreati con il filtro aggiornato quando clicchi di nuovo
+    if(activeEntry && disciplineSelezionate.size > 0 && activeEntry.gara.tipo === 'corsa_a_tappe') {
+      activeEntry.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);});
+      activeEntry.endMarkers=[];
+    }
+    
     entries.forEach(e=>{
       const show=isVis(e.gara);
+      const showStartMarker = show && shouldShowStartMarker(e.gara);
       e.visible=show;
-      e.startMarkers.forEach(m=>{ if(show){if(!map.hasLayer(m))m.addTo(map);}else{if(map.hasLayer(m))map.removeLayer(m);} });
+      e.startMarkers.forEach(m=>{ if(showStartMarker){if(!map.hasLayer(m))m.addTo(map);}else{if(map.hasLayer(m))map.removeLayer(m);} });
       if(!show) { 
         e.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);}); 
         // Se esta entry era attiva, puliscila
@@ -960,10 +1083,52 @@ window.__BASE_URL__  = base;
   document.querySelectorAll('.pill').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const el=btn as HTMLElement,group=el.dataset.group!,val=el.dataset.val!;
-      el.closest('.filter-pills')!.querySelectorAll('.pill').forEach(b=>b.classList.remove('active'));
-      el.classList.add('active');
-      state[group]=val;
-      applyAll();
+      
+      if (group === 'categoria' || group === 'disciplina') {
+        const filterSet = group === 'categoria' ? categorieSelezionate : disciplineSelezionate;
+        const filterGroup = group === 'categoria' ? 'categoria' : 'disciplina';
+        
+        if (val === 'all') {
+          filterSet.clear();
+          document.querySelectorAll(`.filter-pills[data-filter-group="${filterGroup}"] .pill`).forEach((b: Element)=>{
+            const bEl = b as HTMLElement;
+            if (bEl.dataset.val === 'all') {
+              bEl.classList.add('active');
+            } else {
+              bEl.classList.remove('active');
+            }
+          });
+        } else {
+          if (filterSet.has(val)) {
+            filterSet.delete(val);
+          } else {
+            filterSet.add(val);
+          }
+          document.querySelectorAll(`.filter-pills[data-filter-group="${filterGroup}"] .pill`).forEach((b: Element)=>{
+            const bEl = b as HTMLElement;
+            const bVal = bEl.dataset.val;
+            if (bVal === 'all') {
+              if (filterSet.size === 0) {
+                bEl.classList.add('active');
+              } else {
+                bEl.classList.remove('active');
+              }
+            } else {
+              if (filterSet.has(bVal!)) {
+                bEl.classList.add('active');
+              } else {
+                bEl.classList.remove('active');
+              }
+            }
+          });
+        }
+        applyAll();
+      } else {
+        el.closest('.filter-pills')!.querySelectorAll('.pill').forEach(b=>b.classList.remove('active'));
+        el.classList.add('active');
+        state[group]=val;
+        applyAll();
+      }
     });
   });
 
@@ -981,10 +1146,21 @@ window.__BASE_URL__  = base;
 
   (document.getElementById('search-input') as HTMLInputElement).addEventListener('input',e=>{state.q=(e.target as HTMLInputElement).value;applyAll();});
   (document.getElementById('reset-filters') as HTMLElement).addEventListener('click',()=>{
-    state.anno=state.mese=state.genere=state.categoria=state.disciplina='all';state.q='';
+    state.anno=state.mese=state.genere='all';
+    categorieSelezionate.clear();
+    disciplineSelezionate.clear();
+    state.q='';
     (document.getElementById('search-input') as HTMLInputElement).value='';
     annoSelect.value='all'; meseSelect.value='all'; meseSelect.style.display='none';
-    document.querySelectorAll('.pill').forEach(b=>b.classList.toggle('active',(b as HTMLElement).dataset.val==='all'));
+    document.querySelectorAll('.pill').forEach(b=>{
+      const bEl = b as HTMLElement;
+      const val = bEl.dataset.val;
+      if (val === 'all') {
+        bEl.classList.add('active');
+      } else {
+        bEl.classList.remove('active');
+      }
+    });
     applyAll();
   });
 

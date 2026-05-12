@@ -109,7 +109,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
         <div class="filter-group">
           <div class="filter-label" data-i18n="filter_cat">Categoria</div>
-          <div class="filter-pills">
+          <div class="filter-pills" data-filter-group="categoria">
             <button class="pill active" data-group="categoria" data-val="all" data-i18n="filter_all_c">Tutte</button>
             {CATEGORIE.map(c => (
               <button class="pill" data-group="categoria" data-val={c} data-i18n-cat={c}>{c}</button>
@@ -119,7 +119,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
         <div class="filter-group">
           <div class="filter-label" data-i18n="filter_disc">Disciplina</div>
-          <div class="filter-pills">
+          <div class="filter-pills" data-filter-group="disciplina">
             <button class="pill active" data-group="disciplina" data-val="all" data-i18n="filter_all_d">Tutte</button>
             {DISCIPLINE.map(d => (
               <button class="pill" data-group="disciplina" data-val={d} data-i18n-disc={d}>{d}</button>
@@ -199,6 +199,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
                           data-genere={g.genere ?? ''}
                           data-categoria={g.categoria ?? ''}
                           data-categorie-json={JSON.stringify(Array.isArray(g.categoria) ? g.categoria : (g.categoria ? [g.categoria] : []))}
+                          data-wt={g.wt === true ? 'true' : 'false'}
                           data-disciplina={g.disciplina ?? ''}
                           data-titolo={(g.titolo ?? '').toLowerCase()}
                           data-luogo={(g.luogo ?? '').toLowerCase()}
@@ -207,6 +208,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
                           data-percorsi={(g.tipo === 'corsa_a_tappe' && g.tappe?.length > 0) ? g.tappe.length : 1}
                           data-month={monthKey}
                           data-date={new Date(g.tipo === 'corsa_a_tappe' && g.data_fine ? g.data_fine : g.data).getTime()}
+                          data-tipo={g.tipo ?? ''}
+                          data-tappe-json={JSON.stringify(g.tappe?.map((t: any) => ({ disciplina: t.disciplina })) ?? [])}
                         >
                           <GaraCard gara={g} />
                         </div>
@@ -239,7 +242,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 </Base>
 
 <script>
-  const state = { anno: 'all', genere: 'all', categoria: 'all', disciplina: 'all', q: '', sort: 'data-asc' };
+  const state = { anno: 'all', genere: 'all', q: '', sort: 'data-asc' };
+  const categorieSelezionate = new Set<string>();
+  const disciplineSelezionate = new Set<string>();
   const cards = Array.from(document.querySelectorAll('.card-wrap')) as HTMLElement[];
   const counter = document.getElementById('count-visible') as HTMLElement;
   const routesCounter = document.getElementById('routes-visible') as HTMLElement;
@@ -259,14 +264,42 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       const genere = card.dataset.genere ?? '';
       const categorieJson = card.dataset.categorieJson ?? '[]';
       const categorie: string[] = JSON.parse(categorieJson);
+      const isWT = card.dataset.wt === 'true';
       const disciplina = card.dataset.disciplina ?? '';
       const titolo = card.dataset.titolo ?? '';
       const luogo = card.dataset.luogo ?? '';
 
       const matchAnno = state.anno === 'all' || anno === state.anno;
       const matchGenere = state.genere === 'all' || genere === state.genere;
-      const matchCategoria = state.categoria === 'all' || categorie.includes(state.categoria);
-      const matchDisciplina = state.disciplina === 'all' || disciplina === state.disciplina;
+      
+      // Filtro categoria: se nessuna categoria è selezionata, mostra tutto
+      let matchCategoria = true;
+      if (categorieSelezionate.size > 0) {
+        // Se WT è selezionato e la gara è WT, mostra
+        let matches = false;
+        if (categorieSelezionate.has('WT') && isWT) {
+          matches = true;
+        }
+        // Se altre categorie sono selezionate e la gara ha una di quelle, mostra
+        const otherSelected = Array.from(categorieSelezionate).filter(cat => cat !== 'WT');
+        if (otherSelected.some(cat => categorie.includes(cat))) {
+          matches = true;
+        }
+        matchCategoria = matches;
+      }
+      
+      let matchDisciplina = true;
+      if (disciplineSelezionate.size > 0) {
+        const tipo = card.dataset.tipo ?? '';
+        if (tipo === 'corsa_a_tappe' && !disciplina) {
+          // Per corse a tappe senza disciplina principale, controlla le tappe
+          const tappeJson = card.dataset.tappeJson ?? '[]';
+          const tappe = JSON.parse(tappeJson) as Array<{ disciplina: string }>;
+          matchDisciplina = tappe.some(t => disciplineSelezionate.has(t.disciplina));
+        } else {
+          matchDisciplina = disciplineSelezionate.has(disciplina);
+        }
+      }
       const q = state.q.toLowerCase();
       const matchQ = !q || titolo.includes(q) || luogo.includes(q);
 
@@ -382,10 +415,48 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   document.querySelectorAll('.pill').forEach((btn: Element) => {
     btn.addEventListener('click', () => {
-      (btn as HTMLElement).closest('.filter-pills')!.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
-      (btn as HTMLElement).classList.add('active');
-      state[(btn as HTMLElement).dataset.group as keyof typeof state] = (btn as HTMLElement).dataset.val as string;
-      applyAll();
+      const btnEl = btn as HTMLElement;
+      const group = btnEl.dataset.group;
+      const val = btnEl.dataset.val;
+      
+      // Gestisci i filtri di categoria e disciplina con multi-selezione
+      if (group === 'categoria' || group === 'disciplina') {
+        const filterSet = group === 'categoria' ? categorieSelezionate : disciplineSelezionate;
+        const filterGroup = group === 'categoria' ? 'categoria' : 'disciplina';
+        
+        if (val === 'all') {
+          // Cliccare su "Tutte" deseleziona tutto
+          filterSet.clear();
+          document.querySelectorAll(`.filter-pills[data-filter-group="${filterGroup}"] .pill`).forEach((b: Element) => {
+            (b as HTMLElement).classList.toggle('active', (b as HTMLElement).dataset.val === 'all');
+          });
+        } else {
+          // Click: toggle della selezione (add/remove)
+          if (filterSet.has(val)) {
+            filterSet.delete(val);
+          } else {
+            filterSet.add(val);
+          }
+          // Aggiorna il visual dei button
+          document.querySelectorAll(`.filter-pills[data-filter-group="${filterGroup}"] .pill`).forEach((b: Element) => {
+            const bEl = b as HTMLElement;
+            const bVal = bEl.dataset.val;
+            if (bVal === 'all') {
+              bEl.classList.toggle('active', filterSet.size === 0);
+            } else {
+              bEl.classList.toggle('active', filterSet.has(bVal));
+            }
+          });
+        }
+        applyAll();
+      } else {
+        // Per gli altri filtri, mantieni il comportamento single-select
+        const filterPills = btnEl.closest('.filter-pills')!;
+        filterPills.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+        btnEl.classList.add('active');
+        state[(btnEl.dataset.group as keyof typeof state)] = val as string;
+        applyAll();
+      }
     });
   });
 
@@ -400,12 +471,20 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   });
 
   (document.getElementById('reset-filters') as HTMLElement).addEventListener('click', () => {
-    state.anno = state.genere = state.categoria = state.disciplina = 'all';
+    state.anno = state.genere = 'all';
+    categorieSelezionate.clear();
+    disciplineSelezionate.clear();
     state.q = ''; state.sort = 'data-asc';
     (document.getElementById('search-input') as HTMLInputElement).value = '';
     (document.getElementById('sort-select') as HTMLSelectElement).value = 'data-asc';
     document.querySelectorAll('.pill').forEach((b: Element) => {
-      b.classList.toggle('active', (b as HTMLElement).dataset.val === 'all');
+      const bEl = b as HTMLElement;
+      const group = bEl.dataset.group;
+      if (group === 'categoria' || group === 'disciplina') {
+        bEl.classList.toggle('active', bEl.dataset.val === 'all');
+      } else {
+        bEl.classList.toggle('active', bEl.dataset.val === 'all');
+      }
     });
     applyAll();
   });
