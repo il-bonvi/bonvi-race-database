@@ -1,0 +1,38 @@
+{
+  "titolo": "Tour du Gévaudan Occitanie femmes",
+  "race_series": "tour du gévaudan occitanie",
+  "data": "2026-05-16",
+  "data_inizio": "2026-05-16",
+  "data_fine": "2026-05-17",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "luogo": "Lozère, FR",
+  "tipo": "corsa_a_tappe",
+  "n_tappe": 2,
+  "distanza_km": 151.22,
+  "dislivello_m": 2295,
+  "tappe": [
+    {
+      "numero": 1,
+      "nome": "Le Choizal (Balsièges)  ›  Le Choizal (Balsièges)",
+      "slug": "tour-du-gevaudan-occitanie-femmes-S1-2026-DJ",
+      "data": "2026-05-16",
+      "distanza_km": 70.2,
+      "dislivello_m": 1044.0,
+      "disciplina": "Strada",
+      "giri": 3
+    },
+    {
+      "numero": 2,
+      "nome": "Mende  ›  Mende (La Croix Neuve)",
+      "slug": "tour-du-gevaudan-occitanie-femmes-S2-2026-DJ",
+      "data": "2026-05-16",
+      "distanza_km": 81.02,
+      "dislivello_m": 1251.0,
+      "disciplina": "Strada"
+    }
+  ],
+  "slug": "tour-du-gevaudan-occitanie-femmes-2026-DJ"
+}

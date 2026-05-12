@@ -1,0 +1,20 @@
+{
+  "titolo": "Tour du Gévaudan Occitanie femmes — Tappa 2: Mende  ›  Mende (La Croix Neuve)",
+  "tipo": "tappa",
+  "nome_tappa": "Mende  ›  Mende (La Croix Neuve)",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "tour-du-gevaudan-occitanie-femmes-2026-DJ",
+  "corsa_a_tappe_titolo": "Tour du Gévaudan Occitanie femmes",
+  "race_series": "tour du gévaudan occitanie",
+  "data": "2026-05-16",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 81.02,
+  "dislivello_m": 1251.0,
+  "velocita_media_kmh": 34.0,
+  "luogo": "Lozère, FR",
+  "slug": "tour-du-gevaudan-occitanie-femmes-S2-2026-DJ"
+}
