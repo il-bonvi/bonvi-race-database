@@ -544,6 +544,22 @@
     "wt": false
   },
   {
+    "slug": "romanengo-2026-DU-DELI",
+    "titolo": "Romanengo",
+    "data": "2026-05-23",
+    "year": "2026",
+    "race_series": "romanengo",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "tour-du-gevaudan-occitanie-femmes-2025-DJ",
     "titolo": "Tour du Gévaudan Occitanie femmes",
     "data": "2025-05-10",
