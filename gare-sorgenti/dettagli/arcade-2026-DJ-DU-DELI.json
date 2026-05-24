@@ -1,0 +1,18 @@
+{
+  "titolo": "Arcade",
+  "race_series": "arcade",
+  "data": "2026-06-07",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 38.0,
+  "distanza_km": 109.8,
+  "dislivello_m": 510.0,
+  "luogo": "Treviso, IT",
+  "slug": "arcade-2026-DJ-DU-DELI"
+}

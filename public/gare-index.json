@@ -30,6 +30,23 @@
     "wt": false
   },
   {
+    "slug": "arcade-2026-DJ-DU-DELI",
+    "titolo": "Arcade",
+    "data": "2026-06-07",
+    "year": "2026",
+    "race_series": "arcade",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "bianconese-2026-DJ",
     "titolo": "Bianconese",
     "data": "2026-04-18",
