@@ -1,0 +1,18 @@
+{
+  "titolo": "Corridonia",
+  "race_series": "corridonia",
+  "data": "2026-05-31",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 39.0,
+  "distanza_km": 81.16,
+  "dislivello_m": 570.0,
+  "luogo": "Macerata, IT",
+  "slug": "corridonia-2026-DJ-DU-DELI"
+}

@@ -122,6 +122,23 @@
     "wt": false
   },
   {
+    "slug": "corridonia-2026-DJ-DU-DELI",
+    "titolo": "Corridonia",
+    "data": "2026-05-31",
+    "year": "2026",
+    "race_series": "corridonia",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "de-nardi-2026-MU-MELI",
     "titolo": "De Nardi",
     "data": "2026-05-03",
