@@ -265,6 +265,21 @@
     "wt": false
   },
   {
+    "slug": "italiano-strada-2026-DJ",
+    "titolo": "Italiano Strada",
+    "data": "2026-06-20",
+    "year": "2026",
+    "race_series": "it road",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "mareno-di-piave-2026-DA",
     "titolo": "Mareno di Piave",
     "data": "2026-05-10",
