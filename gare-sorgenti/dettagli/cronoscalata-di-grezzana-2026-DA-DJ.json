@@ -1,0 +1,19 @@
+{
+  "titolo": "Cronoscalata di Grezzana",
+  "race_series": "cronoscalata di grezzana",
+  "data": "2026-06-06",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior",
+    "Allievi"
+  ],
+  "disciplina": "ITT",
+  "giri": 1,
+  "velocita_media_kmh": 15.0,
+  "distanza_km": 6.78,
+  "dislivello_m": 434.0,
+  "_center_lat": 45.57434000000001,
+  "_center_lon": 11.03852,
+  "slug": "cronoscalata-di-grezzana-2026-DA-DJ",
+  "luogo": "Verona, IT"
+}

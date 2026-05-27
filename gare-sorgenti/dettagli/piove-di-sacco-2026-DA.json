@@ -1,0 +1,16 @@
+{
+  "titolo": "Piove di Sacco",
+  "race_series": "piove di sacco",
+  "data": "2026-05-31",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Criterium",
+  "giri": 10,
+  "velocita_media_kmh": 35.0,
+  "distanza_km": 64.6,
+  "dislivello_m": 50.0,
+  "luogo": "Padova, IT",
+  "slug": "piove-di-sacco-2026-DA"
+}

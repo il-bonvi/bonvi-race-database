@@ -1,0 +1,18 @@
+{
+  "titolo": "Noventa Padovana",
+  "race_series": "noventa padovana",
+  "data": "2026-06-14",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Criterium",
+  "giri": 12,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 65.64,
+  "dislivello_m": 180.0,
+  "_center_lat": 45.39663,
+  "_center_lon": 11.9931,
+  "slug": "noventa-padovana-2026-DA",
+  "luogo": "Venezia, IT"
+}

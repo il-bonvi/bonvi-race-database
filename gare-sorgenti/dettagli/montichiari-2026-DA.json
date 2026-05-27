@@ -1,0 +1,18 @@
+{
+  "titolo": "Montichiari",
+  "race_series": "montichiari",
+  "data": "2026-06-07",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Criterium",
+  "giri": 9,
+  "velocita_media_kmh": 34.0,
+  "distanza_km": 71.73,
+  "dislivello_m": 450.0,
+  "_center_lat": 45.413650000000004,
+  "_center_lon": 10.406490000000002,
+  "slug": "montichiari-2026-DA",
+  "luogo": "Brescia, IT"
+}

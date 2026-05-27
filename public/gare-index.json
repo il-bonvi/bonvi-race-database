@@ -139,6 +139,22 @@
     "wt": false
   },
   {
+    "slug": "cronoscalata-di-grezzana-2026-DA-DJ",
+    "titolo": "Cronoscalata di Grezzana",
+    "data": "2026-06-06",
+    "year": "2026",
+    "race_series": "cronoscalata di grezzana",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior",
+      "Allievi"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "de-nardi-2026-MU-MELI",
     "titolo": "De Nardi",
     "data": "2026-05-03",
@@ -438,6 +454,21 @@
     "wt": false
   },
   {
+    "slug": "montichiari-2026-DA",
+    "titolo": "Montichiari",
+    "data": "2026-06-07",
+    "year": "2026",
+    "race_series": "montichiari",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "monza-2026-DJ-DU-DELI",
     "titolo": "Monza",
     "data": "2026-05-24",
@@ -465,6 +496,21 @@
       "Junior"
     ],
     "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "noventa-padovana-2026-DA",
+    "titolo": "Noventa Padovana",
+    "data": "2026-06-14",
+    "year": "2026",
+    "race_series": "noventa padovana",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
     "tipo": null,
     "n_tappe": null,
     "wt": false
@@ -542,6 +588,21 @@
       "Junior"
     ],
     "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "piove-di-sacco-2026-DA",
+    "titolo": "Piove di Sacco",
+    "data": "2026-05-31",
+    "year": "2026",
+    "race_series": "piove di sacco",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
     "tipo": null,
     "n_tappe": null,
     "wt": false
