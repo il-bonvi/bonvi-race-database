@@ -200,45 +200,71 @@ def reverse_geocode(lat: float, lon: float) -> str | None:
     """
     Ritorna 'Provincia, IT' tramite Nominatim (OpenStreetMap).
     Nessuna API key richiesta. Ritorna None se offline o in caso di errore.
+    Implementa retry con backoff esponenziale per gestire timeout e servizi sovraccarichi.
     """
     import urllib.request
     import urllib.parse
     import json as _json
+    import time
 
-    try:
-        params = urllib.parse.urlencode({
-            "lat": round(lat, 5),
-            "lon": round(lon, 5),
-            "format": "json",
-            "zoom": 8,
-            "addressdetails": 1,
-        })
-        url = f"https://nominatim.openstreetmap.org/reverse?{params}"
-        req = urllib.request.Request(url, headers={"User-Agent": "race-db-archivio/1.0"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = _json.loads(resp.read())
+    # Retry con backoff esponenziale
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            params = urllib.parse.urlencode({
+                "lat": round(lat, 5),
+                "lon": round(lon, 5),
+                "format": "json",
+                "zoom": 8,
+                "addressdetails": 1,
+            })
+            url = f"https://nominatim.openstreetmap.org/reverse?{params}"
+            req = urllib.request.Request(url, headers={"User-Agent": "race-db-archivio/1.0"})
+            
+            # Timeout aumentato a 10 secondi (Nominatim può essere lento)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = _json.loads(resp.read())
 
-        addr = data.get("address", {})
-        provincia = (
-            addr.get("county") or
-            addr.get("city") or
-            addr.get("town") or
-            addr.get("village") or
-            addr.get("state") or  # Fallback a state se mancano gli altri
-            ""
-        )
-        for prefix in ("Provincia di ", "Province of ", "Distretto di "):
-            if provincia.startswith(prefix):
-                provincia = provincia[len(prefix):]
+            addr = data.get("address", {})
+            provincia = (
+                addr.get("county") or
+                addr.get("city") or
+                addr.get("town") or
+                addr.get("village") or
+                addr.get("state") or
+                ""
+            )
+            for prefix in ("Provincia di ", "Province of ", "Distretto di "):
+                if provincia.startswith(prefix):
+                    provincia = provincia[len(prefix):]
 
-        country_code = addr.get("country_code", "").upper()
-        parts = [p for p in [provincia, country_code] if p]
-        result = ", ".join(parts) if parts else None
-        print(f"[DEBUG reverse_geocode] ({lat}, {lon}) -> {result} (addr={addr})")
-        return result
-    except Exception as e:
-        print(f"[DEBUG reverse_geocode] ERRORE ({lat}, {lon}): {type(e).__name__}: {e}")
-        return None
+            country_code = addr.get("country_code", "").upper()
+            parts = [p for p in [provincia, country_code] if p]
+            result = ", ".join(parts) if parts else None
+            print(f"[DEBUG reverse_geocode] ({lat}, {lon}) -> {result}")
+            return result
+            
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
+            # Errori transitori (503, timeout, connessione)
+            error_type = type(e).__name__
+            error_msg = str(e)
+            
+            if attempt < max_retries - 1:
+                # Retry con backoff esponenziale: 1s, 2s, 4s
+                wait_time = 2 ** attempt
+                print(f"[DEBUG reverse_geocode] Tentativo {attempt+1}/{max_retries} fallito ({error_type}). "
+                      f"Retry tra {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                # Ultimo tentativo fallito
+                print(f"[DEBUG reverse_geocode] ERRORE ({lat}, {lon}) dopo {max_retries} tentativi: {error_type}: {error_msg}")
+                return None
+        except Exception as e:
+            # Errori non transitori
+            print(f"[DEBUG reverse_geocode] ERRORE FATALE ({lat}, {lon}): {type(e).__name__}: {e}")
+            return None
+    
+    return None
 
 
 # ── AUTO-UPDATE INDICE GARE ──────────────────────────────────────────────────
@@ -1112,13 +1138,10 @@ GPX FILE:     {gpx_info}"""
         if gpx_data.get('gpx_points'):
             new_data['gpx_points'] = gpx_data['gpx_points']
         
-        # Reverse geocoding per il luogo
+        # Salva coordinate per il bottone reverse geocoding nel dialog
         if gpx_data.get('center_lat') and gpx_data.get('center_lon'):
-            lat = gpx_data.get('center_lat')
-            lon = gpx_data.get('center_lon')
-            luogo = reverse_geocode(lat, lon)
-            if luogo:
-                new_data['luogo'] = luogo
+            new_data['_center_lat'] = gpx_data.get('center_lat')
+            new_data['_center_lon'] = gpx_data.get('center_lon')
         
         self.open_add_race_form(new_data, is_new=True)
     
@@ -1621,10 +1644,46 @@ GPX FILE:     {gpx_info}"""
                     
                     entries[key] = series_entry
                 else:
-                    entry = tk.Entry(edit_win, width=35, font=("Helvetica", 10))
-                    entry.insert(0, str(data.get(key, "") or ""))
-                    entry.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
-                    entries[key] = entry
+                    # Caso speciale per luogo: entry + bottone reverse geocoding se coordinate disponibili
+                    if key == "luogo" and (data.get('_center_lat') or data.get('_center_lon')):
+                        f_row = tk.Frame(edit_win, bg=BG)
+                        f_row.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
+                        f_row.grid_columnconfigure(0, weight=1)
+                        
+                        luogo_entry = tk.Entry(f_row, font=("Helvetica", 10), fg=FG, relief="solid", bd=1)
+                        luogo_entry.grid(row=0, column=0, sticky="ew")
+                        luogo_entry.insert(0, str(data.get(key, "") or ""))
+                        
+                        feedback_label = tk.Label(f_row, text="", font=("Helvetica", 8), 
+                                                 fg="#059669", bg=BG)
+                        feedback_label.grid(row=1, column=0, sticky="w", padx=0, pady=(2,0))
+                        
+                        def do_reverse_geocode(luogo_entry=luogo_entry, data=data, feedback_label=feedback_label):
+                            """Bottone per reverse geocoding on-demand"""
+                            lat = data.get('_center_lat')
+                            lon = data.get('_center_lon')
+                            if lat and lon:
+                                luogo = reverse_geocode(lat, lon)
+                                if luogo:
+                                    luogo_entry.delete(0, tk.END)
+                                    luogo_entry.insert(0, luogo)
+                                    feedback_label.config(text=f"✓ {luogo}")
+                                    # Scompare dopo 3 secondi
+                                    edit_win.after(3000, lambda: feedback_label.config(text=""))
+                                else:
+                                    feedback_label.config(text="✗ Nessun luogo trovato", fg="#dc2626")
+                                    edit_win.after(3000, lambda: feedback_label.config(text=""))
+                        
+                        tk.Button(f_row, text="🔍", font=("Helvetica", 11), bg=BG, fg=FG,
+                                 relief="flat", bd=0, cursor="hand2",
+                                 command=do_reverse_geocode).grid(row=0, column=1, padx=(4,0))
+                        
+                        entries[key] = luogo_entry
+                    else:
+                        entry = tk.Entry(edit_win, width=35, font=("Helvetica", 10))
+                        entry.insert(0, str(data.get(key, "") or ""))
+                        entry.grid(row=i, column=1, sticky="ew", padx=12, pady=6)
+                        entries[key] = entry
         
         # Auto-slug: quando cambia titolo o data, aggiorna slug automaticamente
         slug_manual = tk.BooleanVar(value=False)
@@ -2587,12 +2646,10 @@ GPX FILE:     {gpx_info}"""
                     stage_entries['dislivello_m'].set(str(elev_val))
                     stages[idx]['dislivello_m'] = elev_val
             
-            # Auto-rileva luogo dalle coordinate del GPX
+            # Salva coordinate per il bottone reverse geocoding (on-demand)
             if gpx_data.get('center_lat') and gpx_data.get('center_lon'):
-                luogo = reverse_geocode(gpx_data['center_lat'], gpx_data['center_lon'])
-                if luogo:
-                    stage_entries['luogo'].set(luogo)
-                    stages[idx]['luogo'] = luogo
+                stages[idx]['_center_lat'] = gpx_data['center_lat']
+                stages[idx]['_center_lon'] = gpx_data['center_lon']
             
             gpx_status_var.set("✓ GPX caricato")
             gpx_status_lbl.config(fg="#059669")
