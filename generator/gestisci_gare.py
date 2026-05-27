@@ -224,6 +224,7 @@ def reverse_geocode(lat: float, lon: float) -> str | None:
             addr.get("city") or
             addr.get("town") or
             addr.get("village") or
+            addr.get("state") or  # Fallback a state se mancano gli altri
             ""
         )
         for prefix in ("Provincia di ", "Province of ", "Distretto di "):
@@ -232,8 +233,11 @@ def reverse_geocode(lat: float, lon: float) -> str | None:
 
         country_code = addr.get("country_code", "").upper()
         parts = [p for p in [provincia, country_code] if p]
-        return ", ".join(parts) if parts else None
-    except Exception:
+        result = ", ".join(parts) if parts else None
+        print(f"[DEBUG reverse_geocode] ({lat}, {lon}) -> {result} (addr={addr})")
+        return result
+    except Exception as e:
+        print(f"[DEBUG reverse_geocode] ERRORE ({lat}, {lon}): {type(e).__name__}: {e}")
         return None
 
 
