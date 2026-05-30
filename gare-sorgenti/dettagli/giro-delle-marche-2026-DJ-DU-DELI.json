@@ -13,18 +13,17 @@
   "luogo": "Ascoli Piceno, IT",
   "tipo": "corsa_a_tappe",
   "n_tappe": 2,
-  "distanza_km": 191.89,
-  "dislivello_m": 2836,
+  "distanza_km": 108.03,
+  "dislivello_m": 1782,
   "tappe": [
     {
       "numero": 1,
       "nome": "Tappa 1",
       "slug": "giro-delle-marche-S1-2026-DJ-DU-DELI",
       "data": "2026-05-09",
-      "distanza_km": 89.85,
-      "dislivello_m": 1230.0,
-      "disciplina": "Strada",
-      "giri": 15
+      "distanza_km": 5.99,
+      "dislivello_m": 85,
+      "disciplina": "Strada"
     },
     {
       "numero": 2,
@@ -32,10 +31,9 @@
       "slug": "giro-delle-marche-S2-2026-DJ-DU-DELI",
       "data": "2026-05-10",
       "distanza_km": 102.04,
-      "dislivello_m": 1606.0,
+      "dislivello_m": 1697,
       "disciplina": "Strada"
     }
   ],
   "slug": "giro-delle-marche-2026-DJ-DU-DELI"
 }
-

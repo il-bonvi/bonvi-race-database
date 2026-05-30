@@ -12,7 +12,7 @@
   "tipo": "corsa_a_tappe",
   "n_tappe": 2,
   "distanza_km": 145.7,
-  "dislivello_m": 2346,
+  "dislivello_m": 2469,
   "tappe": [
     {
       "numero": 1,
@@ -20,7 +20,7 @@
       "slug": "tour-du-gevaudan-occitanie-femmes-S1-2025-DJ",
       "data": "2025-05-10",
       "distanza_km": 70.35,
-      "dislivello_m": 1042.0,
+      "dislivello_m": 1132,
       "disciplina": "Strada"
     },
     {
@@ -29,7 +29,7 @@
       "slug": "tour-du-gevaudan-occitanie-femmes-S2-2025-DJ",
       "data": "2025-05-11",
       "distanza_km": 75.35,
-      "dislivello_m": 1304.0,
+      "dislivello_m": 1337,
       "disciplina": "Strada"
     }
   ],

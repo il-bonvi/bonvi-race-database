@@ -12,7 +12,7 @@
   "tipo": "corsa_a_tappe",
   "n_tappe": 3,
   "distanza_km": 168.5,
-  "dislivello_m": 1707,
+  "dislivello_m": 2015,
   "tappe": [
     {
       "numero": 1,
@@ -20,7 +20,7 @@
       "slug": "watersley-ladies-challenge-S1-2026-DJ",
       "data": "2026-07-24",
       "distanza_km": 6.37,
-      "dislivello_m": 74.0,
+      "dislivello_m": 86,
       "disciplina": "ITT"
     },
     {
@@ -29,7 +29,7 @@
       "slug": "watersley-ladies-challenge-S2-2026-DJ",
       "data": "2026-07-25",
       "distanza_km": 76.83,
-      "dislivello_m": 665.0,
+      "dislivello_m": 785,
       "disciplina": "Strada"
     },
     {
@@ -38,7 +38,7 @@
       "slug": "watersley-ladies-challenge-S3-2026-DJ",
       "data": "2026-07-26",
       "distanza_km": 85.3,
-      "dislivello_m": 968.0,
+      "dislivello_m": 1144,
       "disciplina": "Strada"
     }
   ],

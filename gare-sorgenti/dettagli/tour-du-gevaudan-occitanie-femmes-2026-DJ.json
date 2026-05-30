@@ -11,18 +11,17 @@
   "luogo": "Lozère, FR",
   "tipo": "corsa_a_tappe",
   "n_tappe": 2,
-  "distanza_km": 151.22,
-  "dislivello_m": 2295,
+  "distanza_km": 104.42,
+  "dislivello_m": 1695,
   "tappe": [
     {
       "numero": 1,
       "nome": "Le Choizal (Balsièges)  ›  Le Choizal (Balsièges)",
       "slug": "tour-du-gevaudan-occitanie-femmes-S1-2026-DJ",
       "data": "2026-05-16",
-      "distanza_km": 70.2,
-      "dislivello_m": 1044.0,
-      "disciplina": "Strada",
-      "giri": 3
+      "distanza_km": 23.4,
+      "dislivello_m": 377,
+      "disciplina": "Strada"
     },
     {
       "numero": 2,
@@ -30,7 +29,7 @@
       "slug": "tour-du-gevaudan-occitanie-femmes-S2-2026-DJ",
       "data": "2026-05-17",
       "distanza_km": 81.02,
-      "dislivello_m": 1251.0,
+      "dislivello_m": 1318,
       "disciplina": "Strada"
     }
   ],

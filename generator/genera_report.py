@@ -161,20 +161,19 @@ def parse_gpx(gpx_path: Path) -> dict:
             for i in range(len(coords)-1)
         )
 
-        # Smoothing quote con media mobile (finestra 5) per ridurre rumore GPS
-        eles_raw = [c[2] for c in coords if c[2] is not None]
-        w = 5
-        eles = []
-        for i in range(len(eles_raw)):
-            start = max(0, i - w // 2)
-            end   = min(len(eles_raw), i + w // 2 + 1)
-            eles.append(sum(eles_raw[start:end]) / (end - start))
-
+        # Elevation gain: sum of positive deltas on rounded points (gara.html logic)
         d_plus = 0.0
-        for i in range(1, len(eles)):
-            diff = eles[i] - eles[i-1]
-            if diff > 0:
-                d_plus += diff
+        prev_ele = None
+        for pt in gpx_points:
+            ele = pt.get('ele')
+            if ele is None:
+                prev_ele = None
+                continue
+            if prev_ele is not None:
+                diff = ele - prev_ele
+                if diff > 0:
+                    d_plus += diff
+            prev_ele = ele
 
         # Punto di arrivo per il geocoding (ultimo punto del tracciato)
         finish = coords[-1]

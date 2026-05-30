@@ -14,7 +14,7 @@
   "tipo": "corsa_a_tappe",
   "n_tappe": 9,
   "distanza_km": 1175.75,
-  "dislivello_m": 11760,
+  "dislivello_m": 12381,
   "tappe": [
     {
       "numero": 1,
@@ -22,7 +22,7 @@
       "slug": "giro-d-italia-women-S1-2026-DWT",
       "data": "2026-05-30",
       "distanza_km": 139.18,
-      "dislivello_m": 169.0,
+      "dislivello_m": 251,
       "disciplina": "Strada"
     },
     {
@@ -31,7 +31,7 @@
       "slug": "giro-d-italia-women-S2-2026-DWT",
       "data": "2026-05-31",
       "distanza_km": 155.62,
-      "dislivello_m": 458.0,
+      "dislivello_m": 521,
       "disciplina": "Strada"
     },
     {
@@ -40,7 +40,7 @@
       "slug": "giro-d-italia-women-S3-2026-DWT",
       "data": "2026-06-01",
       "distanza_km": 156.04,
-      "dislivello_m": 936.0,
+      "dislivello_m": 1041,
       "disciplina": "Strada"
     },
     {
@@ -49,7 +49,7 @@
       "slug": "giro-d-italia-women-S4-2026-DWT",
       "data": "2026-06-02",
       "distanza_km": 12.79,
-      "dislivello_m": 706.0,
+      "dislivello_m": 711,
       "disciplina": "ITT"
     },
     {
@@ -58,7 +58,7 @@
       "slug": "giro-d-italia-women-S5-2026-DWT",
       "data": "2026-06-03",
       "distanza_km": 145.54,
-      "dislivello_m": 3293.0,
+      "dislivello_m": 3403,
       "disciplina": "Strada"
     },
     {
@@ -67,7 +67,7 @@
       "slug": "giro-d-italia-women-S6-2026-DWT",
       "data": "2026-06-04",
       "distanza_km": 159.09,
-      "dislivello_m": 555.0,
+      "dislivello_m": 661,
       "disciplina": "Strada"
     },
     {
@@ -76,7 +76,7 @@
       "slug": "giro-d-italia-women-S7-2026-DWT",
       "data": "2026-06-05",
       "distanza_km": 159.2,
-      "dislivello_m": 862.0,
+      "dislivello_m": 925,
       "disciplina": "Strada"
     },
     {
@@ -85,7 +85,7 @@
       "slug": "giro-d-italia-women-S8-2026-DWT",
       "data": "2026-06-06",
       "distanza_km": 104.85,
-      "dislivello_m": 2782.0,
+      "dislivello_m": 2827,
       "disciplina": "Strada"
     },
     {
@@ -94,7 +94,7 @@
       "slug": "giro-d-italia-women-S9-2026-DWT",
       "data": "2026-06-07",
       "distanza_km": 143.44,
-      "dislivello_m": 1999.0,
+      "dislivello_m": 2041,
       "disciplina": "Strada"
     }
   ],

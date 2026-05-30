@@ -12,7 +12,7 @@
   "tipo": "corsa_a_tappe",
   "n_tappe": 3,
   "distanza_km": 115.48,
-  "dislivello_m": 933,
+  "dislivello_m": 1055,
   "tappe": [
     {
       "numero": 1,
@@ -21,7 +21,7 @@
       "data": "2025-06-27",
       "disciplina": "Tipo pista",
       "_base_km": 0.98,
-      "_base_elev": 6
+      "_base_elev": 10
     },
     {
       "numero": 2,
@@ -29,7 +29,7 @@
       "slug": "3-giorni-giudicarie-S2-2025-DJ",
       "data": "2025-06-27",
       "distanza_km": 15.27,
-      "dislivello_m": 38.0,
+      "dislivello_m": 46,
       "disciplina": "ITT"
     },
     {
@@ -38,7 +38,7 @@
       "slug": "3-giorni-giudicarie-S3-2025-DJ",
       "data": "2025-06-27",
       "distanza_km": 100.21,
-      "dislivello_m": 895.0,
+      "dislivello_m": 1009,
       "disciplina": "Strada"
     }
   ],

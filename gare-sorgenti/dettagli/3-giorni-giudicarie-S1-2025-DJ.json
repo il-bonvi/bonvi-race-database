@@ -16,5 +16,7 @@
   "luogo": "Trento, IT",
   "slug": "3-giorni-giudicarie-S1-2025-DJ",
   "_base_km": 0.98,
-  "_base_elev": 6
+  "_base_elev": 10,
+  "distanza_km": null,
+  "dislivello_m": null
 }

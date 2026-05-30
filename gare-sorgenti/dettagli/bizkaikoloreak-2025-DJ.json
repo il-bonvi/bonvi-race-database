@@ -12,7 +12,7 @@
   "tipo": "corsa_a_tappe",
   "n_tappe": 2,
   "distanza_km": 134.02,
-  "dislivello_m": 1368,
+  "dislivello_m": 1493,
   "tappe": [
     {
       "numero": 1,
@@ -20,7 +20,7 @@
       "slug": "bizkaikoloreak-S1-2025-DJ",
       "data": "2025-08-14",
       "distanza_km": 68.99,
-      "dislivello_m": 621.0,
+      "dislivello_m": 668,
       "disciplina": "Strada"
     },
     {
@@ -29,7 +29,7 @@
       "slug": "bizkaikoloreak-S2-2025-DJ",
       "data": "2025-08-15",
       "distanza_km": 65.03,
-      "dislivello_m": 747.0,
+      "dislivello_m": 825,
       "disciplina": "Strada"
     }
   ],

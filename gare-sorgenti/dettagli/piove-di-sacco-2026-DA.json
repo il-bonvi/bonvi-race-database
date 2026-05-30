@@ -9,8 +9,8 @@
   "disciplina": "Criterium",
   "giri": 10,
   "velocita_media_kmh": 35.0,
-  "distanza_km": 64.6,
-  "dislivello_m": 50.0,
+  "distanza_km": 64.56,
+  "dislivello_m": 80,
   "luogo": "Padova, IT",
   "slug": "piove-di-sacco-2026-DA"
 }
