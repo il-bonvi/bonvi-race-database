@@ -1,0 +1,18 @@
+{
+  "titolo": "Lugo",
+  "race_series": "lugo",
+  "data": "2026-06-06",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "ITT",
+  "giri": 1,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 13.17,
+  "dislivello_m": 14.0,
+  "_center_lat": 44.4748,
+  "_center_lon": 11.89431,
+  "slug": "lugo-2026-DJ",
+  "luogo": "Ravenna, IT"
+}

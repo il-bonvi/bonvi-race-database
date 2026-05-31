@@ -330,6 +330,21 @@
     "wt": false
   },
   {
+    "slug": "lugo-2026-DJ",
+    "titolo": "Lugo",
+    "data": "2026-06-06",
+    "year": "2026",
+    "race_series": "lugo",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "mareno-di-piave-2026-DA",
     "titolo": "Mareno di Piave",
     "data": "2026-05-10",
