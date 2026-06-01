@@ -86,6 +86,7 @@ const tappe = isCorsaATappe && gara.tappe
           ...t,
           _base_km: t._base_km ?? dettagliTappa._base_km,
           _base_elev: t._base_elev ?? dettagliTappa._base_elev,
+          gpx_reference: t.gpx_reference ?? dettagliTappa.gpx_reference,
         };
       })
   : [];
@@ -948,7 +949,8 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
           const stageGpxData = {};
           for (const tappa of tappe) {
             try {
-              const gpxPath = `${base}/gare-sorgenti/gpx/${tappa.slug}-gpx.json`;
+              const gpxSlug = tappa.gpx_reference || tappa.slug;
+              const gpxPath = `${base}/gare-sorgenti/gpx/${gpxSlug}-gpx.json`;
               const gpxRes = await fetch(gpxPath);
               if (gpxRes.ok) {
                 const gpxData = await gpxRes.json();

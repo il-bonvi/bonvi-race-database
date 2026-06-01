@@ -59,7 +59,12 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
   // Determina slug/i GPX
   let gpxSlugs: string[] = [];
   if (g.tipo === 'corsa_a_tappe' && g.tappe?.length > 0) {
-    gpxSlugs = (g.tappe as any[]).map((t: any) => t.slug).filter(Boolean);
+    gpxSlugs = (g.tappe as any[])
+      .map((t: any) => {
+        const tDett = dettagliMap[t.slug];
+        return t.gpx_reference || tDett?.gpx_reference || t.slug;
+      })
+      .filter(Boolean);
   } else {
     gpxSlugs = [g.gpx_reference || detailSlug];
   }

@@ -481,6 +481,7 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list):
             "dislivello_m": s.get('dislivello_m'),
             "disciplina":   s.get('disciplina', 'Strada'),
             "giri":         s.get('giri', 1) if s.get('giri', 1) > 1 else None,
+            "gpx_reference": s.get('gpx_reference') or None,
         }
         if s.get('disciplina') == 'Tipo pista':
             tappa_meta['_base_km'] = s.get('_base_km')
@@ -528,6 +529,9 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list):
             "luogo":                s.get('luogo') or main_data.get('luogo'),
             "slug":                 stage_slug,
         }
+        gpx_reference = s.get('gpx_reference')
+        if gpx_reference:
+            stage_data['gpx_reference'] = gpx_reference
         # Aggiungi i dati del singolo giro se è Tipo pista
         if s.get('disciplina') == 'Tipo pista':
             if s.get('_base_km') is not None:
@@ -543,7 +547,14 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list):
         (PUBLIC_GARE_DIR / f"{stage_slug}.json").write_text(stage_str, encoding='utf-8')
 
         gpx_points = s.get('gpx_points')
-        if gpx_points:
+        if gpx_reference:
+            for p in [
+                GPX_DIR / f"{stage_slug}-gpx.json",
+                PUBLIC_GPX_DIR / f"{stage_slug}-gpx.json",
+            ]:
+                if p.exists():
+                    p.unlink()
+        elif gpx_points:
             gpx_data = {"slug": stage_slug, "gpx_points": gpx_points}
             gpx_str  = json.dumps(gpx_data, ensure_ascii=False, indent=2)
             GPX_DIR.mkdir(parents=True, exist_ok=True)
@@ -2041,6 +2052,7 @@ GPX FILE:     {gpx_info}"""
 
         # ── dati interni ───────────────────────────────────────────────────
         data = (initial_data or {}).copy()
+        duplicate_mode = bool(data.pop('_duplicate_from', False))
         # Lista tappe: ognuna è un dict con chiavi:
         #   numero, nome, slug_tappa, data, disciplina, distanza_km, dislivello_m, luogo, velocita_media_kmh, gpx_points
         stages: list[dict] = []
@@ -2057,15 +2069,22 @@ GPX FILE:     {gpx_info}"""
                     except Exception:
                         pass
                 
-                # ricarica i gpx_points dal file, se esiste
+                gpx_reference = None
+                if duplicate_mode and stage_slug:
+                    gpx_reference = stage_slug
+                else:
+                    gpx_reference = tappa_completa.get('gpx_reference') or t.get('gpx_reference')
+
+                # ricarica i gpx_points dal file, se esiste e non e' un riferimento
                 gpx_pts = None
-                gpx_path = GPX_DIR / f"{stage_slug}-gpx.json"
-                if gpx_path.exists():
-                    try:
-                        gd = json.loads(gpx_path.read_text(encoding='utf-8'))
-                        gpx_pts = gd.get('gpx_points')
-                    except Exception:
-                        pass
+                if not gpx_reference:
+                    gpx_path = GPX_DIR / f"{stage_slug}-gpx.json"
+                    if gpx_path.exists():
+                        try:
+                            gd = json.loads(gpx_path.read_text(encoding='utf-8'))
+                            gpx_pts = gd.get('gpx_points')
+                        except Exception:
+                            pass
                 _giri = max(1, t.get('giri', 1))
                 _km   = t.get('distanza_km')
                 _elev = t.get('dislivello_m')
@@ -2090,6 +2109,7 @@ GPX FILE:     {gpx_info}"""
                     'luogo':        tappa_completa.get('luogo') or t.get('luogo'),
                     'velocita_media_kmh': tappa_completa.get('velocita_media_kmh') or t.get('velocita_media_kmh'),
                     'gpx_points':   gpx_pts,
+                    'gpx_reference': gpx_reference,
                     '_base_km':     _base_km,
                     '_base_elev':   _base_elev,
                 })
@@ -2666,6 +2686,7 @@ GPX FILE:     {gpx_info}"""
                 messagebox.showwarning("Attenzione", "Il file GPX non contiene dati validi", parent=win)
                 return
             stages[idx]['gpx_points'] = gpx_data['gpx_points']
+            stages[idx]['gpx_reference'] = None
             stages[idx]['_base_km']   = gpx_data.get('distanza_km')
             stages[idx]['_base_elev'] = gpx_data.get('dislivello_m')
             try:
@@ -2693,7 +2714,7 @@ GPX FILE:     {gpx_info}"""
                 stages[idx]['_center_lat'] = gpx_data['center_lat']
                 stages[idx]['_center_lon'] = gpx_data['center_lon']
             
-            gpx_status_var.set("✓ GPX caricato")
+            gpx_status_var.set("GPX caricato")
             gpx_status_lbl.config(fg="#059669")
             messagebox.showinfo("Successo", "GPX caricato per la tappa!", parent=win)
 
@@ -2702,6 +2723,7 @@ GPX FILE:     {gpx_info}"""
             if idx is None:
                 return
             stages[idx]['gpx_points'] = None
+            stages[idx]['gpx_reference'] = None
             stages[idx].pop('_base_km',   None)
             stages[idx].pop('_base_elev', None)
             gpx_status_var.set("Nessun GPX caricato")
@@ -2812,7 +2834,12 @@ GPX FILE:     {gpx_info}"""
         def _refresh_stages_list():
             stage_listbox.delete(0, tk.END)
             for s in stages:
-                gpx_mark = "✓" if s.get('gpx_points') else "—"
+                if s.get('gpx_reference'):
+                    gpx_mark = "R"
+                elif s.get('gpx_points'):
+                    gpx_mark = "OK"
+                else:
+                    gpx_mark = "--"
                 stage_listbox.insert(tk.END, f"S{s['numero']:>2}: {s.get('nome','?')[:16]:<16} {gpx_mark}")
             # Ri-seleziona
             if selected_stage[0] is not None and selected_stage[0] < len(stages):
@@ -2838,8 +2865,11 @@ GPX FILE:     {gpx_info}"""
             stage_entries['luogo'].set(s.get('luogo', ''))
             stage_entries['giri'].set(int(s.get('giri', 1)))
             slug_t_var.set(s.get('slug_tappa', _stage_auto_slug(s.get('numero', idx + 1))))
-            if s.get('gpx_points'):
-                gpx_status_var.set("✓ GPX caricato")
+            if s.get('gpx_reference'):
+                gpx_status_var.set(f"GPX di riferimento: {s.get('gpx_reference')}")
+                gpx_status_lbl.config(fg="#2563eb")
+            elif s.get('gpx_points'):
+                gpx_status_var.set("GPX caricato")
                 gpx_status_lbl.config(fg="#059669")
             else:
                 gpx_status_var.set("Nessun GPX caricato")
@@ -2887,6 +2917,7 @@ GPX FILE:     {gpx_info}"""
                 'luogo':        None,
                 'velocita_media_kmh': None,
                 'gpx_points':   None,
+                'gpx_reference': None,
             }
             stages.append(new_s)
             _refresh_stages_list()
@@ -2953,6 +2984,8 @@ GPX FILE:     {gpx_info}"""
                 messagebox.showerror("Errore", "Titolo obbligatorio", parent=win); return
             if not race_slug:
                 messagebox.showerror("Errore", "Slug obbligatorio", parent=win); return
+            if is_new and (GARE_DIR / f"{race_slug}.json").exists():
+                messagebox.showerror("Errore", "Slug gia esistente. Cambia data o slug.", parent=win); return
             if not data_inizio:
                 messagebox.showerror("Errore", "Data inizio obbligatoria", parent=win); return
             if data_fine and data_fine < data_inizio:
@@ -2965,6 +2998,9 @@ GPX FILE:     {gpx_info}"""
                 if not s.get('nome'):
                     messagebox.showerror("Errore", f"Tappa {s['numero']}: nome obbligatorio", parent=win)
                     return
+
+            if is_new:
+                _refresh_stage_slugs()
 
             main = {
                 'titolo':       titolo,
@@ -3138,6 +3174,7 @@ GPX FILE:     {gpx_info}"""
                 for t in new_data['tappe']:
                     if t.get('data'):
                         t['data'] = bump_date_year(t.get('data'))
+            new_data['_duplicate_from'] = True
             self.open_stage_race_form(initial_data=new_data, is_new=True)
         else:
             if new_data.get('data'):
