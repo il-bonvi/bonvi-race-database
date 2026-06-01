@@ -54,6 +54,19 @@ def slugify(s: str) -> str:
     return s.strip('-')
 
 
+def bump_date_year(date_str: str, years: int = 1) -> str:
+    """Aumenta l'anno di una data AAAA-MM-GG. Se non valida, ritorna l'input."""
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return date_str
+    try:
+        return dt.replace(year=dt.year + years).strftime("%Y-%m-%d")
+    except ValueError:
+        # Gestisci date non valide (es. 29/02 non in anno non bisestile)
+        return date_str
+
+
 def categoria_code(genere: str, categoria: str) -> str:
     """
     Genera il codice categoria combinando genere e categoria.
@@ -754,24 +767,28 @@ class RaceManagerApp:
         button_frame.pack(side="bottom", fill="x", padx=12, pady=12)
         
         tk.Button(button_frame, text="➕ Aggiungi corsa", font=("Helvetica", 10),
-                 bg=ACCENT, fg="white", padx=12, pady=8, relief="flat", bd=0,
-                 cursor="hand2", command=self.add_race).pack(side="left", padx=(0, 6))
-        
+              bg=ACCENT, fg="white", padx=12, pady=8, relief="flat", bd=0,
+              cursor="hand2", command=self.add_race).pack(side="left", padx=(0, 6))
+
         tk.Button(button_frame, text="➕ Aggiungi corsa a tappe", font=("Helvetica", 10),
-                 bg="#059669", fg="white", padx=12, pady=8, relief="flat", bd=0,
-                 cursor="hand2", command=self.add_stage_race).pack(side="left", padx=(0, 6))
-        
+              bg="#059669", fg="white", padx=12, pady=8, relief="flat", bd=0,
+              cursor="hand2", command=self.add_stage_race).pack(side="left", padx=(0, 6))
+
         tk.Button(button_frame, text="✏️ Modifica", font=("Helvetica", 10),
-                 bg="#9ca3af", fg="white", padx=12, pady=8, relief="flat", bd=0,
-                 cursor="hand2", command=self.edit_race).pack(side="left", padx=6)
-        
+              bg="#9ca3af", fg="white", padx=12, pady=8, relief="flat", bd=0,
+              cursor="hand2", command=self.edit_race).pack(side="left", padx=6)
+
+        tk.Button(button_frame, text="🧬 Nuova edizione", font=("Helvetica", 10),
+              bg="#0ea5e9", fg="white", padx=12, pady=8, relief="flat", bd=0,
+              cursor="hand2", command=self.duplicate_race).pack(side="left", padx=6)
+
         tk.Button(button_frame, text="🗑️ Elimina", font=("Helvetica", 10),
-                 bg="#dc2626", fg="white", padx=12, pady=8, relief="flat", bd=0,
-                 cursor="hand2", command=self.delete_race).pack(side="left", padx=6)
-        
+              bg="#dc2626", fg="white", padx=12, pady=8, relief="flat", bd=0,
+              cursor="hand2", command=self.delete_race).pack(side="left", padx=6)
+
         tk.Button(button_frame, text="📤 Push", font=("Helvetica", 10),
-                 bg="#8b5cf6", fg="white", padx=12, pady=8, relief="flat", bd=0,
-                 cursor="hand2", command=self.push_changes).pack(side="left", padx=6)
+              bg="#8b5cf6", fg="white", padx=12, pady=8, relief="flat", bd=0,
+              cursor="hand2", command=self.push_changes).pack(side="left", padx=6)
         
         self.refresh_list()
     
@@ -3035,6 +3052,71 @@ GPX FILE:     {gpx_info}"""
             self.open_stage_race_form(initial_data=data.copy(), is_new=False)
         else:
             self.open_add_race_form(data.copy(), is_new=False, original_slug=slug)
+
+    def duplicate_race(self):
+        """Crea una nuova edizione duplicando la gara selezionata."""
+        idx = self.race_listbox.curselection()
+        if not idx:
+            messagebox.showwarning("Attenzione", "Seleziona una gara prima")
+            return
+
+        slug = self.listbox_index_map.get(idx[0])
+        if not slug:
+            messagebox.showwarning("Attenzione", "Gara non trovata")
+            return
+
+        data = None
+        for s, d in self.filtered_races:
+            if s == slug:
+                data = d
+                break
+
+        if not data:
+            tappa_json_path = GARE_DIR / f"{slug}.json"
+            if tappa_json_path.exists():
+                try:
+                    data = json.loads(tappa_json_path.read_text(encoding='utf-8'))
+                except Exception:
+                    messagebox.showerror("Errore", "Impossibile caricare i dati della tappa")
+                    return
+            else:
+                messagebox.showwarning("Attenzione", "Gara non trovata")
+                return
+
+        if data.get('tipo') == 'tappa':
+            stage_race_slug = data.get('corsa_a_tappe_slug')
+            if stage_race_slug:
+                stage_race_path = GARE_DIR / f"{stage_race_slug}.json"
+                if stage_race_path.exists():
+                    try:
+                        data = json.loads(stage_race_path.read_text(encoding='utf-8'))
+                    except Exception as e:
+                        messagebox.showerror("Errore", f"Impossibile caricare la corsa a tappe: {e}")
+                        return
+            if not data or data.get('tipo') != 'corsa_a_tappe':
+                messagebox.showwarning("Attenzione", "Corsa a tappe principale non trovata")
+                return
+
+        # Copia profonda per non alterare la cache
+        new_data = json.loads(json.dumps(data))
+        new_data.pop('slug', None)
+
+        if new_data.get('tipo') == 'corsa_a_tappe':
+            if new_data.get('data_inizio'):
+                new_data['data_inizio'] = bump_date_year(new_data.get('data_inizio'))
+            if new_data.get('data_fine'):
+                new_data['data_fine'] = bump_date_year(new_data.get('data_fine'))
+            if new_data.get('data'):
+                new_data['data'] = bump_date_year(new_data.get('data'))
+            if new_data.get('tappe'):
+                for t in new_data['tappe']:
+                    if t.get('data'):
+                        t['data'] = bump_date_year(t.get('data'))
+            self.open_stage_race_form(initial_data=new_data, is_new=True)
+        else:
+            if new_data.get('data'):
+                new_data['data'] = bump_date_year(new_data.get('data'))
+            self.open_add_race_form(new_data, is_new=True)
     
     
     def delete_race(self):

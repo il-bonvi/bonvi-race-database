@@ -15,6 +15,21 @@
     "wt": false
   },
   {
+    "slug": "3-giorni-giudicarie-2026-DJ",
+    "titolo": "3 Giorni Giudicarie",
+    "data": "2026-06-26",
+    "year": "2026",
+    "race_series": "3 giorni giudicarie",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": "corsa_a_tappe",
+    "n_tappe": 3,
+    "wt": false
+  },
+  {
     "slug": "albiano-2026-DA",
     "titolo": "Albiano",
     "data": "2026-05-24",
