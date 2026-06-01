@@ -385,6 +385,24 @@ def load_all_races():
     return races
 
 
+def gpx_is_referenced(target_slug: str, exclude_slugs: set | None = None) -> bool:
+    """Ritorna True se esiste una gara che usa gpx_reference=target_slug."""
+    exclude = exclude_slugs or set()
+    for json_file in GARE_DIR.glob("*.json"):
+        try:
+            data = json.loads(json_file.read_text(encoding='utf-8'))
+        except Exception:
+            continue
+        if data.get('slug') in exclude:
+            continue
+        if data.get('gpx_reference') == target_slug:
+            return True
+        # Supporto per eventuali tappe con gpx_reference salvato manualmente
+        if data.get('tipo') == 'tappa' and data.get('gpx_reference') == target_slug:
+            return True
+    return False
+
+
 def save_race(slug: str, data: dict):
     """Salva i dettagli gara in gare-sorgenti/dettagli/ e, se presenti, i punti
     GPX in gare-sorgenti/gpx/{slug}-gpx.json. Sincronizza in public/.
@@ -430,9 +448,10 @@ def delete_race(slug: str):
             p.unlink()
 
     # File GPX separato
-    for p in [GPX_DIR / f"{slug}-gpx.json", PUBLIC_GPX_DIR / f"{slug}-gpx.json"]:
-        if p.exists():
-            p.unlink()
+    if not gpx_is_referenced(slug, exclude_slugs={slug}):
+        for p in [GPX_DIR / f"{slug}-gpx.json", PUBLIC_GPX_DIR / f"{slug}-gpx.json"]:
+            if p.exists():
+                p.unlink()
 
     # Aggiorna l'indice per la navigazione tra serie
     update_gares_index()
@@ -543,6 +562,7 @@ def delete_stage_race(slug: str, tappe: list):
             p.unlink()
 
     # Ogni tappa
+    stage_slugs = {t.get('slug', '') for t in tappe if t.get('slug')}
     for tappa in tappe:
         stage_slug = tappa.get('slug', '')
         if not stage_slug:
@@ -550,11 +570,17 @@ def delete_stage_race(slug: str, tappe: list):
         for p in [
             GARE_DIR / f"{stage_slug}.json",
             PUBLIC_GARE_DIR / f"{stage_slug}.json",
-            GPX_DIR / f"{stage_slug}-gpx.json",
-            PUBLIC_GPX_DIR / f"{stage_slug}-gpx.json",
         ]:
             if p.exists():
                 p.unlink()
+
+        if not gpx_is_referenced(stage_slug, exclude_slugs=stage_slugs):
+            for p in [
+                GPX_DIR / f"{stage_slug}-gpx.json",
+                PUBLIC_GPX_DIR / f"{stage_slug}-gpx.json",
+            ]:
+                if p.exists():
+                    p.unlink()
 
     update_gares_index()
 
