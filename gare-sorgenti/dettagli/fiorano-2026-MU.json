@@ -1,0 +1,18 @@
+{
+  "titolo": "Fiorano",
+  "race_series": "fiorano",
+  "data": "2026-06-02",
+  "genere": "Maschile",
+  "categoria": [
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 174.72,
+  "dislivello_m": 1604.0,
+  "_center_lat": 44.541430000000005,
+  "_center_lon": 10.82975,
+  "slug": "fiorano-2026-MU",
+  "luogo": "Modena, IT"
+}

@@ -201,6 +201,21 @@
     "wt": false
   },
   {
+    "slug": "fiorano-2026-MU",
+    "titolo": "Fiorano",
+    "data": "2026-06-02",
+    "year": "2026",
+    "race_series": "fiorano",
+    "genere": "Maschile",
+    "categoria": [
+      "U23"
+    ],
+    "categoria_code": "MU",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "fossano-2026-DJ-DU-DELI",
     "titolo": "Fossano",
     "data": "2026-04-12",
