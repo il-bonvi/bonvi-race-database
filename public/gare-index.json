@@ -233,6 +233,21 @@
     "wt": false
   },
   {
+    "slug": "gambellara-2026-DU",
+    "titolo": "Gambellara",
+    "data": "2026-06-14",
+    "year": "2026",
+    "race_series": "gambellara",
+    "genere": "Femminile",
+    "categoria": [
+      "U23"
+    ],
+    "categoria_code": "DU",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "giro-d-italia-women-2026-DWT",
     "titolo": "Giro d'Italia Women",
     "data": "2026-05-30",
