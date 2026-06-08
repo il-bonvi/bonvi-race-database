@@ -1,0 +1,22 @@
+{
+  "titolo": "Marche Internazionale — Tappa 1: Crono Porto San Giorgio",
+  "tipo": "tappa",
+  "nome_tappa": "Crono Porto San Giorgio",
+  "numero_tappa": 1,
+  "corsa_a_tappe_slug": "marche-internazionale-2026-DJ-DU-DELI",
+  "corsa_a_tappe_titolo": "Marche Internazionale",
+  "race_series": "marche internazionale",
+  "data": "2026-06-12",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "ITT",
+  "distanza_km": 14.54,
+  "dislivello_m": 14.0,
+  "velocita_media_kmh": 42.0,
+  "luogo": "Fermo, IT",
+  "slug": "marche-internazionale-S1-2026-DJ-DU-DELI"
+}

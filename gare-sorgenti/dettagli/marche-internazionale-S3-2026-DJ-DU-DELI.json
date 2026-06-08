@@ -1,0 +1,22 @@
+{
+  "titolo": "Marche Internazionale — Tappa 3: Urbisaglia",
+  "tipo": "tappa",
+  "nome_tappa": "Urbisaglia",
+  "numero_tappa": 3,
+  "corsa_a_tappe_slug": "marche-internazionale-2026-DJ-DU-DELI",
+  "corsa_a_tappe_titolo": "Marche Internazionale",
+  "race_series": "marche internazionale",
+  "data": "2026-06-14",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 110.25,
+  "dislivello_m": 1530.0,
+  "velocita_media_kmh": 35.0,
+  "luogo": "Fermo, IT",
+  "slug": "marche-internazionale-S3-2026-DJ-DU-DELI"
+}

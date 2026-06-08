@@ -1,0 +1,50 @@
+{
+  "titolo": "Marche Internazionale",
+  "race_series": "marche internazionale",
+  "data": "2026-06-12",
+  "data_inizio": "2026-06-12",
+  "data_fine": "2026-06-14",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "luogo": "Fermo, IT",
+  "tipo": "corsa_a_tappe",
+  "n_tappe": 3,
+  "distanza_km": 230.39,
+  "dislivello_m": 1604,
+  "tappe": [
+    {
+      "numero": 1,
+      "nome": "Crono Porto San Giorgio",
+      "slug": "marche-internazionale-S1-2026-DJ-DU-DELI",
+      "data": "2026-06-12",
+      "distanza_km": 14.54,
+      "dislivello_m": 14.0,
+      "disciplina": "ITT"
+    },
+    {
+      "numero": 2,
+      "nome": "Criterium Porto San Giorgio",
+      "slug": "marche-internazionale-S2-2026-DJ-DU-DELI",
+      "data": "2026-06-13",
+      "distanza_km": 105.6,
+      "dislivello_m": 60.0,
+      "disciplina": "Criterium",
+      "giri": 30
+    },
+    {
+      "numero": 3,
+      "nome": "Urbisaglia",
+      "slug": "marche-internazionale-S3-2026-DJ-DU-DELI",
+      "data": "2026-06-14",
+      "distanza_km": 110.25,
+      "dislivello_m": 1530.0,
+      "disciplina": "Strada",
+      "giri": 15
+    }
+  ],
+  "slug": "marche-internazionale-2026-DJ-DU-DELI"
+}

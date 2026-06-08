@@ -1,0 +1,22 @@
+{
+  "titolo": "Marche Internazionale — Tappa 2: Criterium Porto San Giorgio",
+  "tipo": "tappa",
+  "nome_tappa": "Criterium Porto San Giorgio",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "marche-internazionale-2026-DJ-DU-DELI",
+  "corsa_a_tappe_titolo": "Marche Internazionale",
+  "race_series": "marche internazionale",
+  "data": "2026-06-13",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Criterium",
+  "distanza_km": 105.6,
+  "dislivello_m": 60.0,
+  "velocita_media_kmh": 40.0,
+  "luogo": "Fermo, IT",
+  "slug": "marche-internazionale-S2-2026-DJ-DU-DELI"
+}
