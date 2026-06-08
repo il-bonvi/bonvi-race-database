@@ -233,16 +233,16 @@
     "wt": false
   },
   {
-    "slug": "gambellara-2026-DU",
+    "slug": "gambellara-2026-MU",
     "titolo": "Gambellara",
     "data": "2026-06-14",
     "year": "2026",
     "race_series": "gambellara",
-    "genere": "Femminile",
+    "genere": "Maschile",
     "categoria": [
       "U23"
     ],
-    "categoria_code": "DU",
+    "categoria_code": "MU",
     "tipo": null,
     "n_tappe": null,
     "wt": false

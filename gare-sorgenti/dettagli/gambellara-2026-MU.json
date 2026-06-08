@@ -2,7 +2,7 @@
   "titolo": "Gambellara",
   "race_series": "gambellara",
   "data": "2026-06-14",
-  "genere": "Femminile",
+  "genere": "Maschile",
   "categoria": [
     "U23"
   ],
@@ -13,6 +13,6 @@
   "dislivello_m": 820.0,
   "_center_lat": 45.46276,
   "_center_lon": 11.33914,
-  "slug": "gambellara-2026-DU",
+  "slug": "gambellara-2026-MU",
   "luogo": "Vicenza, IT"
 }
