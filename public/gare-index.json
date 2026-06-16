@@ -364,12 +364,28 @@
     "titolo": "Italiano Strada",
     "data": "2026-06-20",
     "year": "2026",
-    "race_series": "it road",
+    "race_series": "ita road",
     "genere": "Femminile",
     "categoria": [
       "Junior"
     ],
     "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "italiano-strada-2026-DU-DELI",
+    "titolo": "Italiano Strada",
+    "data": "2026-06-27",
+    "year": "2026",
+    "race_series": "ita road",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23"
+    ],
+    "categoria_code": "DELI",
     "tipo": null,
     "n_tappe": null,
     "wt": false

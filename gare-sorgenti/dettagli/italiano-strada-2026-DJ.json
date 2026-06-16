@@ -1,6 +1,6 @@
 {
   "titolo": "Italiano Strada",
-  "race_series": "it road",
+  "race_series": "ita road",
   "data": "2026-06-20",
   "genere": "Femminile",
   "categoria": [
@@ -10,7 +10,7 @@
   "giri": 1,
   "velocita_media_kmh": 35.0,
   "distanza_km": 109.54,
-  "dislivello_m": 1530,
+  "dislivello_m": 1530.0,
   "luogo": "Frosinone, IT",
   "slug": "italiano-strada-2026-DJ"
 }

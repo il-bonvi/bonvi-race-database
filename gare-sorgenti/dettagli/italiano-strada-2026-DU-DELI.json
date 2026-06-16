@@ -1,0 +1,19 @@
+{
+  "titolo": "Italiano Strada",
+  "race_series": "ita road",
+  "data": "2026-06-27",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 41.0,
+  "distanza_km": 140.2,
+  "dislivello_m": 1269.0,
+  "_center_lat": 45.957170000000005,
+  "_center_lon": 12.648600000000002,
+  "slug": "italiano-strada-2026-DU-DELI",
+  "luogo": "Pordenone / Pordenon, IT"
+}
