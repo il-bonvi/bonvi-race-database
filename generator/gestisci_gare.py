@@ -2014,6 +2014,33 @@ GPX FILE:     {gpx_info}"""
                 messagebox.showerror("Errore", "Slug obbligatorio")
                 return
             
+            # ── Rinomina file se lo slug è cambiato ──────────────────────────
+            if not is_new and original_slug and original_slug != data.get('slug'):
+                new_slug_val = data['slug']
+
+                # Rinomina/aggiorna file GPX (se esiste) in tutte le cartelle
+                for gpx_dir in [GPX_DIR, PUBLIC_GPX_DIR]:
+                    old_gpx = gpx_dir / f"{original_slug}-gpx.json"
+                    new_gpx = gpx_dir / f"{new_slug_val}-gpx.json"
+                    if old_gpx.exists():
+                        try:
+                            gpx_content = json.loads(old_gpx.read_text(encoding='utf-8'))
+                            gpx_content['slug'] = new_slug_val
+                            new_gpx.write_text(
+                                json.dumps(gpx_content, ensure_ascii=False, indent=2),
+                                encoding='utf-8'
+                            )
+                            old_gpx.unlink()
+                        except Exception:
+                            old_gpx.rename(new_gpx)  # fallback senza aggiornare slug interno
+
+                # Rimuovi i vecchi file dettagli (il nuovo viene scritto da save_race)
+                for det_dir in [GARE_DIR, PUBLIC_GARE_DIR]:
+                    old_det = det_dir / f"{original_slug}.json"
+                    if old_det.exists():
+                        old_det.unlink()
+            # ─────────────────────────────────────────────────────────────────
+
             # Salva
             save_race(data.get('slug'), data)
             messagebox.showinfo("Salvato", "Gara modificata con successo!")
