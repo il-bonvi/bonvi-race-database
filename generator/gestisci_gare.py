@@ -19,13 +19,29 @@ Funzionalità:
 import sys
 import json
 import re
-import math
+import logging
 from datetime import datetime, date
 from tkinter import ttk, filedialog
 import tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import xml.etree.ElementTree as ET
+
+from race_utils import (
+    CATEGORIE,
+    GENERI,
+    DISCIPLINE,
+    slugify,
+    categoria_code,
+    get_slug_suffix,
+    parse_gpx,
+    reverse_geocode,
+    update_gares_index as _update_gares_index_util,
+    bump_date_year,
+    validate_date_string,
+)
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 ARCHIVIO_DIR = Path(__file__).parent.parent
 
@@ -41,303 +57,14 @@ PUBLIC_GPX_DIR  = ARCHIVIO_DIR / "public" / "gare-sorgenti" / "gpx"
 PUBLIC_GARE_DIR.mkdir(parents=True, exist_ok=True)
 PUBLIC_GPX_DIR.mkdir(parents=True, exist_ok=True)
 
+BG = "#ede9e2"
+ACCENT = "#fc5200"
+FG = "#1a1a1a"
 
-# ── UTILITY FUNCTIONS ─────────────────────────────────────────────────────────
-
-def slugify(s: str) -> str:
-    """Converte una stringa in slug URL-safe"""
-    import unicodedata
-    s = unicodedata.normalize('NFD', s)
-    s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
-    s = s.lower()
-    s = re.sub(r'[^a-z0-9]+', '-', s)
-    return s.strip('-')
-
-
-def bump_date_year(date_str: str, years: int = 1) -> str:
-    """Aumenta l'anno di una data AAAA-MM-GG. Se non valida, ritorna l'input."""
-    try:
-        dt = datetime.strptime(date_str, "%Y-%m-%d")
-    except (TypeError, ValueError):
-        return date_str
-    try:
-        return dt.replace(year=dt.year + years).strftime("%Y-%m-%d")
-    except ValueError:
-        # Gestisci date non valide (es. 29/02 non in anno non bisestile)
-        return date_str
-
-
-def categoria_code(genere: str, categoria: str) -> str:
-    """
-    Genera il codice categoria combinando genere e categoria.
-    
-    Genere:
-      - "Maschile" → M
-      - "Femminile" → D
-    
-    Categoria:
-      - "Elite" → ELI
-      - "U23" → U
-      - "Junior" → J
-      - "Allievi" → A
-    
-    Esempio: categoria_code("Femminile", "Elite") → "DELI"
-    """
-    genere_map = {
-        "Maschile": "M",
-        "Femminile": "D"
-    }
-    
-    categoria_map = {
-        "Elite": "ELI",
-        "U23": "U",
-        "Junior": "J",
-        "Allievi": "A"
-    }
-    
-    genere_code = genere_map.get(genere, "")
-    cat_code = categoria_map.get(categoria, "")
-    
-    return f"{genere_code}{cat_code}" if genere_code and cat_code else ""
-
-
-def get_slug_suffix(genere: str, categoria: str, is_wt: bool) -> str:
-    """
-    Genera il suffisso dello slug considerando il flag WT.
-    
-    Se is_wt=True:
-      - "Maschile" → "MWT"
-      - "Femminile" → "DWT"
-    
-    Se is_wt=False: usa categoria_code() normale
-    
-    Esempio:
-      - get_slug_suffix("Femminile", "Elite", True) → "DWT"
-      - get_slug_suffix("Femminile", "Elite", False) → "DELI"
-    """
-    if is_wt:
-        genere_map = {
-            "Maschile": "MWT",
-            "Femminile": "DWT"
-        }
-        return genere_map.get(genere, "")
-    else:
-        return categoria_code(genere, categoria)
-
-
-def parse_gpx(gpx_path: Path) -> dict:
-    """Estrae distanza (km), dislivello positivo (m) e punti GPX dal file GPX."""
-    try:
-        tree = ET.parse(gpx_path)
-        root = tree.getroot()
-        ns = ''
-        if root.tag.startswith('{'):
-            ns = root.tag.split('}')[0] + '}'
-
-        points = root.findall(f'.//{ns}trkpt')
-        if not points:
-            points = root.findall(f'.//{ns}rtept')
-
-        if not points:
-            return {'distanza_km': None, 'dislivello_m': None, 'gpx_points': None}
-
-        coords = []
-        gpx_points = []  # Punti per il JSON
-        for pt in points:
-            try:
-                lat = float(pt.get('lat'))
-                lon = float(pt.get('lon'))
-                ele_el = pt.find(f'{ns}ele')
-                ele = float(ele_el.text) if ele_el is not None else None
-                coords.append((lat, lon, ele))
-                # Salva punti per il JSON (arrotondati per ridurre dimensione)
-                gpx_points.append({
-                    'lat': round(lat, 6),
-                    'lon': round(lon, 6),
-                    'ele': round(ele, 1) if ele is not None else None
-                })
-            except (TypeError, ValueError):
-                continue
-
-        if not coords:
-            return {'distanza_km': None, 'dislivello_m': None, 'gpx_points': None}
-
-        def haversine(lat1, lon1, lat2, lon2):
-            R = 6371000
-            φ1, φ2 = math.radians(lat1), math.radians(lat2)
-            dφ = math.radians(lat2 - lat1)
-            dλ = math.radians(lon2 - lon1)
-            a = math.sin(dφ/2)**2 + math.cos(φ1)*math.cos(φ2)*math.sin(dλ/2)**2
-            return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-
-        dist_m = sum(
-            haversine(coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1])
-            for i in range(len(coords)-1)
-        )
-
-        # Elevation gain: sum of positive deltas on rounded points (gara.html logic)
-        d_plus = 0.0
-        prev_ele = None
-        for pt in gpx_points:
-            ele = pt.get('ele')
-            if ele is None:
-                prev_ele = None
-                continue
-            if prev_ele is not None:
-                diff = ele - prev_ele
-                if diff > 0:
-                    d_plus += diff
-            prev_ele = ele
-
-        # Punto di arrivo per il geocoding (ultimo punto del tracciato)
-        finish = coords[-1]
-        center_lat, center_lon = finish[0], finish[1]
-
-        return {
-            'distanza_km': round(dist_m / 1000, 2),
-            'dislivello_m': round(d_plus) if d_plus > 0 else None,
-            'gpx_points':   gpx_points,
-            'center_lat': center_lat,
-            'center_lon': center_lon,
-        }
-
-    except Exception as e:
-        messagebox.showerror("Errore", f"Impossibile leggere il GPX: {e}")
-        return {'distanza_km': None, 'dislivello_m': None, 'gpx_points': None, 'center_lat': None, 'center_lon': None}
-
-
-# ── REVERSE GEOCODING (NOMINATIM/OSM) ────────────────────────────────────────
-
-def reverse_geocode(lat: float, lon: float) -> str | None:
-    """
-    Ritorna 'Provincia, IT' tramite Nominatim (OpenStreetMap).
-    Nessuna API key richiesta. Ritorna None se offline o in caso di errore.
-    Implementa retry con backoff esponenziale per gestire timeout e servizi sovraccarichi.
-    """
-    import urllib.request
-    import urllib.parse
-    import json as _json
-    import time
-
-    # Retry con backoff esponenziale
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            params = urllib.parse.urlencode({
-                "lat": round(lat, 5),
-                "lon": round(lon, 5),
-                "format": "json",
-                "zoom": 8,
-                "addressdetails": 1,
-            })
-            url = f"https://nominatim.openstreetmap.org/reverse?{params}"
-            req = urllib.request.Request(url, headers={"User-Agent": "race-db-archivio/1.0"})
-            
-            # Timeout aumentato a 10 secondi (Nominatim può essere lento)
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = _json.loads(resp.read())
-
-            addr = data.get("address", {})
-            provincia = (
-                addr.get("county") or
-                addr.get("city") or
-                addr.get("town") or
-                addr.get("village") or
-                addr.get("state") or
-                ""
-            )
-            for prefix in ("Provincia di ", "Province of ", "Distretto di "):
-                if provincia.startswith(prefix):
-                    provincia = provincia[len(prefix):]
-
-            country_code = addr.get("country_code", "").upper()
-            parts = [p for p in [provincia, country_code] if p]
-            result = ", ".join(parts) if parts else None
-            print(f"[DEBUG reverse_geocode] ({lat}, {lon}) -> {result}")
-            return result
-            
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
-            # Errori transitori (503, timeout, connessione)
-            error_type = type(e).__name__
-            error_msg = str(e)
-            
-            if attempt < max_retries - 1:
-                # Retry con backoff esponenziale: 1s, 2s, 4s
-                wait_time = 2 ** attempt
-                print(f"[DEBUG reverse_geocode] Tentativo {attempt+1}/{max_retries} fallito ({error_type}). "
-                      f"Retry tra {wait_time}s...")
-                time.sleep(wait_time)
-            else:
-                # Ultimo tentativo fallito
-                print(f"[DEBUG reverse_geocode] ERRORE ({lat}, {lon}) dopo {max_retries} tentativi: {error_type}: {error_msg}")
-                return None
-        except Exception as e:
-            # Errori non transitori
-            print(f"[DEBUG reverse_geocode] ERRORE FATALE ({lat}, {lon}): {type(e).__name__}: {e}")
-            return None
-    
-    return None
-
-
-# ── AUTO-UPDATE INDICE GARE ──────────────────────────────────────────────────
 
 def update_gares_index():
-    """Genera automaticamente gare-index.json per la navigazione tra serie."""
-    races = []
-    
-    # Scansiona tutti i file JSON
-    for json_file in sorted(GARE_DIR.glob("*.json")):
-        try:
-            with open(json_file, 'r', encoding='utf-8') as f:
-                gara = json.load(f)
-            
-            slug = gara.get("slug")
-            if not slug:
-                continue
-            
-            # Estrai l'anno dalla data (formato AAAA-MM-GG)
-            data_str = gara.get("data", "")
-            year = data_str.split("-")[0] if data_str else "unknown"
-            
-            # Estrai genere e categoria per generare il codice categoria
-            genere = gara.get("genere", "")
-            categoria_list = gara.get("categoria", [])
-            # Memorizza tutte le categorie
-            categoria_display = categoria_list if isinstance(categoria_list, list) else ([categoria_list] if categoria_list else [])
-            # Per il codice, usa la prima categoria
-            categoria_first = categoria_list[0] if categoria_list else ""
-            cat_code = categoria_code(genere, categoria_first) if genere and categoria_first else ""
-            
-            # Salta le singole tappe (sono incluse nella scheda corsa a tappe)
-            if gara.get('tipo') == 'tappa':
-                continue
-
-            races.append({
-                "slug": slug,
-                "titolo": gara.get("titolo"),
-                "data": data_str,
-                "year": year,
-                "race_series": gara.get("race_series"),
-                "genere": genere,
-                "categoria": categoria_display,
-                "categoria_code": cat_code,
-                "tipo": gara.get("tipo"),
-                "n_tappe": gara.get("n_tappe"),
-                "wt": gara.get("wt", False),
-            })
-            
-        except Exception:
-            continue
-    
-    # Salva l'index
-    index_path = ARCHIVIO_DIR / "public" / "gare-index.json"
-    index_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    try:
-        with open(index_path, 'w', encoding='utf-8') as f:
-            json.dump(races, f, indent=2, ensure_ascii=False)
-    except Exception:
-        pass
+    """Wrapper locale — delega a race_utils con i path del progetto."""
+    _update_gares_index_util(gare_dir=GARE_DIR, archivio_dir=ARCHIVIO_DIR)
 
 
 # ── ESTRAZIONE SERIE ──────────────────────────────────────────────────────────
@@ -345,30 +72,17 @@ def update_gares_index():
 def get_all_race_series() -> list:
     """Estrae tutte le serie uniche dai dati delle gare (escludendo tappe individuali)."""
     series_set = set()
-    
     for json_file in GARE_DIR.glob("*.json"):
         try:
             data = json.loads(json_file.read_text(encoding='utf-8'))
-            # Salta le tappe individuali (mantieni solo corsa_a_tappe e gare singole)
             if data.get('tipo') == 'tappa':
                 continue
-            
             race_series = data.get('race_series', '')
             if race_series:
                 series_set.add(race_series)
-        except Exception:
-            continue
-    
-    return sorted(list(series_set))
-
-
-CATEGORIE = ["Elite", "U23", "Junior", "Allievi"]
-GENERI = ["Maschile", "Femminile"]
-DISCIPLINE = ["Strada", "Criterium", "ITT", "TTT", "Tipo pista"]
-
-BG = "#ede9e2"
-ACCENT = "#fc5200"
-FG = "#1a1a1a"
+        except Exception as exc:
+            logger.warning("get_all_race_series: impossibile leggere '%s': %s", json_file, exc)
+    return sorted(series_set)
 
 
 # ── UTILITÀ ──────────────────────────────────────────────────────────────────
@@ -380,8 +94,8 @@ def load_all_races():
         try:
             data = json.loads(json_file.read_text(encoding='utf-8'))
             races.append((data.get("slug", "?"), data))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("load_all_races: impossibile leggere '%s': %s", json_file, exc)
     return races
 
 
@@ -391,13 +105,13 @@ def gpx_is_referenced(target_slug: str, exclude_slugs: set | None = None) -> boo
     for json_file in GARE_DIR.glob("*.json"):
         try:
             data = json.loads(json_file.read_text(encoding='utf-8'))
-        except Exception:
+        except Exception as exc:
+            logger.warning("gpx_is_referenced: impossibile leggere '%s': %s", json_file, exc)
             continue
         if data.get('slug') in exclude:
             continue
         if data.get('gpx_reference') == target_slug:
             return True
-        # Supporto per eventuali tappe con gpx_reference salvato manualmente
         if data.get('tipo') == 'tappa' and data.get('gpx_reference') == target_slug:
             return True
     return False
@@ -604,12 +318,14 @@ def git_push_changes(message: str = None) -> tuple:
     """
     import subprocess
     import os
-    
+
+    # Timeout generoso: le connessioni lente o i repository grandi possono impiegare più di 10s
+    GIT_PUSH_TIMEOUT = 60
+
     try:
-        # Configura Git per non richiedere interattivamente le credenziali
         env = os.environ.copy()
         env['GIT_TERMINAL_PROMPT'] = '0'
-        
+
         # git add
         subprocess.run(
             ["git", "add", "."],
@@ -619,11 +335,10 @@ def git_push_changes(message: str = None) -> tuple:
             check=True,
             env=env
         )
-        
-        # git commit (con messaggio di default se non fornito)
+
         if not message:
             message = f"Update races database - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        
+
         result = subprocess.run(
             ["git", "commit", "-m", message],
             cwd=ARCHIVIO_DIR,
@@ -631,36 +346,29 @@ def git_push_changes(message: str = None) -> tuple:
             text=True,
             env=env
         )
-        
-        # Se non c'è nulla da committare, va bene comunque
+
         if result.returncode != 0 and "nothing to commit" not in result.stdout:
             return False, f"Errore commit: {result.stderr}"
-        
-        # git push con credenziali configurate
+
         result = subprocess.run(
             ["git", "push"],
             cwd=ARCHIVIO_DIR,
             capture_output=True,
             text=True,
             env=env,
-            timeout=10
+            timeout=GIT_PUSH_TIMEOUT
         )
-        
-        # Verifica se il push è stato successful (anche se returncode != 0, potrebbe essere solo un warning)
-        output = result.stdout + result.stderr
-        
-        # Controllare se c'è un errore reale
+
         if "fatal:" in result.stderr and result.returncode != 0:
             if "could not read" in result.stderr:
                 return False, "❌ Errore autenticazione Git:\nConfigura le credenziali con:\n  git config --global credential.helper store"
             else:
                 return False, f"❌ Errore git: {result.stderr}"
-        
-        # Se non ci sono errori fatali, il push è riuscito
+
         return True, "✅ Push completato con successo!"
-        
+
     except subprocess.TimeoutExpired:
-        return False, "❌ Timeout: Push impiegato troppo tempo"
+        return False, f"❌ Timeout: Push non completato entro {GIT_PUSH_TIMEOUT}s"
     except subprocess.CalledProcessError as e:
         return False, f"Errore git: {e.stderr}"
     except FileNotFoundError:
@@ -988,7 +696,8 @@ class RaceManagerApp:
                 try:
                     data = json.loads(tappa_json_path.read_text(encoding='utf-8'))
                     is_stage = True
-                except Exception:
+                except Exception as exc:
+                    logger.warning("on_race_select: impossibile leggere '%s': %s", tappa_json_path, exc)
                     return
             else:
                 return
@@ -1213,8 +922,8 @@ GPX FILE:     {gpx_info}"""
                     d = json.loads(details_file.read_text(encoding='utf-8'))
                     titolo = d.get('titolo', gpx_slug)
                     data_gara = d.get('data', '')
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("new_race_with_existing_gpx: impossibile leggere '%s': %s", details_file, exc)
             existing_races.append((gpx_slug, titolo, data_gara))
 
         if not existing_races:
@@ -1295,8 +1004,8 @@ GPX FILE:     {gpx_info}"""
                     ref_distanza  = d.get('distanza_km')
                     ref_dislivello = d.get('dislivello_m')
                     ref_luogo     = d.get('luogo')
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("on_select (GPX ref): impossibile leggere '%s': %s", details_file, exc)
 
             # Crea nuova gara con riferimento GPX
             new_data = {
@@ -2838,14 +2547,8 @@ GPX FILE:     {gpx_info}"""
         # ── Helper: auto slug tappa ─────────────────────────────────────────
         def _stage_auto_slug(stage_num: int) -> str:
             base_slug = slug_var.get().strip()
-            # Rimuovi il codice cat alla fine per reinserirlo dopo S{N}
-            # Il slug di una tappa è: {base_slug_senza_cat}-S{N}-{year}-{cat_code}
-            # Però il race slug è già nella forma nome-year-CAT, quindi usiamo:
-            # prendiamo il nome-year-CAT e inseriamo S{N} prima del year
-            # Es: "cittiglio-tour-2026-DJ" → "cittiglio-tour-S2-2026-DJ"
-            import re as _re
             # Prova a inserire S{N} prima dell'anno (4 cifre)
-            m = _re.search(r'-(\d{4})-', base_slug)
+            m = re.search(r'-(\d{4})-', base_slug)
             if m:
                 pos = m.start()
                 return base_slug[:pos] + f"-S{stage_num}" + base_slug[pos:]
