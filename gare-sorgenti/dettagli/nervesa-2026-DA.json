@@ -1,0 +1,18 @@
+{
+  "titolo": "Nervesa",
+  "race_series": "nervesa",
+  "data": "2026-06-21",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "giri": 7,
+  "velocita_media_kmh": 34.5,
+  "distanza_km": 65.03,
+  "dislivello_m": 434.0,
+  "_center_lat": 45.82264000000001,
+  "_center_lon": 12.21259,
+  "slug": "nervesa-2026-DA",
+  "luogo": "Treviso, IT"
+}

@@ -579,6 +579,21 @@
     "wt": false
   },
   {
+    "slug": "nervesa-2026-DA",
+    "titolo": "Nervesa",
+    "data": "2026-06-21",
+    "year": "2026",
+    "race_series": "nervesa",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "nonantola-2026-DJ",
     "titolo": "Nonantola",
     "data": "2026-03-08",
