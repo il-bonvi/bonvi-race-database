@@ -15,6 +15,21 @@
     "wt": false
   },
   {
+    "slug": "3-giorni-giudicarie-2026-DA",
+    "titolo": "3 Giorni Giudicarie",
+    "data": "2026-06-26",
+    "year": "2026",
+    "race_series": "3 giorni giudicarie",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": "corsa_a_tappe",
+    "n_tappe": 3,
+    "wt": false
+  },
+  {
     "slug": "3-giorni-giudicarie-2026-DJ",
     "titolo": "3 Giorni Giudicarie",
     "data": "2026-06-26",
@@ -458,6 +473,21 @@
     "data": "2026-04-26",
     "year": "2026",
     "race_series": "maser",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "massa-finalese-2026-DJ",
+    "titolo": "Massa Finalese",
+    "data": "2026-07-05",
+    "year": "2026",
+    "race_series": "massa finalese",
     "genere": "Femminile",
     "categoria": [
       "Junior"

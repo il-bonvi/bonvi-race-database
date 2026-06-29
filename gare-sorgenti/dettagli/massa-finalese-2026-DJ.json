@@ -1,0 +1,18 @@
+{
+  "titolo": "Massa Finalese",
+  "race_series": "massa finalese",
+  "data": "2026-07-05",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 9,
+  "velocita_media_kmh": 41.0,
+  "distanza_km": 86.13,
+  "dislivello_m": 81.0,
+  "_center_lat": 44.844060000000006,
+  "_center_lon": 11.195060000000002,
+  "slug": "massa-finalese-2026-DJ",
+  "luogo": "Modena, IT"
+}
