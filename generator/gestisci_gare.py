@@ -2360,7 +2360,74 @@ GPX FILE:     {gpx_info}"""
         
         disc_s_var.trace_add("write", _on_stage_disciplina_change)
 
-        _make_detail_field(detail_lf, 8, 'luogo', "Luogo")
+        # Riga luogo + bottone reverse geocoding (on-demand, usa coordinate GPX della tappa)
+        tk.Label(detail_lf, text="Luogo", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=8, column=0, sticky="w", padx=(0, 6), pady=3)
+        luogo_frame = tk.Frame(detail_lf, bg=BG)
+        luogo_frame.grid(row=8, column=1, sticky="ew", pady=3)
+        luogo_frame.columnconfigure(0, weight=1)
+
+        luogo_stage_var = tk.StringVar()
+        luogo_stage_entry = tk.Entry(luogo_frame, textvariable=luogo_stage_var,
+                                     font=("Helvetica", 9), relief="solid", bd=1)
+        luogo_stage_entry.grid(row=0, column=0, sticky="ew")
+
+        luogo_feedback_lbl = tk.Label(luogo_frame, text="", font=("Helvetica", 8),
+                                      fg="#059669", bg=BG)
+        luogo_feedback_lbl.grid(row=1, column=0, sticky="w", pady=(2, 0))
+
+        def _geocode_stage_luogo():
+            """Reverse geocoding on-demand per la tappa corrente.
+
+            Cerca le coordinate in questo ordine:
+            1. _center_lat/_center_lon salvati quando si carica un GPX direttamente
+            2. Ultimo punto del file JSON del GPX di riferimento (gpx_reference)
+            """
+            idx = selected_stage[0]
+            if idx is None:
+                return
+            lat = stages[idx].get('_center_lat')
+            lon = stages[idx].get('_center_lon')
+
+            # Fallback: leggi le coordinate dall'ultimo punto del GPX di riferimento
+            if not lat or not lon:
+                gpx_ref = stages[idx].get('gpx_reference')
+                if gpx_ref:
+                    gpx_json_path = GPX_DIR / f"{gpx_ref}-gpx.json"
+                    try:
+                        gpx_json = json.loads(gpx_json_path.read_text(encoding='utf-8'))
+                        pts = gpx_json.get('gpx_points', [])
+                        if pts:
+                            last = pts[-1]
+                            lat = last.get('lat')
+                            lon = last.get('lon')
+                    except Exception as exc:
+                        logger.warning("_geocode_stage_luogo: impossibile leggere '%s': %s",
+                                       gpx_json_path, exc)
+
+            if not lat or not lon:
+                messagebox.showwarning(
+                    "Attenzione",
+                    "Nessuna coordinata disponibile.\nCarica prima un file GPX per questa tappa.",
+                    parent=win,
+                )
+                return
+            luogo_feedback_lbl.config(text="⏳ Ricerca in corso…", fg="#7a746b")
+            win.update_idletasks()
+            luogo = reverse_geocode(lat, lon)
+            if luogo:
+                luogo_stage_var.set(luogo)
+                stages[idx]['luogo'] = luogo
+                luogo_feedback_lbl.config(text=f"✓ {luogo}", fg="#059669")
+            else:
+                luogo_feedback_lbl.config(text="✗ Nessun luogo trovato", fg="#dc2626")
+            win.after(3000, lambda: luogo_feedback_lbl.config(text=""))
+
+        tk.Button(luogo_frame, text="🔍", font=("Helvetica", 10), bg=BG, fg=FG,
+                  relief="flat", bd=0, cursor="hand2",
+                  command=_geocode_stage_luogo).grid(row=0, column=1, padx=(4, 0))
+
+        stage_entries['luogo'] = luogo_stage_var
 
         # Riga slug tappa con bottone rigenerazione
         tk.Label(detail_lf, text="Slug tappa", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
@@ -2464,10 +2531,121 @@ GPX FILE:     {gpx_info}"""
             stages[idx].pop('_base_elev', None)
             gpx_status_var.set("Nessun GPX caricato")
             gpx_status_lbl.config(fg="#7a746b")
+            _refresh_stages_list()
+
+        def _set_gpx_reference_for_stage():
+            """Apre una finestra per scegliere un GPX già presente nel database."""
+            idx = selected_stage[0]
+            if idx is None:
+                messagebox.showwarning("Attenzione", "Seleziona una tappa prima", parent=win)
+                return
+
+            # Raccoglie tutti i file GPX disponibili
+            existing_races = []
+            for gpx_file in sorted(GPX_DIR.glob("*-gpx.json"), reverse=True):
+                gpx_slug = gpx_file.stem[:-4]   # rimuove '-gpx'
+                details_file = GARE_DIR / f"{gpx_slug}.json"
+                titolo = gpx_slug
+                data_gara = ""
+                if details_file.exists():
+                    try:
+                        d = json.loads(details_file.read_text(encoding='utf-8'))
+                        titolo = d.get('titolo', gpx_slug)
+                        data_gara = d.get('data', '')
+                    except Exception as exc:
+                        logger.warning("_set_gpx_reference_for_stage: impossibile leggere '%s': %s",
+                                       details_file, exc)
+                existing_races.append((gpx_slug, titolo, data_gara))
+
+            if not existing_races:
+                messagebox.showwarning(
+                    "Attenzione",
+                    "Non ci sono file GPX nel database (cartella gare-sorgenti/gpx/ vuota)",
+                    parent=win,
+                )
+                return
+
+            # Finestra di selezione
+            ref_win = tk.Toplevel(win)
+            ref_win.title("Seleziona GPX di riferimento")
+            ref_win.geometry("520x420")
+            ref_win.configure(bg=BG)
+            ref_win.grab_set()
+
+            tk.Label(ref_win, text="Seleziona la gara da cui usare il GPX:",
+                     font=("Helvetica", 11, "bold"), bg=BG, fg=FG, pady=10).pack()
+
+            # Campo ricerca
+            search_frame = tk.Frame(ref_win, bg=BG)
+            search_frame.pack(fill="x", padx=12, pady=(0, 8))
+            tk.Label(search_frame, text="🔍 Ricerca:", font=("Helvetica", 9, "bold"),
+                     bg=BG, fg="#7a746b").pack(side="left", padx=(0, 6))
+            search_var_ref = tk.StringVar()
+            search_entry_ref = tk.Entry(search_frame, textvariable=search_var_ref,
+                                        font=("Helvetica", 10), bg="white", fg=FG,
+                                        relief="solid", bd=1)
+            search_entry_ref.pack(side="left", fill="x", expand=True)
+            search_entry_ref.focus()
+
+            list_frame_ref = tk.Frame(ref_win, bg="white", relief="solid", bd=1)
+            list_frame_ref.pack(fill="both", expand=True, padx=12, pady=8)
+            scrollbar_ref = tk.Scrollbar(list_frame_ref)
+            scrollbar_ref.pack(side="right", fill="y")
+            ref_listbox = tk.Listbox(list_frame_ref, yscrollcommand=scrollbar_ref.set,
+                                     bg="white", selectmode="single",
+                                     font=("Courier", 9), bd=0)
+            ref_listbox.pack(side="left", fill="both", expand=True)
+            scrollbar_ref.config(command=ref_listbox.yview)
+
+            displayed_ref_indices = []
+
+            def _update_ref_listbox(*args):
+                nonlocal displayed_ref_indices
+                ref_listbox.delete(0, tk.END)
+                displayed_ref_indices = []
+                needle = search_var_ref.get().lower()
+                for i, (gs, titolo, data_gara) in enumerate(existing_races):
+                    if needle == "" or needle in titolo.lower() or needle in gs.lower():
+                        label = f"{data_gara or '????-??-??'}  {titolo[:40]:<40}  [{gs}]"
+                        ref_listbox.insert(tk.END, label)
+                        displayed_ref_indices.append(i)
+
+            _update_ref_listbox()
+            search_var_ref.trace_add("write", _update_ref_listbox)
+
+            def _on_ref_select():
+                sel = ref_listbox.curselection()
+                if not sel:
+                    messagebox.showwarning("Attenzione", "Seleziona una gara prima", parent=ref_win)
+                    return
+                chosen_slug, chosen_titolo, _ = existing_races[displayed_ref_indices[sel[0]]]
+                # Applica il riferimento alla tappa corrente
+                stages[idx]['gpx_reference'] = chosen_slug
+                stages[idx]['gpx_points']    = None
+                stages[idx].pop('_base_km',   None)
+                stages[idx].pop('_base_elev', None)
+                gpx_status_var.set(f"GPX di riferimento: {chosen_slug}")
+                gpx_status_lbl.config(fg="#2563eb")
+                _refresh_stages_list()
+                ref_win.destroy()
+
+            ref_listbox.bind("<Double-Button-1>", lambda e: _on_ref_select())
+
+            btn_frame_ref = tk.Frame(ref_win, bg=BG)
+            btn_frame_ref.pack(fill="x", padx=12, pady=(0, 12))
+            tk.Button(btn_frame_ref, text="Seleziona", bg=ACCENT, fg="white", padx=16, pady=6,
+                      relief="flat", bd=0, cursor="hand2",
+                      command=_on_ref_select).pack(side="left", padx=(0, 6))
+            tk.Button(btn_frame_ref, text="Annulla", bg="#d1d5db", fg=FG, padx=16, pady=6,
+                      relief="flat", bd=0, cursor="hand2",
+                      command=ref_win.destroy).pack(side="left")
 
         tk.Button(gpx_btn_frame, text="📁 Carica GPX", font=("Helvetica", 8),
                   bg="#8b5cf6", fg="white", relief="flat", bd=0, cursor="hand2",
                   command=_load_gpx_for_stage).pack(side="left", padx=(0, 6))
+        tk.Button(gpx_btn_frame, text="🔗 Usa GPX esistente", font=("Helvetica", 8),
+                  bg="#4a7fa5", fg="white", relief="flat", bd=0, cursor="hand2",
+                  command=_set_gpx_reference_for_stage).pack(side="left", padx=(0, 6))
         tk.Button(gpx_btn_frame, text="✕ Rimuovi GPX", font=("Helvetica", 8),
                   bg="#6b7280", fg="white", relief="flat", bd=0, cursor="hand2",
                   command=_clear_gpx_for_stage).pack(side="left")
@@ -2593,6 +2771,7 @@ GPX FILE:     {gpx_info}"""
             stage_entries['velocita_media_kmh'].set(str(s.get('velocita_media_kmh', '') or ''))
             stage_entries['disciplina'].set(s.get('disciplina', 'Strada'))
             stage_entries['luogo'].set(s.get('luogo', ''))
+            luogo_feedback_lbl.config(text="")   # resetta feedback geocoding
             stage_entries['giri'].set(int(s.get('giri', 1)))
             slug_t_var.set(s.get('slug_tappa', _stage_auto_slug(s.get('numero', idx + 1))))
             if s.get('gpx_reference'):
