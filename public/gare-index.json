@@ -684,6 +684,23 @@
     "wt": false
   },
   {
+    "slug": "parabiago-2026-DJ-DU-DELI",
+    "titolo": "Parabiago",
+    "data": "2026-07-10",
+    "year": "2026",
+    "race_series": "parabiago",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "pasqualando-2026-DJ-DU-DELI",
     "titolo": "Pasqualando",
     "data": "2026-04-05",

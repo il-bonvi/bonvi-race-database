@@ -1,0 +1,20 @@
+{
+  "titolo": "Parabiago",
+  "race_series": "parabiago",
+  "data": "2026-07-10",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 102.52,
+  "dislivello_m": 211.0,
+  "_center_lat": 45.55877,
+  "_center_lon": 8.948830000000001,
+  "slug": "parabiago-2026-DJ-DU-DELI",
+  "luogo": "Milano, IT"
+}
