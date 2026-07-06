@@ -137,6 +137,21 @@
     "wt": false
   },
   {
+    "slug": "breganze-2026-DA",
+    "titolo": "Breganze",
+    "data": "2026-07-12",
+    "year": "2026",
+    "race_series": "monte corno",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "breganze-monte-corno-2026-DJ",
     "titolo": "Breganze - Monte Corno",
     "data": "2026-07-12",

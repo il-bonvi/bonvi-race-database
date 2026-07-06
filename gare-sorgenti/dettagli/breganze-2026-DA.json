@@ -1,0 +1,18 @@
+{
+  "titolo": "Breganze",
+  "race_series": "monte corno",
+  "data": "2026-07-12",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 34.0,
+  "distanza_km": 72.34,
+  "dislivello_m": 563.0,
+  "_center_lat": 45.70741,
+  "_center_lon": 11.56512,
+  "slug": "breganze-2026-DA",
+  "luogo": "Vicenza, IT"
+}
