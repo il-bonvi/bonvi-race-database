@@ -137,6 +137,21 @@
     "wt": false
   },
   {
+    "slug": "breganze-monte-corno-2026-DJ",
+    "titolo": "Breganze - Monte Corno",
+    "data": "2026-07-12",
+    "year": "2026",
+    "race_series": "monte corno",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "cantu-2026-DJ",
     "titolo": "Cantù",
     "data": "2026-05-01",
@@ -365,6 +380,21 @@
     "data": "2026-05-01",
     "year": "2026",
     "race_series": "illasi",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "italiano-strada-2026-DA",
+    "titolo": "Italiano Strada",
+    "data": "2026-07-04",
+    "year": "2026",
+    "race_series": "ita road",
     "genere": "Femminile",
     "categoria": [
       "Allievi"

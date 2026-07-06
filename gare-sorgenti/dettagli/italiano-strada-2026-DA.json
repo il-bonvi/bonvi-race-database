@@ -1,0 +1,18 @@
+{
+  "titolo": "Italiano Strada",
+  "race_series": "ita road",
+  "data": "2026-07-04",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 35.5,
+  "distanza_km": 70.42,
+  "dislivello_m": 624.0,
+  "_center_lat": 46.425650000000005,
+  "_center_lon": 11.33984,
+  "slug": "italiano-strada-2026-DA",
+  "luogo": "Bolzano - Bozen, IT"
+}

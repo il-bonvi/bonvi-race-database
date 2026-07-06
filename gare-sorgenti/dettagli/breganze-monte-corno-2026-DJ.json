@@ -1,0 +1,18 @@
+{
+  "titolo": "Breganze - Monte Corno",
+  "race_series": "monte corno",
+  "data": "2026-07-12",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 30.0,
+  "distanza_km": 66.26,
+  "dislivello_m": 1426.0,
+  "_center_lat": 45.80525,
+  "_center_lon": 11.534590000000001,
+  "slug": "breganze-monte-corno-2026-DJ",
+  "luogo": "Vicenza, IT"
+}
