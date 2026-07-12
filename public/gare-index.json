@@ -870,6 +870,23 @@
     "wt": false
   },
   {
+    "slug": "tarzo-2026-DJ-DU-DELI",
+    "titolo": "Tarzo",
+    "data": "2026-07-26",
+    "year": "2026",
+    "race_series": "tarzo",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "tour-du-gevaudan-occitanie-femmes-2025-DJ",
     "titolo": "Tour du Gévaudan Occitanie femmes",
     "data": "2025-05-10",

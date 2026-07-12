@@ -1,0 +1,20 @@
+{
+  "titolo": "Tarzo",
+  "race_series": "tarzo",
+  "data": "2026-07-26",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 36.5,
+  "distanza_km": 99.67,
+  "dislivello_m": 1419.0,
+  "_center_lat": 45.97491,
+  "_center_lon": 12.231100000000001,
+  "slug": "tarzo-2026-DJ-DU-DELI",
+  "luogo": "Treviso, IT"
+}
