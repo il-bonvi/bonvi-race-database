@@ -669,6 +669,21 @@
     "wt": false
   },
   {
+    "slug": "nogara-2026-DJ",
+    "titolo": "Nogara",
+    "data": "2026-07-19",
+    "year": "2026",
+    "race_series": "nogara",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "nonantola-2026-DJ",
     "titolo": "Nonantola",
     "data": "2026-03-08",
@@ -865,6 +880,21 @@
       "U23"
     ],
     "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "tarzo-2026-DA",
+    "titolo": "Tarzo",
+    "data": "2026-07-26",
+    "year": "2026",
+    "race_series": "tarzo",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
     "tipo": null,
     "n_tappe": null,
     "wt": false

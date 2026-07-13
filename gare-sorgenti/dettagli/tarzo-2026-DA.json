@@ -1,0 +1,18 @@
+{
+  "titolo": "Tarzo",
+  "race_series": "tarzo",
+  "data": "2026-07-26",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 35.0,
+  "distanza_km": 59.78,
+  "dislivello_m": 649.0,
+  "_center_lat": 45.97507,
+  "_center_lon": 12.231100000000001,
+  "slug": "tarzo-2026-DA",
+  "luogo": "Treviso, IT"
+}

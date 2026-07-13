@@ -1,0 +1,18 @@
+{
+  "titolo": "Nogara",
+  "race_series": "nogara",
+  "data": "2026-07-19",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 20,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 62.0,
+  "dislivello_m": 100.0,
+  "_center_lat": 45.177060000000004,
+  "_center_lon": 11.061380000000002,
+  "slug": "nogara-2026-DJ",
+  "luogo": "Verona, IT"
+}
