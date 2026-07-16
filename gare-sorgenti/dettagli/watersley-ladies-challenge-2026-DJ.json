@@ -11,8 +11,8 @@
   "luogo": "NL",
   "tipo": "corsa_a_tappe",
   "n_tappe": 3,
-  "distanza_km": 179.51,
-  "dislivello_m": 2111,
+  "distanza_km": 182.55,
+  "dislivello_m": 2227,
   "tappe": [
     {
       "numero": 1,
@@ -28,8 +28,8 @@
       "nome": "Watersley  ›  Watersley",
       "slug": "watersley-ladies-challenge-S2-2026-DJ",
       "data": "2026-07-25",
-      "distanza_km": 87.64,
-      "dislivello_m": 880.0,
+      "distanza_km": 90.68,
+      "dislivello_m": 996.0,
       "disciplina": "Strada",
       "giri": 4
     },
