@@ -1,0 +1,18 @@
+{
+  "titolo": "Italiano TTT",
+  "data": "2026-08-01",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "TTT",
+  "giri": 2,
+  "gpx_reference": "italiano-ttt-2026-DJ",
+  "distanza_km": 29.7,
+  "dislivello_m": 56.0,
+  "luogo": "Udine / Udin / Videm, IT",
+  "slug": "italiano-ttt-2026-DU-DELI",
+  "race_series": "ita ttt",
+  "velocita_media_kmh": 45.0
+}

@@ -451,6 +451,37 @@
     "wt": false
   },
   {
+    "slug": "italiano-ttt-2026-DJ",
+    "titolo": "Italiano TTT",
+    "data": "2026-08-01",
+    "year": "2026",
+    "race_series": "ita ttt",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "italiano-ttt-2026-DU-DELI",
+    "titolo": "Italiano TTT",
+    "data": "2026-08-01",
+    "year": "2026",
+    "race_series": "ita ttt",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "lugo-2026-DJ",
     "titolo": "Lugo",
     "data": "2026-06-06",

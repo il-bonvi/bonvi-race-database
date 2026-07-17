@@ -1,0 +1,18 @@
+{
+  "titolo": "Italiano TTT",
+  "race_series": "ita ttt",
+  "data": "2026-08-01",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "TTT",
+  "giri": 1,
+  "velocita_media_kmh": 42.0,
+  "distanza_km": 14.85,
+  "dislivello_m": 28.0,
+  "_center_lat": 45.961347,
+  "_center_lon": 12.977038,
+  "slug": "italiano-ttt-2026-DJ",
+  "luogo": "Udine / Udin / Videm, IT"
+}
