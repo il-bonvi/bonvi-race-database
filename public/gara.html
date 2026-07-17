@@ -128,6 +128,30 @@
             margin-left: 0.25rem;
         }
 
+        .download-gpx-btn {
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            background: #ffffff;
+            color: #1a1a1a;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 6px 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .download-gpx-btn:hover {
+            border-color: #fc5200;
+            color: #fc5200;
+            background: #fff7ed;
+        }
+
+        .download-gpx-btn:active {
+            transform: translateY(1px);
+        }
+
         .top-controls-row {
             display: flex;
             gap: 1rem;
@@ -840,7 +864,7 @@
         
         <div id="data-content">
             <div class="top-controls-row">
-                <p class="sv-hint" style="flex: 1; margin: 0;">👆 Premi il tasto destro sulla mappa o sull'altimetria per esplorare il punto in Street View. Attenzione, l'orientamento potrebbe essere errato.</p>
+                <p class="sv-hint" style="flex: 1; margin: 0;">👆 Premi il tasto destro sulla mappa o sull'altimetria per Street View. Attenzione, l'orientamento potrebbe essere errato.</p>
                 <div id="laps-visualizer" class="laps-visualizer" style="display:none;">
                     <label for="laps-view-select">Visualizza:</label>
                     <select id="laps-view-select"></select>
@@ -851,6 +875,7 @@
                     <input type="number" id="vel-input" min="5" max="100" step="0.5" value="38" style="width: 70px; padding: 4px 6px; font-size: 0.9rem; border: 1px solid #d1d5db; border-radius: 4px;">
                     <span style="font-size: 0.85rem; color: #6b7280;">km/h</span>
                 </div>
+                <button type="button" class="download-gpx-btn" onclick="downloadCurrentRouteAsGpx()">Scarica GPX</button>
             </div>
             <div class="stats-row">
                 <div class="stat-card" id="stat-laps-card" style="display:none;">
@@ -890,7 +915,7 @@
             <div class="panel">
                 <div id="map"></div>
             </div>
-            <div id="mobile-sv-hint">👆 Tieni premuto sulla mappa per esplorare il punto in Street View. Attenzione, l'orientamento potrebbe essere errato.</div>
+            <div id="mobile-sv-hint">👆 Tieni premuto sulla mappa per Street View. Attenzione, l'orientamento potrebbe essere errato.</div>
             
             <div class="panel">
                 <div id="elevation-chart"></div>
@@ -1337,6 +1362,65 @@ let map;
 
             setupLapsVisualizer();
             applyDisplayLaps(1);
+        }
+
+        function escapeXml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+        }
+
+        function buildGpxContent(points, title) {
+            const trackName = escapeXml(title || 'Percorso');
+            const trkpts = (points || [])
+                .map((point) => {
+                    const lat = Number(point.lat);
+                    const lon = Number(point.lon);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return '';
+
+                    const ele = Number(point.ele);
+                    const eleNode = Number.isFinite(ele) ? `\n        <ele>${ele.toFixed(1)}</ele>` : '';
+
+                    return `      <trkpt lat="${lat.toFixed(6)}" lon="${lon.toFixed(6)}">${eleNode}\n      </trkpt>`;
+                })
+                .filter(Boolean)
+                .join('\n');
+
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Race DB" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>${trackName}</name>
+  </metadata>
+  <trk>
+    <name>${trackName}</name>
+    <trkseg>
+${trkpts}
+    </trkseg>
+  </trk>
+</gpx>`;
+        }
+
+        function downloadCurrentRouteAsGpx() {
+            const sourceRoute = routeData || baseRouteData;
+            if (!sourceRoute || !Array.isArray(sourceRoute.points) || sourceRoute.points.length === 0) {
+                return;
+            }
+
+            const sourceName = (window._gpxFileName || document.title || 'percorso').replace(/\.[^.]+$/, '');
+            const title = document.querySelector('h1')?.textContent?.trim() || sourceName;
+            const gpxText = buildGpxContent(sourceRoute.points, title);
+            const blob = new Blob([gpxText], { type: 'application/gpx+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${sourceName}.gpx`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
         }
 
         function normalizeLapsValue(raw, fallback = 1) {
@@ -3219,6 +3303,7 @@ let map;
                 if (gpxPoints && gpxPoints.length > 0) {
                     window._gpxFileName = slug + '.json';
                     window._gpxRawText = null;
+                    window._routeSlug = slug;
                     processRoute(gpxPoints, null);
                 } else {
                     throw new Error('Nessun punto GPX nel JSON');
