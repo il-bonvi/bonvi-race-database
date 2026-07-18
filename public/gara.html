@@ -930,10 +930,10 @@
                         </div>
                         <div style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:#6b7280;white-space:nowrap;">
                             <span>Smoothing:</span>
-                            <input type="range" id="smoothing-slider" min="0" max="12" value="2" step="1"
+                            <input type="range" id="smoothing-slider" min="0" max="12" value="5" step="1"
                                 style="width:90px;accent-color:#fc5200;"
                                 oninput="updateSmoothing(this.value)">
-                            <span id="smoothing-label" style="min-width:40px;">2 pt</span>
+                            <span id="smoothing-label" style="min-width:40px;">50 m</span>
                         </div>
                     </div>
                 </div>
@@ -1057,7 +1057,7 @@
     <script>
 let map;
         let elevationControl;
-        let _smoothingWindow = 3;
+        let _smoothingWindow = 5;
         let _gradientLayers = [];
     let baseRouteData = null;
 
@@ -1066,7 +1066,8 @@ let map;
             _gradientLayers.forEach(l => map.removeLayer(l));
             _gradientLayers = [];
             const gradients = routeData.points.map(p => p.gradient);
-            const smoothed = smoothGradient(gradients, _smoothingWindow);
+            const distances = routeData.points.map(p => p.dist);
+            const smoothed = smoothByDistance(gradients, distances, smoothingRadiusMeters());
             for (let i = 1; i < routeData.points.length; i++) {
                 const p1 = routeData.points[i-1], p2 = routeData.points[i];
                 const color = getGradientColor(smoothed[i]);
@@ -1083,7 +1084,7 @@ let map;
             const slider = document.getElementById('smoothing-slider');
             if (slider) slider.value = val;
             const label = document.getElementById('smoothing-label');
-            if (label) label.textContent = val + ' pt';
+            if (label) label.textContent = (val * 10) + ' m';
             if (routeData) {
                 buildElevationChart(window._currentZoomDomain || null);
                 drawGradientPolyline();
@@ -1244,6 +1245,25 @@ let map;
                 smoothed.push(sum / count);
             }
             return smoothed;
+        }
+
+        // Smoothing "a distanza costante" (media mobile su una finestra fisica in metri, non su un numero fisso di punti)
+        function smoothByDistance(values, distances, radiusMeters) {
+            const n = values.length;
+            if (!(radiusMeters > 0)) return values.slice();
+            const smoothed = new Array(n);
+            let lo = 0, hi = 0, sum = 0, count = 0;
+            for (let i = 0; i < n; i++) {
+                const center = distances[i];
+                while (hi < n && distances[hi] <= center + radiusMeters) { sum += values[hi]; count++; hi++; }
+                while (lo < n && distances[lo] < center - radiusMeters) { sum -= values[lo]; count--; lo++; }
+                smoothed[i] = count > 0 ? sum / count : values[i];
+            }
+            return smoothed;
+        }
+
+        function smoothingRadiusMeters() {
+            return _smoothingWindow * 10;
         }
 
         // ── Algoritmo LTTB per downsampling intelligente ──
@@ -2080,7 +2100,9 @@ ${trkpts}
             const H = totalH - margin.top - margin.bottom;
 
             // Dati: dist in km, ele in m
-            const fullData = pts.map(p => ({ dist: p.dist / 1000, ele: p.ele }));
+            const ptDistances = pts.map(p => p.dist);
+            const smEleFull = smoothByDistance(pts.map(p => p.ele), ptDistances, smoothingRadiusMeters());
+            const fullData = pts.map((p, i) => ({ dist: p.dist / 1000, ele: p.ele, eleSmooth: smEleFull[i] }));
             const fullMaxDist = d3.max(fullData, d => d.dist);
             const isZoomed = !!zoomDomain;
 
@@ -2096,13 +2118,13 @@ ${trkpts}
                 const dEle  = pts[i].ele  - pts[i-1].ele;
                 rawG.push(dDist > 0 ? (dEle / dDist) * 100 : 0);
             }
-            const smG = smoothGradient(rawG, _smoothingWindow);
+            const smG = smoothByDistance(rawG, ptDistances, smoothingRadiusMeters());
 
             const xScale = d3.scaleLinear().domain([d0, d1]).range([0, W]);
 
             // Calculate Y scale with intelligent aspect ratio (Intervals.icu approach)
             // This ensures consistent elevation visualization regardless of elevation gain
-            const elevations = data.map(d => d.ele);
+            const elevations = data.map(d => d.eleSmooth);
             const minEle = Math.min(...elevations);
             const maxEle = Math.max(...elevations);
 
@@ -2188,14 +2210,15 @@ ${trkpts}
                 return smG[closest];
             }
 
-            for (let i = Math.max(1, startDisplayIdx); i < displayEnd; i++) {
+            const displayEndExt = Math.min(displayEnd + 1, displayData.length - 1);
+            for (let i = Math.max(1, startDisplayIdx); i <= displayEndExt; i++) {
                 const p1 = displayData[i-1], p2 = displayData[i];
                 const color = getGradientColor(getGradientAtDist(p2.dist));
-                const path = `M${xScale(p1.dist)},${yScale(p1.ele)} L${xScale(p2.dist)},${yScale(p2.ele)} L${xScale(p2.dist)},${H} L${xScale(p1.dist)},${H} Z`;
+                const path = `M${xScale(p1.dist)},${yScale(p1.eleSmooth)} L${xScale(p2.dist)},${yScale(p2.eleSmooth)} L${xScale(p2.dist)},${H} L${xScale(p1.dist)},${H} Z`;
                 chartG.append('path').attr('d', path).attr('fill', color).attr('opacity', 0.7).style('pointer-events','none');
                 chartG.append('line')
-                    .attr('x1', xScale(p1.dist)).attr('y1', yScale(p1.ele))
-                    .attr('x2', xScale(p2.dist)).attr('y2', yScale(p2.ele))
+                    .attr('x1', xScale(p1.dist)).attr('y1', yScale(p1.eleSmooth))
+                    .attr('x2', xScale(p2.dist)).attr('y2', yScale(p2.eleSmooth))
                     .attr('stroke', color).attr('stroke-width', 1.5).style('pointer-events','none');
             }
 
@@ -2287,7 +2310,7 @@ ${trkpts}
                 // Solo se il punto è nel range visibile
                 if (pt.dist < d0 || pt.dist > d1) return;
 
-                const cx = xScale(pt.dist), cy = yScale(pt.ele);
+                const cx = xScale(pt.dist), cy = yScale(pt.eleSmooth);
                 hoverLine.attr('x1', cx).attr('x2', cx).attr('opacity', 0.7);
                 hoverDot.attr('cx', cx).attr('cy', cy).attr('opacity', 1);
 
