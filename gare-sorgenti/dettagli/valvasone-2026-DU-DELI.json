@@ -1,0 +1,19 @@
+{
+  "titolo": "Valvasone",
+  "race_series": "valvasone",
+  "data": "2026-08-02",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "giri": 8,
+  "velocita_media_kmh": 43.0,
+  "distanza_km": 111.2,
+  "dislivello_m": 256.0,
+  "_center_lat": 46.00038000000001,
+  "_center_lon": 12.858340000000002,
+  "slug": "valvasone-2026-DU-DELI",
+  "luogo": "Pordenone / Pordenon, IT"
+}

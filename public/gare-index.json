@@ -1010,6 +1010,22 @@
     "wt": false
   },
   {
+    "slug": "valvasone-2026-DU-DELI",
+    "titolo": "Valvasone",
+    "data": "2026-08-02",
+    "year": "2026",
+    "race_series": "valvasone",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "vicenza-bionde-2026-MU",
     "titolo": "Vicenza Bionde",
     "data": "2026-04-26",
