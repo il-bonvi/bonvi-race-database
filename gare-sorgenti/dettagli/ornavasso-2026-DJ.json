@@ -1,0 +1,18 @@
+{
+  "titolo": "Ornavasso",
+  "race_series": "ornavasso",
+  "data": "2026-08-08",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 37.5,
+  "distanza_km": 107.34,
+  "dislivello_m": 779.0,
+  "_center_lat": 45.96058,
+  "_center_lon": 8.402330000000001,
+  "slug": "ornavasso-2026-DJ",
+  "luogo": "Verbano-Cusio-Ossola, IT"
+}

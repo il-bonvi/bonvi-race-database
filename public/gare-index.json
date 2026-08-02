@@ -775,6 +775,21 @@
     "wt": false
   },
   {
+    "slug": "ornavasso-2026-DJ",
+    "titolo": "Ornavasso",
+    "data": "2026-08-08",
+    "year": "2026",
+    "race_series": "ornavasso",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "parabiago-2026-DJ-DU-DELI",
     "titolo": "Parabiago",
     "data": "2026-07-10",
