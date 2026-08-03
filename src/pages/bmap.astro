@@ -2,6 +2,8 @@
 import Base from '../layouts/Base.astro';
 import LangSwitcher from '../components/LangSwitcher.astro';
 import { GENERI, CATEGORIE, DISCIPLINE } from '../lib/gare.js';
+import 'leaflet/dist/leaflet.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 // ── Carica dettagli gare ──────────────────────────────────────────────────────
 const garaFiles = import.meta.glob('../../gare-sorgenti/dettagli/*.json', { eager: true });
@@ -132,7 +134,7 @@ const MESI_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio
 const gpxSlugsSet = new Set<string>();
 gareData.forEach(g => {
   const slugs = g.gpxKey.split('|').filter(Boolean);
-  slugs.forEach(slug => gpxSlugsSet.add(slug));
+  slugs.forEach((slug: string) => gpxSlugsSet.add(slug));
 });
 const totPercorsi = gpxSlugsSet.size;
 
@@ -140,10 +142,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 <Base title="BMAP — Race Database">
-<Fragment slot="head">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" />
-</Fragment>
 
 <div class="layout">
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
@@ -334,13 +332,12 @@ window.__BASE_URL__  = base;
     ? (T.months as string[]).map((m: string) => m.slice(0, 3))
     : ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 
-  // ── Carica Leaflet + MapLibre ─────────────────────────────────────────────
-  if (!(window as any).L) {
-    await new Promise<void>((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=()=>res();s.onerror=rej;document.head.appendChild(s);});
-    await new Promise<void>((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/maplibre-gl/dist/maplibre-gl.js';s.onload=()=>res();s.onerror=rej;document.head.appendChild(s);});
-    await new Promise<void>((res,rej)=>{const s=document.createElement('script');s.src='https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js';s.onload=()=>res();s.onerror=rej;document.head.appendChild(s);});
-  }
-  const L=(window as any).L;
+  // ── Leaflet + MapLibre bundled locally ────────────────────────────────────
+  const leafletModule = await import('leaflet');
+  const L = leafletModule.default ?? leafletModule;
+  (window as any).L = L;
+  await import('maplibre-gl');
+  await import('@maplibre/maplibre-gl-leaflet');
   const gareData:any[]=(window as any).__GARE_DATA__||[];
   const base:string=(window as any).__BASE_URL__||'';
 
@@ -710,7 +707,7 @@ window.__BASE_URL__  = base;
           // Crea e apri il popup nel punto nord
           const popup = L.popup({
             maxWidth: 260,
-            popupAnchor: useBottomAnchor ? [0, 120] : [0, -120],
+            offset: useBottomAnchor ? [0, 120] : [0, -120],
             autoPan: true,
             autoPanPaddingTopLeft: [50, 50],
             autoPanPaddingBottomRight: [50, 50]
@@ -882,7 +879,7 @@ window.__BASE_URL__  = base;
             // Crea e apri il popup nel punto nord
             const popup = L.popup({
               maxWidth: 260,
-              popupAnchor: useBottomAnchor ? [0, 120] : [0, -120],
+              offset: useBottomAnchor ? [0, 120] : [0, -120],
               autoPan: true,
               autoPanPaddingTopLeft: [50, 50],
               autoPanPaddingBottomRight: [50, 50]
