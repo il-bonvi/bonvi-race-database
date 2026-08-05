@@ -27,7 +27,7 @@
       "numero": 2,
       "nome": "Tappa 2 - Crono",
       "slug": "3-giorni-trevigiana-S2-2026-DJ",
-      "data": "2026-08-28",
+      "data": "2026-08-29",
       "distanza_km": 13.09,
       "dislivello_m": 273.0,
       "disciplina": "ITT"
@@ -36,7 +36,7 @@
       "numero": 3,
       "nome": "Tappa 3",
       "slug": "3-giorni-trevigiana-S3-2026-DJ",
-      "data": "2026-08-28",
+      "data": "2026-08-30",
       "distanza_km": 108.86,
       "dislivello_m": 1296.0,
       "disciplina": "Strada"
