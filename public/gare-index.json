@@ -45,6 +45,21 @@
     "wt": false
   },
   {
+    "slug": "3-giorni-trevigiana-2026-DJ",
+    "titolo": "3 Giorni Trevigiana",
+    "data": "2026-08-28",
+    "year": "2026",
+    "race_series": "3 giorni trevigiana",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": "corsa_a_tappe",
+    "n_tappe": 3,
+    "wt": false
+  },
+  {
     "slug": "albiano-2026-DA",
     "titolo": "Albiano",
     "data": "2026-05-24",

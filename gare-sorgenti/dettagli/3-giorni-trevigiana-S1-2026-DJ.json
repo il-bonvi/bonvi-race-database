@@ -1,0 +1,20 @@
+{
+  "titolo": "3 Giorni Trevigiana — Tappa 1: Tappa 1",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 1",
+  "numero_tappa": 1,
+  "corsa_a_tappe_slug": "3-giorni-trevigiana-2026-DJ",
+  "corsa_a_tappe_titolo": "3 Giorni Trevigiana",
+  "race_series": "3 giorni trevigiana",
+  "data": "2026-08-28",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 91.97,
+  "dislivello_m": 1808.0,
+  "velocita_media_kmh": 33.0,
+  "luogo": "Treviso, IT",
+  "slug": "3-giorni-trevigiana-S1-2026-DJ"
+}
