@@ -402,7 +402,7 @@ class RaceManagerApp:
             'categoria': 'all',
             'disciplina': 'all',
             'search': '',
-            'sort': 'data-asc'
+            'sort': 'data-desc'
         }
         
         # Header
@@ -435,7 +435,7 @@ class RaceManagerApp:
         self.search_var.trace("w", lambda *args: self.apply_filters())
         
         tk.Label(row1, text="Ordina:", font=("Helvetica", 9, "bold"), bg=BG).pack(side="left", padx=(0, 6))
-        self.sort_var = tk.StringVar(value="data-asc")
+        self.sort_var = tk.StringVar(value="data-desc")
         sort_combo = ttk.Combobox(row1, textvariable=self.sort_var, width=15, 
                                   values=["data-asc", "data-desc", "km-asc", "km-desc", "nome"],
                                   state="readonly")
@@ -665,7 +665,7 @@ class RaceManagerApp:
         self.categoria_var.set("all")
         self.disciplina_var.set("all")
         self.search_var.set("")
-        self.sort_var.set("data-asc")
+        self.sort_var.set("data-desc")
         self.apply_filters()
     
     def on_race_select(self, event):
