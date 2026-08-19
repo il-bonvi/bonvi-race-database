@@ -745,6 +745,23 @@
     "wt": false
   },
   {
+    "slug": "noventa-di-piave-2026-DJ-DU-DELI",
+    "titolo": "Noventa di Piave",
+    "data": "2026-08-23",
+    "year": "2026",
+    "race_series": "noventa di piave",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "noventa-padovana-2026-DA",
     "titolo": "Noventa Padovana",
     "data": "2026-06-14",

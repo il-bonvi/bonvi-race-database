@@ -1,0 +1,20 @@
+{
+  "titolo": "Noventa di Piave",
+  "race_series": "noventa di piave",
+  "data": "2026-08-23",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 9,
+  "velocita_media_kmh": 42.0,
+  "distanza_km": 117.99,
+  "dislivello_m": 216.0,
+  "_center_lat": 45.662670000000006,
+  "_center_lon": 12.528690000000001,
+  "slug": "noventa-di-piave-2026-DJ-DU-DELI",
+  "luogo": "Venezia, IT"
+}
