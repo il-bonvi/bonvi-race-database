@@ -45,6 +45,21 @@
     "wt": false
   },
   {
+    "slug": "3-giorni-trevigiana-2026-DA",
+    "titolo": "3 Giorni Trevigiana",
+    "data": "2026-08-29",
+    "year": "2026",
+    "race_series": "3 giorni trevigiana",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": "corsa_a_tappe",
+    "n_tappe": 2,
+    "wt": false
+  },
+  {
     "slug": "3-giorni-trevigiana-2026-DJ",
     "titolo": "3 Giorni Trevigiana",
     "data": "2026-08-28",

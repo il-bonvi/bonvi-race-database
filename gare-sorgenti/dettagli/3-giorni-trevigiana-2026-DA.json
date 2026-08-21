@@ -1,0 +1,35 @@
+{
+  "titolo": "3 Giorni Trevigiana",
+  "race_series": "3 giorni trevigiana",
+  "data": "2026-08-29",
+  "data_inizio": "2026-08-29",
+  "data_fine": "2026-08-30",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "luogo": "Treviso, IT",
+  "tipo": "corsa_a_tappe",
+  "n_tappe": 2,
+  "distanza_km": 9.68,
+  "dislivello_m": 208,
+  "tappe": [
+    {
+      "numero": 1,
+      "nome": "Tappa 1 - Crono",
+      "slug": "3-giorni-trevigiana-S1-2026-DA",
+      "data": "2027-08-29",
+      "distanza_km": 9.68,
+      "dislivello_m": 208.0,
+      "disciplina": "ITT"
+    },
+    {
+      "numero": 2,
+      "nome": "Tappa 2",
+      "slug": "3-giorni-trevigiana-S2-2026-DA",
+      "data": "2027-08-30",
+      "disciplina": "Strada"
+    }
+  ],
+  "slug": "3-giorni-trevigiana-2026-DA"
+}

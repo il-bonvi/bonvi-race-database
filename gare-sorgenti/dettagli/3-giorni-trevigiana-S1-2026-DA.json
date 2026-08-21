@@ -1,0 +1,20 @@
+{
+  "titolo": "3 Giorni Trevigiana — Tappa 1: Tappa 1 - Crono",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 1 - Crono",
+  "numero_tappa": 1,
+  "corsa_a_tappe_slug": "3-giorni-trevigiana-2026-DA",
+  "corsa_a_tappe_titolo": "3 Giorni Trevigiana",
+  "race_series": "3 giorni trevigiana",
+  "data": "2027-08-29",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "ITT",
+  "distanza_km": 9.68,
+  "dislivello_m": 208.0,
+  "velocita_media_kmh": 30.0,
+  "luogo": "Treviso, IT",
+  "slug": "3-giorni-trevigiana-S1-2026-DA"
+}

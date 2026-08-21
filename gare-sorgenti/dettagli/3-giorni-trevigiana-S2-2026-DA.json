@@ -1,0 +1,17 @@
+{
+  "titolo": "3 Giorni Trevigiana — Tappa 2: Tappa 2",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 2",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "3-giorni-trevigiana-2026-DA",
+  "corsa_a_tappe_titolo": "3 Giorni Trevigiana",
+  "race_series": "3 giorni trevigiana",
+  "data": "2027-08-30",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "luogo": "Treviso, IT",
+  "slug": "3-giorni-trevigiana-S2-2026-DA"
+}
