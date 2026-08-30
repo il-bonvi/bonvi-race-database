@@ -1,0 +1,20 @@
+{
+  "titolo": "Lunigiana Donne — Tappa 1: Tappa 1",
+  "tipo": "tappa",
+  "nome_tappa": "Tappa 1",
+  "numero_tappa": 1,
+  "corsa_a_tappe_slug": "lunigiana-donne-2026-DJ",
+  "corsa_a_tappe_titolo": "Lunigiana Donne",
+  "race_series": "lunigiana",
+  "data": "2026-09-08",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 69.4,
+  "dislivello_m": 204.0,
+  "velocita_media_kmh": 40.0,
+  "luogo": "La Spezia, IT",
+  "slug": "lunigiana-donne-S1-2026-DJ"
+}

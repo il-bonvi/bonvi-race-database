@@ -1,0 +1,37 @@
+{
+  "titolo": "Lunigiana Donne",
+  "race_series": "lunigiana",
+  "data": "2026-09-08",
+  "data_inizio": "2026-09-08",
+  "data_fine": "2026-09-09",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "luogo": "La Spezia, IT",
+  "tipo": "corsa_a_tappe",
+  "n_tappe": 2,
+  "distanza_km": 151.0,
+  "dislivello_m": 823,
+  "tappe": [
+    {
+      "numero": 1,
+      "nome": "Tappa 1",
+      "slug": "lunigiana-donne-S1-2026-DJ",
+      "data": "2026-09-08",
+      "distanza_km": 69.4,
+      "dislivello_m": 204.0,
+      "disciplina": "Strada"
+    },
+    {
+      "numero": 2,
+      "nome": "Tappa 2",
+      "slug": "lunigiana-donne-S2-2026-DJ",
+      "data": "2026-09-09",
+      "distanza_km": 81.6,
+      "dislivello_m": 619.0,
+      "disciplina": "Strada"
+    }
+  ],
+  "slug": "lunigiana-donne-2026-DJ"
+}
