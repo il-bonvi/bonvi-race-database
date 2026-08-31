@@ -12,6 +12,9 @@
     "Allievi"
   ],
   "disciplina": "Strada",
+  "distanza_km": 63.63,
+  "dislivello_m": 794.0,
+  "velocita_media_kmh": 34.0,
   "luogo": "Treviso, IT",
   "slug": "3-giorni-trevigiana-S2-2026-DA"
 }

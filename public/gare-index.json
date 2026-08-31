@@ -291,6 +291,21 @@
     "wt": false
   },
   {
+    "slug": "fornovo-san-giovanni-2026-DJ",
+    "titolo": "Fornovo San Giovanni",
+    "data": "2026-09-06",
+    "year": "2026",
+    "race_series": "fornovo san giovanni",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "fossano-2026-DJ-DU-DELI",
     "titolo": "Fossano",
     "data": "2026-04-12",

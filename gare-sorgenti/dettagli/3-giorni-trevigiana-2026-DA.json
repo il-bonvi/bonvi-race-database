@@ -11,8 +11,8 @@
   "luogo": "Treviso, IT",
   "tipo": "corsa_a_tappe",
   "n_tappe": 2,
-  "distanza_km": 9.68,
-  "dislivello_m": 208,
+  "distanza_km": 73.31,
+  "dislivello_m": 1002,
   "tappe": [
     {
       "numero": 1,
@@ -28,6 +28,8 @@
       "nome": "Tappa 2",
       "slug": "3-giorni-trevigiana-S2-2026-DA",
       "data": "2027-08-30",
+      "distanza_km": 63.63,
+      "dislivello_m": 794.0,
       "disciplina": "Strada"
     }
   ],

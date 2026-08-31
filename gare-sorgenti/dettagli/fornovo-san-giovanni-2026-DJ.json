@@ -1,0 +1,18 @@
+{
+  "titolo": "Fornovo San Giovanni",
+  "race_series": "fornovo san giovanni",
+  "data": "2026-09-06",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 12,
+  "velocita_media_kmh": 41.0,
+  "distanza_km": 93.0,
+  "dislivello_m": 132.0,
+  "_center_lat": 45.48754,
+  "_center_lon": 9.67908,
+  "slug": "fornovo-san-giovanni-2026-DJ",
+  "luogo": "Bergamo, IT"
+}
