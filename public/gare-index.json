@@ -212,6 +212,21 @@
     "wt": false
   },
   {
+    "slug": "coppa-rosa-2026-DA",
+    "titolo": "Coppa Rosa",
+    "data": "2026-09-12",
+    "year": "2026",
+    "race_series": "coppa rosa",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "corridonia-2026-DJ-DU-DELI",
     "titolo": "Corridonia",
     "data": "2026-05-31",
@@ -1194,6 +1209,21 @@
       "Junior"
     ],
     "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "villaverla-2026-DA",
+    "titolo": "Villaverla",
+    "data": "2026-09-06",
+    "year": "2026",
+    "race_series": "villaverla",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
     "tipo": null,
     "n_tappe": null,
     "wt": false

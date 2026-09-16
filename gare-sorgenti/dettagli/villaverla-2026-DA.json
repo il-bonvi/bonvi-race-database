@@ -1,0 +1,18 @@
+{
+  "titolo": "Villaverla",
+  "race_series": "villaverla",
+  "data": "2026-09-06",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Criterium",
+  "giri": 12,
+  "velocita_media_kmh": 37.0,
+  "distanza_km": 54.6,
+  "dislivello_m": 120.0,
+  "_center_lat": 45.64603,
+  "_center_lon": 11.49568,
+  "slug": "villaverla-2026-DA",
+  "luogo": "Vicenza, IT"
+}

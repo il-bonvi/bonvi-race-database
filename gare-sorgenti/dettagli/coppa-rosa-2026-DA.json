@@ -1,0 +1,18 @@
+{
+  "titolo": "Coppa Rosa",
+  "race_series": "coppa rosa",
+  "data": "2026-09-12",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 34.0,
+  "distanza_km": 70.27,
+  "dislivello_m": 861.0,
+  "_center_lat": 46.052110000000006,
+  "_center_lon": 11.456230000000001,
+  "slug": "coppa-rosa-2026-DA",
+  "luogo": "Trento, IT"
+}
