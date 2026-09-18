@@ -1,5 +1,5 @@
 ---
-import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon, formatCategoria, getRaceColorForBorder, WT_COLOR, campionatoTheme, countryFlagCode, campionatoFlagOpacity } from '../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon, formatCategoria, getRaceColorForBorder, WT_COLOR, CATEGORIA_COLORS, campionatoTheme, countryFlagCode, campionatoFlagOpacity } from '../lib/gare.js';
 const { gara } = Astro.props;
 const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
 const isCampionato = gara.tipo === 'campionato';
@@ -17,13 +17,8 @@ const theme = isCampionato ? campionatoTheme(gara.livello) : null;
 const flagCode = isCampionato ? (gara.paese || countryFlagCode(gara.luogo)) : null;
 const flagOpacity = isCampionato ? campionatoFlagOpacity(gara.livello) : 0;
 
-// Mappa colori per categorie
-const catColorMap: Record<string, string> = {
-  'Elite':    '#E91E63',
-  'U23':      '#1B2ACF',
-  'Junior':   '#28B534',
-  'Allievi':  '#FFC107',
-};
+// Mappa colori per categorie: unica fonte in lib/gare.js (CATEGORIA_COLORS)
+const catColorMap = CATEGORIA_COLORS;
 
 // Genera il colore/gradiente per il bordo
 const borderStyle = getRaceColorForBorder(gara);

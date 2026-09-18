@@ -1,5 +1,5 @@
 ---
-import { formatData, formatDistanza, formatDislivello, disciplinaIcon, formatCategoria, campionatoTheme, provaColor, provaDashArray, countryFlagCode, campionatoFlagOpacity } from '../../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, disciplinaIcon, formatCategoria, campionatoTheme, provaColor, provaDashArray, countryFlagCode, campionatoFlagOpacity, WT_COLOR, CATEGORIA_COLORS } from '../../lib/gare.js';
 
 export async function getStaticPaths() {
   const garaFiles = import.meta.glob('../../../gare-sorgenti/dettagli/*.json', { eager: true });
@@ -55,13 +55,8 @@ if (isTappa && gara.corsa_a_tappe_slug) {
 }
 
 // Per il colore della top bar, genera colore solido o gradiente
-const WT_COLOR = '#8A2BE2';
-const catColorMap = {
-  'Elite':    '#E91E63',
-  'U23':      '#1B2ACF',
-  'Junior':   '#28B534',
-  'Allievi':  '#FFC107',
-} as Record<string, string>;
+// WT_COLOR e catColorMap: unica fonte in lib/gare.js (WT_COLOR, CATEGORIA_COLORS)
+const catColorMap = CATEGORIA_COLORS;
 const categorie: string[] = gara.wt ? [] : (Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria]).filter(Boolean);
 
 // Colore del bordo: solido se singola categoria, gradiente se multiple (o purple per WT)

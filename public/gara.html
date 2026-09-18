@@ -1381,7 +1381,7 @@ let map;
             if (rb) rb.style.display = 'flex';
 
             setupLapsVisualizer();
-            applyDisplayLaps(1);
+            applyDisplayLaps(window._laps || 1);
         }
 
         function escapeXml(value) {
@@ -1541,7 +1541,8 @@ ${trkpts}
                 select.dataset.bound = '1';
             }
 
-            select.value = '1';
+            // Default: mostra tutti i giri (gara completa) invece del singolo giro
+            select.value = String(maxLaps);
         }
 
         function applyDisplayLaps(rawLaps) {

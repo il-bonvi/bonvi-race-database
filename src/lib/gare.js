@@ -1,3 +1,24 @@
+// ── Colori: unica fonte di verità per tutto il sito ─────────────────────────
+// Ogni pagina/componente deve importare queste costanti invece di ridefinire
+// i colori localmente — altrimenti un cambio colore va ripetuto a mano in
+// più file e si rischia di dimenticarne qualcuno (già successo una volta).
+export const WT_COLOR = '#8A2BE2';
+
+export const CATEGORIA_COLORS = {
+  'Elite':    '#E91E63',
+  'U23':      '#1B2ACF',
+  'Junior':   '#28B534',
+  'Allievi':  '#ffa601',
+};
+
+// Colori delle tracce dei campionati su BMAP: non derivano da CAMPIONATO_THEME
+// (pensato per badge/bordi su sfondo chiaro) perché lì serve visibilità sulla
+// mappa (stile scuro di default) e distinzione dai colori di categoria.
+export const CAMPIONATO_MAP_COLORS = {
+  Mondiale: '#ffffff',
+  Europeo:  '#0EA5E9',
+};
+
 export function formatData(dateStr) {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
@@ -53,29 +74,20 @@ export function getCategoriaCode(genere, categoria) {
 }
 
 export function categoriaColor(categoria) {
-  const colorMap = {
-    'Elite':    '#E91E63',
-    'U23':      '#1B2ACF',
-    'Junior':   '#28B534',
-    'Allievi':  '#FFC107',
-  };
-  
   // Gestisci sia string che array
   if (!Array.isArray(categoria)) {
-    return colorMap[categoria] ?? '#888';
+    return CATEGORIA_COLORS[categoria] ?? '#888';
   }
   
   // Se è un array singolo, returna il colore diretto
   if (categoria.length === 1) {
-    return colorMap[categoria[0]] ?? '#888';
+    return CATEGORIA_COLORS[categoria[0]] ?? '#888';
   }
   
   // Se sono multiple categorie, crea un gradiente
-  const colors = categoria.map(cat => colorMap[cat] ?? '#888');
+  const colors = categoria.map(cat => CATEGORIA_COLORS[cat] ?? '#888');
   return `linear-gradient(90deg, ${colors.join(', ')})`;
 }
-
-export const WT_COLOR = '#8A2BE2';
 
 export function getRaceColor(raceData) {
   /**
@@ -100,22 +112,16 @@ export function getRaceColorForBorder(raceData) {
   }
   
   const categoria = raceData?.categoria;
-  const colorMap = {
-    'Elite':    '#E91E63',
-    'U23':      '#1B2ACF',
-    'Junior':   '#28B534',
-    'Allievi':  '#FFC107',
-  };
   
   if (!Array.isArray(categoria)) {
-    return colorMap[categoria] ?? '#888';
+    return CATEGORIA_COLORS[categoria] ?? '#888';
   }
   
   if (categoria.length === 1) {
-    return colorMap[categoria[0]] ?? '#888';
+    return CATEGORIA_COLORS[categoria[0]] ?? '#888';
   }
   
-  const colors = categoria.map(cat => colorMap[cat] ?? '#888');
+  const colors = categoria.map(cat => CATEGORIA_COLORS[cat] ?? '#888');
   return `linear-gradient(90deg, ${colors.join(', ')})`;
 }
 
@@ -214,13 +220,7 @@ export function campionatoFlagOpacity(livello) {
 // invece di inventare una nuova scala colori.
 export function provaColor(categoria) {
   const cat = Array.isArray(categoria) ? categoria[0] : categoria;
-  const colorMap = {
-    'Elite':    '#E91E63',
-    'U23':      '#1B2ACF',
-    'Junior':   '#28B534',
-    'Allievi':  '#FFC107',
-  };
-  return colorMap[cat] ?? '#888';
+  return CATEGORIA_COLORS[cat] ?? '#888';
 }
 
 export function provaDashArray(genere) {
