@@ -1,0 +1,20 @@
+{
+  "titolo": "TEST EC — Prova 2: MELI PRO",
+  "tipo": "tappa",
+  "nome_tappa": "MELI PRO",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "test-ec-2026-europeo",
+  "corsa_a_tappe_titolo": "TEST EC",
+  "race_series": "ec",
+  "data": "2026-09-25",
+  "genere": "Maschile",
+  "categoria": [
+    "Elite"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 110.8,
+  "dislivello_m": 1975.0,
+  "velocita_media_kmh": 40.0,
+  "luogo": "SI",
+  "slug": "test-ec-2026-europeo-meli"
+}

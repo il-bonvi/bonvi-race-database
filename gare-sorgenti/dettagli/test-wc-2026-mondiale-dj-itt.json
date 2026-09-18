@@ -1,0 +1,20 @@
+{
+  "titolo": "TEST WC — Prova 1: ITT DONNE JR",
+  "tipo": "tappa",
+  "nome_tappa": "ITT DONNE JR",
+  "numero_tappa": 1,
+  "corsa_a_tappe_slug": "test-wc-2026-mondiale",
+  "corsa_a_tappe_titolo": "TEST WC",
+  "race_series": "wc",
+  "data": "2026-09-29",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "ITT",
+  "distanza_km": 22.16,
+  "dislivello_m": 395.0,
+  "velocita_media_kmh": 40.0,
+  "luogo": "SI",
+  "slug": "test-wc-2026-mondiale-dj-itt"
+}

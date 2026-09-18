@@ -1,0 +1,41 @@
+{
+  "titolo": "TEST EC",
+  "race_series": "ec",
+  "data": "2026-09-24",
+  "categoria": [],
+  "luogo": "Slovenia",
+  "paese": "si",
+  "tipo": "campionato",
+  "livello": "Europeo",
+  "n_tappe": 2,
+  "distanza_km": 132.96,
+  "dislivello_m": 2370,
+  "tappe": [
+    {
+      "numero": 1,
+      "nome": "ITT PROVA",
+      "slug": "test-ec-2026-europeo-du-itt",
+      "data": "2026-09-24",
+      "distanza_km": 22.16,
+      "dislivello_m": 395.0,
+      "disciplina": "ITT",
+      "genere": "Femminile",
+      "categoria": "U23",
+      "luogo": "SI"
+    },
+    {
+      "numero": 2,
+      "nome": "MELI PRO",
+      "slug": "test-ec-2026-europeo-meli",
+      "data": "2026-09-25",
+      "distanza_km": 110.8,
+      "dislivello_m": 1975.0,
+      "disciplina": "Strada",
+      "giri": 5,
+      "genere": "Maschile",
+      "categoria": "Elite",
+      "luogo": "SI"
+    }
+  ],
+  "slug": "test-ec-2026-europeo"
+}

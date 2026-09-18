@@ -60,7 +60,7 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
 
   // Determina slug/i GPX
   let gpxSlugs: string[] = [];
-  if (g.tipo === 'corsa_a_tappe' && g.tappe?.length > 0) {
+  if ((g.tipo === 'corsa_a_tappe' || g.tipo === 'campionato') && g.tappe?.length > 0) {
     gpxSlugs = (g.tappe as any[])
       .map((t: any) => {
         const tDett = dettagliMap[t.slug];
@@ -555,7 +555,7 @@ window.__BASE_URL__  = base;
       // Filtra gli endMarkers in base al filtro disciplina per le corse a tappe
       const endPtsToShow = g.endPts.map((pt: [number,number], idx: number) => {
         // Se è una corsa a tappe con filtro disciplina attivo, controlla se questa tappa matcha
-        if (g.tipo === 'corsa_a_tappe' && disciplineSelezionate.size > 0) {
+        if ((g.tipo === 'corsa_a_tappe' || g.tipo === 'campionato') && disciplineSelezionate.size > 0) {
           if (idx >= 0 && idx < g.tappe.length) {
             const tappaDisciplina = g.tappe[idx]?.disciplina;
             if (!tappaDisciplina || !disciplineSelezionate.has(tappaDisciplina)) {
@@ -743,7 +743,7 @@ window.__BASE_URL__  = base;
 
       entry.rawPtsList.forEach((rawPts: [number,number][], ptIdx: number) => {
         // Se è una corsa a tappe con filtro disciplina, filtra i polylines
-        if (entry.gara.tipo === 'corsa_a_tappe' && disciplineSelezionate.size > 0) {
+        if ((entry.gara.tipo === 'corsa_a_tappe' || entry.gara.tipo === 'campionato') && disciplineSelezionate.size > 0) {
           const tappeIdx = entry.polylineToTappeIdx[ptIdx];
           if (tappeIdx >= 0 && tappeIdx < entry.gara.tappe.length) {
             const tappaDisciplina = entry.gara.tappe[tappeIdx]?.disciplina;
@@ -851,7 +851,7 @@ window.__BASE_URL__  = base;
         if(rawPtsList && rawPtsList.length > 0) {
           // Se è una corsa a tappe con filtro disciplina, usa solo i punti delle tappe visibili
           let ptsToUse = rawPtsList;
-          if (g.tipo === 'corsa_a_tappe' && disciplineSelezionate.size > 0) {
+          if ((g.tipo === 'corsa_a_tappe' || g.tipo === 'campionato') && disciplineSelezionate.size > 0) {
             ptsToUse = rawPtsList.filter((_, ptIdx) => {
               const tappeIdx = entryRef.polylineToTappeIdx[ptIdx];
               if (tappeIdx >= 0 && tappeIdx < g.tappe.length) {
@@ -917,7 +917,7 @@ window.__BASE_URL__  = base;
         const myColors = entry.cats.map((c: string) => catColor[c] ?? '#888');
         entry.rawPtsList.forEach((rawPts: [number,number][], ptIdx: number) => {
           // Se è una corsa a tappe con filtro disciplina, filtra i polylines
-          if (entry.gara.tipo === 'corsa_a_tappe' && disciplineSelezionate.size > 0) {
+          if ((entry.gara.tipo === 'corsa_a_tappe' || entry.gara.tipo === 'campionato') && disciplineSelezionate.size > 0) {
             const tappeIdx = entry.polylineToTappeIdx[ptIdx];
             if (tappeIdx >= 0 && tappeIdx < entry.gara.tappe.length) {
               const tappaDisciplina = entry.gara.tappe[tappeIdx]?.disciplina;
@@ -1005,7 +1005,7 @@ window.__BASE_URL__  = base;
     
     let matchesDisc = true;
     if (disciplineSelezionate.size > 0) {
-      if (g.tipo === 'corsa_a_tappe' && !g.disciplina) {
+      if ((g.tipo === 'corsa_a_tappe' || g.tipo === 'campionato') && !g.disciplina) {
         // Per corse a tappe senza disciplina principale, controlla le tappe
         matchesDisc = g.tappe?.some((t: any) => disciplineSelezionate.has(t.disciplina)) ?? false;
       } else {
@@ -1019,7 +1019,7 @@ window.__BASE_URL__  = base;
   // Helper: controlla se il startMarker dovrebbe essere visibile (prima tappa deve matchare il filtro disciplina)
   function shouldShowStartMarker(g: any): boolean {
     if (disciplineSelezionate.size === 0) return true; // Senza filtro, mostra sempre
-    if (g.tipo !== 'corsa_a_tappe') return true; // Solo corse a tappe controllano la prima tappa
+    if (!(g.tipo === 'corsa_a_tappe' || g.tipo === 'campionato')) return true; // Solo corse a tappe/campionati controllano la prima tappa
     
     const firstTappa = g.tappe?.[0];
     if (!firstTappa || !firstTappa.disciplina) return true; // Se non esiste tappa 0, mostra comunque
@@ -1032,7 +1032,7 @@ window.__BASE_URL__  = base;
     
     // Se activeEntry esiste e il filtro disciplina è attivo, resetta gli endMarkers
     // così che vengono ricreati con il filtro aggiornato quando clicchi di nuovo
-    if(activeEntry && disciplineSelezionate.size > 0 && activeEntry.gara.tipo === 'corsa_a_tappe') {
+    if(activeEntry && disciplineSelezionate.size > 0 && (activeEntry.gara.tipo === 'corsa_a_tappe' || activeEntry.gara.tipo === 'campionato')) {
       activeEntry.endMarkers.forEach(m=>{if(map.hasLayer(m))map.removeLayer(m);});
       activeEntry.endMarkers=[];
     }

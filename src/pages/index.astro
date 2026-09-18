@@ -16,7 +16,7 @@ const totKm = gare.reduce((s, g) => s + (Number(g.distanza_km) || 0), 0);
 
 // Conta le tappe delle corse a tappa come percorsi separati
 const totPercorsi = gare.reduce((s, g) => {
-  if (g.tipo === 'corsa_a_tappe' && g.tappe?.length > 0) {
+  if ((g.tipo === 'corsa_a_tappe' || g.tipo === 'campionato') && g.tappe?.length > 0) {
     return s + g.tappe.length;
   }
   return s + 1;
@@ -202,9 +202,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
                             data-luogo={(g.luogo ?? '').toLowerCase()}
                             data-km={g.distanza_km ?? 0}
                             data-dislivello={g.dislivello_m ?? 0}
-                            data-percorsi={(g.tipo === 'corsa_a_tappe' && g.tappe?.length > 0) ? g.tappe.length : 1}
+                            data-percorsi={((g.tipo === 'corsa_a_tappe' || g.tipo === 'campionato') && g.tappe?.length > 0) ? g.tappe.length : 1}
                             data-month={monthKey}
-                            data-date={new Date(g.tipo === 'corsa_a_tappe' && g.data_fine ? g.data_fine : g.data).getTime()}
+                            data-date={new Date((g.tipo === 'corsa_a_tappe' || g.tipo === 'campionato') && g.data_fine ? g.data_fine : g.data).getTime()}
                             data-tipo={g.tipo ?? ''}
                             data-tappe-json={JSON.stringify(g.tappe?.map((t: any) => ({ disciplina: t.disciplina })) ?? [])}
                           >
@@ -309,7 +309,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       let matchDisciplina = true;
       if (disciplineSelezionate.size > 0) {
         const tipo = card.dataset.tipo ?? '';
-        if (tipo === 'corsa_a_tappe' && !disciplina) {
+        if ((tipo === 'corsa_a_tappe' || tipo === 'campionato') && !disciplina) {
           // Per corse a tappe senza disciplina principale, controlla le tappe
           const tappeJson = card.dataset.tappeJson ?? '[]';
           const tappe = JSON.parse(tappeJson) as Array<{ disciplina: string }>;
@@ -559,7 +559,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       footer_copy: '© 2026 Andrea Bonvicin — BRD Race Database — AGPL v3 License',
       cat_Allievi: 'U16', cat_Junior: 'Junior', cat_U23: 'U23', cat_Elite: 'Elite',
       gen_Maschile: 'Men', gen_Femminile: 'Women',
-      disc_Strada: 'Road Race', disc_Criterium: 'Criterium', disc_ITT: 'ITT', disc_TTT: 'TTT', 'disc_Tipo pista': 'Track-format',
+      disc_Strada: 'Road Race', disc_Criterium: 'Criterium', disc_ITT: 'ITT', disc_TTT: 'TTT', 'disc_Tipo pista': 'Track-format', 'disc_Mixed Relay': 'Mixed Relay',
       stat_dist: 'Distance', stat_elev_c: 'Elevation', stat_date: 'Date', stat_speed: 'Est. avg speed',
       months: ['January','February','March','April','May','June','July','August','September','October','November','December'],
     }

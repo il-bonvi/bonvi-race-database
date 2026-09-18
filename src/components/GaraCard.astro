@@ -1,7 +1,9 @@
 ---
-import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon, formatCategoria, getRaceColorForBorder, WT_COLOR } from '../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon, formatCategoria, getRaceColorForBorder, WT_COLOR, campionatoTheme, countryFlagCode, campionatoFlagOpacity } from '../lib/gare.js';
 const { gara } = Astro.props;
 const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
+const isCampionato = gara.tipo === 'campionato';
+const isContenitore = isCorsaATappe || isCampionato;
 const isTipoPista = gara.disciplina === 'Tipo pista';
 const icon  = disciplinaIcon(gara.disciplina);
 const base  = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -9,6 +11,11 @@ const categorie: string[] = (Array.isArray(gara.categoria) ? gara.categoria : [g
 
 // Verifica se è una gara speciale (Giro d'Italia Women)
 const isSpecialWTRace = gara.slug?.includes('giro-d-italia-women');
+
+// Skin dedicata campionati (Mondiale/Europeo), guidata dai dati e non dallo slug
+const theme = isCampionato ? campionatoTheme(gara.livello) : null;
+const flagCode = isCampionato ? (gara.paese || countryFlagCode(gara.luogo)) : null;
+const flagOpacity = isCampionato ? campionatoFlagOpacity(gara.livello) : 0;
 
 // Mappa colori per categorie
 const catColorMap: Record<string, string> = {
@@ -27,11 +34,14 @@ const genereColor = gara.genere === 'Femminile'
   : 'radial-gradient(ellipse at 100% 0%, rgba(80,150,215,0.22) 0%, rgba(80,150,215,0.08) 35%, transparent 65%)';
 ---
 
-<a href={`${base}/gare/${gara.slug}/`} class={`card${isCorsaATappe ? ' card--tappe' : ''}${isSpecialWTRace ? ' card--special' : ''}`} style={`--cat-color: ${borderStyle}; --genere-shade: ${genereColor}`}>
+<a href={`${base}/gare/${gara.slug}/`} class={`card${isCorsaATappe ? ' card--tappe' : ''}${isSpecialWTRace ? ' card--special' : ''}${theme ? ' card--campionato' : ''}${flagCode ? ' card--flag' : ''}`} style={`--cat-color: ${theme ? theme.gradient : borderStyle}; --genere-shade: ${genereColor}; ${theme ? `--campionato-accent: ${theme.accent};` : ''} ${flagCode ? `--campionato-flag: url(https://flagcdn.com/w640/${flagCode}.png); --campionato-flag-opacity: ${flagOpacity};` : ''}`}>
+  {flagCode && <div class="card-flag-bg" aria-hidden="true"></div>}
 
   <div class="card-top">
     <div class="cat-badges">
-      {gara.wt ? (
+      {theme ? (
+        <span class="cat-badge campionato-badge">{theme.label}</span>
+      ) : gara.wt ? (
         <span class="cat-badge wt-badge" style={`--badge-color: ${WT_COLOR}`}>World Tour</span>
       ) : (
         categorie.map((cat) => (
@@ -39,11 +49,11 @@ const genereColor = gara.genere === 'Femminile'
         ))
       )}
     </div>
-    {isCorsaATappe
-      ? <span class="disc-badge tappe-badge">⛰ {gara.n_tappe} tappe</span>
+    {isContenitore
+      ? <span class="disc-badge tappe-badge">⛰ {gara.n_tappe} {isCampionato ? 'prove' : 'tappe'}</span>
       : <span class="disc-badge">{icon} <span class="disc-badge-text" data-disc={gara.disciplina ?? ''}>{gara.disciplina ?? '—'}</span></span>
     }
-    <span class="genere-badge" class:list={{ 'genere-badge--special': isSpecialWTRace }}>{gara.genere === 'Femminile' ? '♀' : '♂'}</span>
+    <span class="genere-badge" class:list={{ 'genere-badge--special': isSpecialWTRace || isCampionato }}>{gara.genere === 'Femminile' ? '♀' : (gara.genere === 'Maschile' ? '♂' : '♀♂')}</span>
   </div>
 
   <h2 class="card-title">{gara.titolo}</h2>
@@ -65,7 +75,7 @@ const genereColor = gara.genere === 'Femminile'
       gara.distanza_km && (
         <div class="stat">
           <span class="stat-v">{formatDistanza(gara.distanza_km)}</span>
-          <span class="stat-l">{isCorsaATappe ? 'tot dist' : 'dist'}</span>
+          <span class="stat-l">{isContenitore ? 'tot dist' : 'dist'}</span>
         </div>
       )
     )}
@@ -80,11 +90,11 @@ const genereColor = gara.genere === 'Femminile'
       gara.dislivello_m && (
         <div class="stat">
           <span class="stat-v">{formatDislivello(gara.dislivello_m)}</span>
-          <span class="stat-l">{isCorsaATappe ? 'tot D+' : 'D+'}</span>
+          <span class="stat-l">{isContenitore ? 'tot D+' : 'D+'}</span>
         </div>
       )
     )}
-    {(isCorsaATappe ? (gara.data_inizio || gara.data) : gara.data) && (
+    {!isCampionato && (isCorsaATappe ? (gara.data_inizio || gara.data) : gara.data) && (
       <div class="stat stat-date">
         <span class="stat-v">
           {isCorsaATappe && gara.data_fine && gara.data_fine !== gara.data_inizio
@@ -97,7 +107,7 @@ const genereColor = gara.genere === 'Femminile'
     )}
   </div>
 
-  <span class="card-cta">{isCorsaATappe ? 'Vedi tappe →' : 'Apri percorso →'}</span>
+  <span class="card-cta">{isCampionato ? 'Vedi prove →' : (isCorsaATappe ? 'Vedi tappe →' : 'Apri percorso →')}</span>
 </a>
 
 <style>
@@ -122,6 +132,14 @@ const genereColor = gara.genere === 'Femminile'
     height: 3px;
     background: var(--cat-color);
   }
+
+  .card-flag-bg {
+    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background-image: var(--campionato-flag);
+    background-size: cover; background-position: center;
+    opacity: var(--campionato-flag-opacity, 0.08);
+  }
+  .card--flag > *:not(.card-flag-bg) { position: relative; z-index: 1; }
 
   /* Shade genere — angolo alto destra, si dissolve */
   .card::after {
@@ -240,5 +258,24 @@ const genereColor = gara.genere === 'Femminile'
 
   .card--tappe {
     border-left: 2px solid var(--accent);
+  }
+
+  /* ── Skin campionati (Mondiale / Europeo) ── */
+  .card--campionato {
+    border-left: 2px solid var(--campionato-accent, var(--accent));
+  }
+
+  .card--campionato::before {
+    height: 4px;
+  }
+
+  .campionato-badge {
+    font-family: var(--font-mono); font-size: 0.65rem;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    font-weight: 700;
+    color: #fff;
+    background: var(--campionato-accent, #333);
+    border: 1px solid rgba(0,0,0,0.15);
+    padding: 0.2rem 0.55rem; border-radius: 2px;
   }
 </style>

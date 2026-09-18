@@ -30,7 +30,22 @@ logger = logging.getLogger(__name__)
 
 CATEGORIE  = ["Elite", "U23", "Junior", "Allievi"]
 GENERI     = ["Maschile", "Femminile"]
-DISCIPLINE = ["Strada", "Criterium", "ITT", "TTT", "Tipo pista"]
+DISCIPLINE = ["Strada", "Criterium", "ITT", "TTT", "Tipo pista", "Mixed Relay"]
+LIVELLI_CAMPIONATO = ["Mondiale", "Europeo"]  # futuri: "Campionato Italiano", "Olimpiadi"
+
+# Paesi selezionabili per la bandiera di sfondo dei campionati (nome
+# visualizzato in italiano -> codice ISO 3166-1 alpha-2). Va tenuta in sync
+# con COUNTRY_CODES in src/lib/gare.js.
+PAESI_BANDIERA = {
+    "Italia": "it", "Canada": "ca", "Slovenia": "si", "Francia": "fr",
+    "Spagna": "es", "Belgio": "be", "Paesi Bassi": "nl", "Svizzera": "ch",
+    "Germania": "de", "Austria": "at", "Portogallo": "pt",
+    "Regno Unito": "gb", "Ruanda": "rw", "Australia": "au",
+    "Stati Uniti": "us", "Danimarca": "dk", "Norvegia": "no", "Svezia": "se",
+    "Polonia": "pl", "Repubblica Ceca": "cz", "Slovacchia": "sk",
+    "Croazia": "hr", "Ungheria": "hu", "Colombia": "co", "Giappone": "jp",
+    "Qatar": "qa", "Emirati Arabi Uniti": "ae",
+}
 
 
 # ── SLUG ──────────────────────────────────────────────────────────────────────
