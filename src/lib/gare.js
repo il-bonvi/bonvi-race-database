@@ -203,13 +203,13 @@ export function countryFlagCode(luogo) {
 
 // Quanto è visibile la bandiera di sfondo: soffusa per i grandi eventi
 // internazionali (Mondiale/Europeo, dove l'identità visiva principale è la
-// banda arcobaleno/UE), più marcata per un futuro Campionato Italiano
+// banda arcobaleno/UE), più marcata per i NAT Champ
 // (dove la bandiera nazionale è l'identità stessa dell'evento).
 export function campionatoFlagOpacity(livello) {
   const opacityMap = {
     'Mondiale': 0.07,
     'Europeo': 0.07,
-    'Campionato Italiano': 0.16, // non ancora implementato, pronto per quando servirà
+    'Nazionale': 0.16,           // NAT Champ: la bandiera nazionale è l'identità stessa dell'evento
   };
   return opacityMap[livello] ?? 0.07;
 }
@@ -276,4 +276,124 @@ export function resolveGpxSlug(slug, bySlug) {
     cur = next;
   }
   return cur;
+}
+
+
+// ── Campionati nazionali (NAT Champ) ─────────────────────────────────────────
+// A differenza di Mondiali/Europei NON sono un contenitore con più prove: ogni
+// prova è una gara autonoma (sedi e mesi diversi), marcata con
+//   livello: "Nazionale"  +  paese: <codice ISO>   (es. "it")
+// Il recap per nazione/anno si ricava raggruppando queste gare, senza
+// contenitore da mantenere.
+export const NAT_LIVELLO = 'Nazionale';
+export const NAT_LABEL = 'NAT Champ';
+
+export function isNatChamp(gara) {
+  return gara?.livello === NAT_LIVELLO && gara?.tipo !== 'campionato';
+}
+
+// Codice ISO → nome paese (italiano). Stessi paesi di PAESI_BANDIERA in generator/race_utils.py
+const PAESE_NOMI = {
+  it: 'Italia', ca: 'Canada', si: 'Slovenia', fr: 'Francia', es: 'Spagna',
+  be: 'Belgio', nl: 'Paesi Bassi', ch: 'Svizzera', de: 'Germania', at: 'Austria',
+  pt: 'Portogallo', gb: 'Regno Unito', rw: 'Ruanda', au: 'Australia',
+  us: 'Stati Uniti', dk: 'Danimarca', no: 'Norvegia', se: 'Svezia', pl: 'Polonia',
+  cz: 'Repubblica Ceca', sk: 'Slovacchia', hr: 'Croazia', hu: 'Ungheria',
+  co: 'Colombia', jp: 'Giappone', qa: 'Qatar', ae: 'Emirati Arabi Uniti',
+};
+
+export function paeseNome(code) {
+  if (!code) return '';
+  return PAESE_NOMI[String(code).toLowerCase()] ?? String(code).toUpperCase();
+}
+
+// Range di date di una gara/contenitore: { start, end } (end = null se giorno singolo).
+// - corsa a tappe: data_inizio/data_fine
+// - campionato (Mondiale/Europeo): dalle date reali delle prove (il JSON non ha un range
+//   inserito a mano, che con prove a giorni/mesi diversi sarebbe da tenere aggiornato)
+// - gara singola: solo la data
+export function dateRange(gara) {
+  let start = gara?.data_inizio || gara?.data || null;
+  let end = gara?.data_fine || null;
+  if (gara?.tipo === 'campionato' && Array.isArray(gara.tappe) && gara.tappe.length > 0) {
+    const ds = gara.tappe.map((t) => t.data).filter(Boolean).sort();
+    if (ds.length > 0) { start = ds[0]; end = ds[ds.length - 1]; }
+  }
+  if (!end || end === start) end = null;
+  return { start, end };
+}
+
+// Formatta un range: "24–25 set" (stesso mese) oppure "30 mag – 07 giu"; giorno singolo se end è null
+export function formatDateRange(range) {
+  if (!range?.start) return '—';
+  if (!range.end) return formatData(range.start);
+  const a = new Date(range.start);
+  const b = new Date(range.end);
+  if (a.getUTCFullYear() === b.getUTCFullYear() && a.getUTCMonth() === b.getUTCMonth()) {
+    const dd = (d) => String(d.getUTCDate()).padStart(2, '0');
+    const mon = b.toLocaleDateString('it-IT', { month: 'short', timeZone: 'UTC' });
+    return `${dd(a)}–${dd(b)} ${mon}`;
+  }
+  return `${formatData(range.start)} – ${formatData(range.end)}`;
+}
+
+
+
+// ── Nome fisso e sigla delle prove dei campionati (Mondiale/Europeo) ─────────
+// Le prove NON hanno un nome libero: seguono sempre il pattern
+//   nome:  <genere><categoria> <disciplina>   es. "WJ Road Race", "WJ ITT", "WJ Mixed Relay"
+//   sigla: <genere><categoria><disciplina>    es. "WJRR", "WJITT", "WJMR"
+// Genere: W donne, M uomini, X misto (prove senza genere, es. Mixed Relay).
+// Categoria: E Elite, U U23, J Junior, A Allievi.
+// ⚠ Tenere in sync con le stesse tabelle in generator/race_utils.py (prova_nome / prova_sigla).
+const GENERE_CODICE = { Femminile: 'W', Maschile: 'M' };
+const CATEGORIA_CODICE = { Elite: 'E', U23: 'U', Junior: 'J', Allievi: 'A' };
+const DISCIPLINA_CODICE = {
+  Strada: 'RR', ITT: 'ITT', TTT: 'TTT', Criterium: 'CRIT', 'Mixed Relay': 'MR', 'Tipo pista': 'TP',
+};
+const DISCIPLINA_NOME = {
+  Strada: 'Road Race', ITT: 'ITT', TTT: 'TTT', Criterium: 'Criterium', 'Mixed Relay': 'Mixed Relay', 'Tipo pista': 'Track Format',
+};
+
+function provaPrefisso(prova) {
+  const cats = Array.isArray(prova?.categoria) ? prova.categoria : (prova?.categoria ? [prova.categoria] : []);
+  const codCat = cats.map((c) => CATEGORIA_CODICE[c] ?? '').join('');
+  if (!codCat) return ''; // prova incompleta (categoria mancante): solo disciplina
+  return (GENERE_CODICE[prova?.genere] ?? 'X') + codCat;
+}
+
+// prova: { genere, categoria, disciplina } (una tappa di campionato, meta o dettagli)
+export function provaNome(prova) {
+  const disc = DISCIPLINA_NOME[prova?.disciplina] ?? prova?.disciplina ?? '';
+  return `${provaPrefisso(prova)} ${disc}`.trim();
+}
+
+export function provaSigla(prova) {
+  const disc = DISCIPLINA_CODICE[prova?.disciplina] ?? String(prova?.disciplina ?? '').toUpperCase();
+  return `${provaPrefisso(prova)}${disc}`;
+}
+
+// ── Ordine fisso delle prove di un campionato (navigazione in topbar) ────────
+// NON cronologico: categoria dall'alto in basso (Elite → U23 → Junior → Allievi),
+// poi disciplina RR → ITT → TTT → Mixed Relay (Criterium e Tipo pista in coda),
+// a parità di entrambe prima le donne poi gli uomini (prove miste per ultime).
+// Es.: Elite RR, Elite ITT, Elite Mixed Relay, U23 RR, U23 ITT, ...
+const CATEGORIA_ORDINE = ['Elite', 'U23', 'Junior', 'Allievi'];
+const DISCIPLINA_ORDINE = ['Strada', 'ITT', 'TTT', 'Mixed Relay', 'Criterium', 'Tipo pista'];
+const GENERE_ORDINE = ['Femminile', 'Maschile'];
+
+const rango = (lista, valore) => {
+  const i = lista.indexOf(valore);
+  return i === -1 ? lista.length : i;
+};
+
+// prova: { genere, categoria, disciplina } — categoria può essere stringa o array
+export function compareProve(a, b) {
+  const cats = (p) => (Array.isArray(p?.categoria) ? p.categoria : (p?.categoria ? [p.categoria] : []));
+  const rangoCat = (p) => Math.min(...cats(p).map((c) => rango(CATEGORIA_ORDINE, c)), CATEGORIA_ORDINE.length);
+  return (
+    rangoCat(a) - rangoCat(b) ||
+    rango(DISCIPLINA_ORDINE, a?.disciplina) - rango(DISCIPLINA_ORDINE, b?.disciplina) ||
+    rango(GENERE_ORDINE, a?.genere) - rango(GENERE_ORDINE, b?.genere)
+  );
 }

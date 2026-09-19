@@ -1,5 +1,5 @@
 ---
-import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon, formatCategoria, getRaceColorForBorder, WT_COLOR, CATEGORIA_COLORS, campionatoTheme, countryFlagCode, campionatoFlagOpacity } from '../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, categoriaColor, disciplinaIcon, formatCategoria, getRaceColorForBorder, WT_COLOR, CATEGORIA_COLORS, campionatoTheme, countryFlagCode, campionatoFlagOpacity, isNatChamp, NAT_LABEL, dateRange, formatDateRange } from '../lib/gare.js';
 const { gara } = Astro.props;
 const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
 const isCampionato = gara.tipo === 'campionato';
@@ -14,8 +14,14 @@ const isSpecialWTRace = gara.slug?.includes('giro-d-italia-women');
 
 // Skin dedicata campionati (Mondiale/Europeo), guidata dai dati e non dallo slug
 const theme = isCampionato ? campionatoTheme(gara.livello) : null;
-const flagCode = isCampionato ? (gara.paese || countryFlagCode(gara.luogo)) : null;
-const flagOpacity = isCampionato ? campionatoFlagOpacity(gara.livello) : 0;
+// NAT Champ: gara singola (una prova) marcata livello "Nazionale" + paese. Diversamente da
+// Mondiali/Europei mantiene colore categoria e filtri normali: cambia solo badge e bandiera.
+const isNat = isNatChamp(gara);
+const flagCode = (isCampionato || isNat) ? (gara.paese || countryFlagCode(gara.luogo)) : null;
+const flagOpacity = (isCampionato || isNat) ? campionatoFlagOpacity(gara.livello) : 0;
+
+// Date: range per corse a tappe e campionati (Mondiale/Europeo), data singola per il resto
+const range = dateRange(gara);
 
 // Mappa colori per categorie: unica fonte in lib/gare.js (CATEGORIA_COLORS)
 const catColorMap = CATEGORIA_COLORS;
@@ -29,7 +35,7 @@ const genereColor = gara.genere === 'Femminile'
   : 'radial-gradient(ellipse at 100% 0%, rgba(80,150,215,0.22) 0%, rgba(80,150,215,0.08) 35%, transparent 65%)';
 ---
 
-<a href={`${base}/gare/${gara.slug}/`} class={`card${isCorsaATappe ? ' card--tappe' : ''}${isSpecialWTRace ? ' card--special' : ''}${theme ? ' card--campionato' : ''}${flagCode ? ' card--flag' : ''}`} style={`--cat-color: ${theme ? theme.gradient : borderStyle}; --genere-shade: ${genereColor}; ${theme ? `--campionato-accent: ${theme.accent};` : ''} ${flagCode ? `--campionato-flag: url(https://flagcdn.com/w640/${flagCode}.png); --campionato-flag-opacity: ${flagOpacity};` : ''}`}>
+<a href={`${base}/gare/${gara.slug}/`} class={`card${isCorsaATappe ? ' card--tappe' : ''}${isSpecialWTRace ? ' card--special' : ''}${theme ? ' card--campionato' : ''}${isNat ? ' card--nat' : ''}${flagCode ? ' card--flag' : ''}`} style={`--cat-color: ${theme ? theme.gradient : borderStyle}; --genere-shade: ${genereColor}; ${theme ? `--campionato-accent: ${theme.accent};` : ''} ${flagCode ? `--campionato-flag: url(https://flagcdn.com/w640/${flagCode}.png); --campionato-flag-opacity: ${flagOpacity};` : ''}`}>
   {flagCode && <div class="card-flag-bg" aria-hidden="true"></div>}
 
   <div class="card-top">
@@ -39,9 +45,12 @@ const genereColor = gara.genere === 'Femminile'
       ) : gara.wt ? (
         <span class="cat-badge wt-badge" style={`--badge-color: ${WT_COLOR}`}>World Tour</span>
       ) : (
-        categorie.map((cat) => (
-          <span class="cat-badge" data-cat={cat} style={`--badge-color: ${catColorMap[cat] ?? '#888'}`}>{formatCategoria(cat, gara.genere)}</span>
-        ))
+        <>
+          {isNat && <span class="cat-badge campionato-badge nat-badge">{NAT_LABEL}</span>}
+          {categorie.map((cat) => (
+            <span class="cat-badge" data-cat={cat} style={`--badge-color: ${catColorMap[cat] ?? '#888'}`}>{formatCategoria(cat, gara.genere)}</span>
+          ))}
+        </>
       )}
     </div>
     {isContenitore
@@ -89,14 +98,9 @@ const genereColor = gara.genere === 'Femminile'
         </div>
       )
     )}
-    {!isCampionato && (isCorsaATappe ? (gara.data_inizio || gara.data) : gara.data) && (
+    {range.start && (
       <div class="stat stat-date">
-        <span class="stat-v">
-          {isCorsaATappe && gara.data_fine && gara.data_fine !== gara.data_inizio
-            ? `${formatData(gara.data_inizio || gara.data)} – ${formatData(gara.data_fine)}`
-            : formatData(isCorsaATappe ? (gara.data_inizio || gara.data) : gara.data)
-          }
-        </span>
+        <span class="stat-v">{formatDateRange(range)}</span>
         <span class="stat-l">data</span>
       </div>
     )}
@@ -235,6 +239,7 @@ const genereColor = gara.genere === 'Femminile'
   .stat-v { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500; color: var(--text); }
   .stat-l { font-family: var(--font-mono); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); }
   .stat-date { margin-left: auto; align-items: flex-end; }
+  .stat-date .stat-v { white-space: nowrap; }
 
   .card-cta {
     font-family: var(--font-mono); font-size: 0.65rem;
@@ -263,6 +268,15 @@ const genereColor = gara.genere === 'Femminile'
   .card--campionato::before {
     height: 4px;
   }
+
+  /* ── NAT Champ (gara singola): bordo sinistro scuro, il resto resta da categoria ── */
+  .card--nat {
+    border-left: 2px solid var(--nat-accent, #1A1A1A);
+  }
+  /* Con NAT Champ + due categorie la riga badge è affollata: i badge vanno a capo tra loro,
+     la disciplina resta su una riga sola */
+  .card--nat .cat-badges { flex: 1; min-width: 0; }
+  .card--nat .disc-badge { white-space: nowrap; flex-shrink: 0; }
 
   .campionato-badge {
     font-family: var(--font-mono); font-size: 0.65rem;
