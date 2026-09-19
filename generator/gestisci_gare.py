@@ -30,6 +30,8 @@ from race_utils import (
     CATEGORIE,
     GENERI,
     DISCIPLINE,
+    LIVELLI_CAMPIONATO,
+    PAESI_BANDIERA,
     slugify,
     categoria_code,
     get_slug_suffix,
@@ -117,6 +119,83 @@ def gpx_is_referenced(target_slug: str, exclude_slugs: set | None = None) -> boo
     return False
 
 
+def resolve_gpx_slug(slug: str, max_depth: int = 8) -> str | None:
+    """Segue la catena di gpx_reference fino allo slug che ha DAVVERO un file GPX.
+
+    Serve perché un riferimento deve puntare sempre alla sorgente reale del
+    tracciato: se punta a una gara/tappa che a sua volta è solo un riferimento
+    (nessun file -gpx.json proprio) il viewer non trova nessun punto e il
+    percorso non si carica.
+    Ritorna None se la catena non porta a nessun file GPX.
+    """
+    seen: set[str] = set()
+    current = slug
+    while current and current not in seen and len(seen) < max_depth:
+        if (GPX_DIR / f"{current}-gpx.json").exists():
+            return current
+        seen.add(current)
+        details = GARE_DIR / f"{current}.json"
+        if not details.exists():
+            return None
+        try:
+            current = json.loads(details.read_text(encoding='utf-8')).get('gpx_reference')
+        except Exception as exc:
+            logger.warning("resolve_gpx_slug: impossibile leggere '%s': %s", details, exc)
+            return None
+    return None
+
+
+def get_reference_info(slug: str) -> dict:
+    """Legge da una gara/tappa esistente i dati che vanno ereditati quando se ne
+    riusa il GPX: numero di giri, km/dislivello totali e del singolo giro.
+
+    Per le tappe il numero di giri può mancare nel JSON della tappa (vive nell'array
+    'tappe' della corsa madre): in quel caso viene letto da lì.
+    """
+    info = {'giri': 1, 'distanza_km': None, 'dislivello_m': None, 'luogo': None,
+            'disciplina': None, '_base_km': None, '_base_elev': None}
+    details = GARE_DIR / f"{slug}.json"
+    if not details.exists():
+        return info
+    try:
+        d = json.loads(details.read_text(encoding='utf-8'))
+    except Exception as exc:
+        logger.warning("get_reference_info: impossibile leggere '%s': %s", details, exc)
+        return info
+
+    meta = {}
+    parent_slug = d.get('corsa_a_tappe_slug')
+    if parent_slug and (GARE_DIR / f"{parent_slug}.json").exists():
+        try:
+            parent = json.loads((GARE_DIR / f"{parent_slug}.json").read_text(encoding='utf-8'))
+            meta = next((t for t in parent.get('tappe', []) if t.get('slug') == slug), {})
+        except Exception as exc:
+            logger.warning("get_reference_info: impossibile leggere '%s': %s", parent_slug, exc)
+
+    def pick(key):
+        return d.get(key) if d.get(key) is not None else meta.get(key)
+
+    try:
+        giri = max(1, int(pick('giri') or 1))
+    except (ValueError, TypeError):
+        giri = 1
+    info.update({
+        'giri': giri,
+        'distanza_km': pick('distanza_km'),
+        'dislivello_m': pick('dislivello_m'),
+        'luogo': pick('luogo'),
+        'disciplina': pick('disciplina'),
+        '_base_km': pick('_base_km'),
+        '_base_elev': pick('_base_elev'),
+    })
+    # Metriche del singolo giro: se non salvate, si ricavano dal totale
+    if info['_base_km'] is None and info['distanza_km']:
+        info['_base_km'] = round(float(info['distanza_km']) / giri, 4)
+    if info['_base_elev'] is None and info['dislivello_m']:
+        info['_base_elev'] = round(float(info['dislivello_m']) / giri)
+    return info
+
+
 def save_race(slug: str, data: dict):
     """Salva i dettagli gara in gare-sorgenti/dettagli/ e, se presenti, i punti
     GPX in gare-sorgenti/gpx/{slug}-gpx.json. Sincronizza in public/.
@@ -171,19 +250,58 @@ def delete_race(slug: str):
     update_gares_index()
 
 
-def save_stage_race(race_slug: str, main_data: dict, stages: list):
-    """Salva una corsa a tappe con le sue tappe.
+def save_stage_race(race_slug: str, main_data: dict, stages: list, tipo: str = 'corsa_a_tappe', livello: str | None = None):
+    """Salva una corsa a tappe (o un campionato) con le sue tappe/prove.
     
-    - race_slug: slug della corsa principale
+    - race_slug: slug della corsa/campionato principale
     - main_data: dati principali (titolo, data, genere, categoria, luogo, ...)
-    - stages: lista di dict con i dati di ogni tappa:
-        {numero, nome, slug_tappa, data, distanza_km, dislivello_m, disciplina, gpx_points (opz.)}
+    - stages: lista di dict con i dati di ogni tappa/prova:
+        {numero, nome, slug_tappa, data, distanza_km, dislivello_m, disciplina, gpx_points (opz.),
+         genere (opz., solo campionati), categoria (opz., solo campionati)}
+    - tipo: 'corsa_a_tappe' (default) oppure 'campionato'
+    - livello: per i campionati, es. 'Mondiale' / 'Europeo' (vedi LIVELLI_CAMPIONATO)
     """
-    # Calcola totali dalle tappe
+    is_campionato = tipo == 'campionato'
+
+    # ── Normalizza i riferimenti GPX ─────────────────────────────────────────
+    # Un gpx_reference deve puntare sempre alla sorgente REALE del tracciato (uno
+    # slug con un proprio file -gpx.json), mai a una tappa/gara che a sua volta è
+    # solo un riferimento: nel viewer, in BMAP e nella pagina della corsa il
+    # percorso non si caricherebbe. Si risolve quindi la catena, tenendo conto
+    # sia dello stato in memoria di questa corsa (non ancora scritto su disco)
+    # sia di quello su disco.
+    _mem_own_gpx = {x['slug_tappa'] for x in stages if x.get('gpx_points') and not x.get('gpx_reference')}
+    _mem_refs    = {x['slug_tappa']: x.get('gpx_reference') for x in stages if x.get('gpx_reference')}
+
+    def _resolve_ref(ref):
+        seen = set()
+        while ref and ref not in seen:
+            if ref in _mem_own_gpx:
+                return ref
+            seen.add(ref)
+            if ref in _mem_refs:
+                ref = _mem_refs[ref]
+                continue
+            return resolve_gpx_slug(ref) or ref
+        return ref
+
+    for s in stages:
+        ref = s.get('gpx_reference')
+        if ref:
+            ref = _resolve_ref(ref)
+            # Riferimento a se stessa: la tappa ha già il proprio GPX
+            s['gpx_reference'] = None if ref == s['slug_tappa'] else ref
+
+    stage_slugs_all = {x['slug_tappa'] for x in stages}
+    refs_in_use     = {x.get('gpx_reference') for x in stages if x.get('gpx_reference')}
+
+    # Totali km/dislivello: per le corse a tappe è il percorso complessivo,
+    # per i campionati è una somma puramente statistica (le prove restano gare
+    # indipendenti, ma sapere quanti km "in totale" si sono disegnati è utile).
     total_km  = sum(float(s.get('distanza_km') or 0) for s in stages)
     total_elev = sum(float(s.get('dislivello_m') or 0) for s in stages)
 
-    # Array tappe (solo metadata per il JSON principale)
+    # Array tappe/prove (solo metadata per il JSON principale)
     tappe_meta = []
     for s in stages:
         tappa_meta = {
@@ -197,13 +315,19 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list):
             "giri":         s.get('giri', 1) if s.get('giri', 1) > 1 else None,
             "gpx_reference": s.get('gpx_reference') or None,
         }
+        if is_campionato:
+            tappa_meta['genere']    = s.get('genere') or None
+            tappa_meta['categoria'] = s.get('categoria') or None
+            tappa_meta['luogo']     = s.get('luogo') or None
         if s.get('disciplina') == 'Tipo pista':
             tappa_meta['_base_km'] = s.get('_base_km')
             tappa_meta['_base_elev'] = s.get('_base_elev')
         tappe_meta.append({k: v for k, v in tappa_meta.items() if v is not None})
 
     # Aggiorna i campi del main_data
-    main_data['tipo']         = 'corsa_a_tappe'
+    main_data['tipo']         = tipo
+    if is_campionato:
+        main_data['livello']  = livello
     main_data['n_tappe']      = len(stages)
     main_data['distanza_km']  = round(total_km, 2) if total_km else None
     main_data['dislivello_m'] = round(total_elev)  if total_elev else None
@@ -222,11 +346,16 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list):
     PUBLIC_GARE_DIR.mkdir(parents=True, exist_ok=True)
     (PUBLIC_GARE_DIR / f"{race_slug}.json").write_text(main_str, encoding='utf-8')
 
-    # Salva ogni tappa come JSON separato + GPX se disponibile
+    # Salva ogni tappa/prova come JSON separato + GPX se disponibile
     for s in stages:
         stage_slug = s['slug_tappa']
+        # Per i campionati, genere/categoria sono quelli della singola prova
+        # (diversi da prova a prova); per le corse a tappe si eredita dalla corsa
+        stage_genere    = (s.get('genere') or main_data.get('genere', '')) if is_campionato else main_data.get('genere', '')
+        stage_categoria = ([s.get('categoria')] if is_campionato and s.get('categoria') else main_data.get('categoria', []))
+        nome_label = f"Prova {s['numero']}: {s['nome']}" if is_campionato else f"Tappa {s['numero']}: {s['nome']}"
         stage_data = {
-            "titolo":               f"{main_data['titolo']} — Tappa {s['numero']}: {s['nome']}",
+            "titolo":               f"{main_data['titolo']} — {nome_label}",
             "tipo":                 "tappa",
             "nome_tappa":           s['nome'],
             "numero_tappa":         s['numero'],
@@ -234,14 +363,17 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list):
             "corsa_a_tappe_titolo": main_data['titolo'],
             "race_series":          main_data.get('race_series', ''),
             "data":                 s.get('data', ''),
-            "genere":               main_data.get('genere', ''),
-            "categoria":            main_data.get('categoria', []),
+            "genere":               stage_genere,
+            "categoria":            stage_categoria,
             "disciplina":           s.get('disciplina', 'Strada'),
             "distanza_km":          s.get('distanza_km'),
             "dislivello_m":         s.get('dislivello_m'),
             "velocita_media_kmh":   s.get('velocita_media_kmh'),
             "luogo":                s.get('luogo') or main_data.get('luogo'),
             "slug":                 stage_slug,
+            # Il viewer (gara.html) legge i giri dal JSON della tappa: senza questo
+            # campo una tappa a più giri veniva mostrata come "1 giro".
+            "giri":                 s.get('giri', 1) if s.get('giri', 1) > 1 else None,
         }
         gpx_reference = s.get('gpx_reference')
         if gpx_reference:
@@ -262,12 +394,22 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list):
 
         gpx_points = s.get('gpx_points')
         if gpx_reference:
-            for p in [
-                GPX_DIR / f"{stage_slug}-gpx.json",
-                PUBLIC_GPX_DIR / f"{stage_slug}-gpx.json",
-            ]:
-                if p.exists():
-                    p.unlink()
+            # La tappa ora usa il GPX di un'altra: il suo file proprio si elimina
+            # SOLO se nessun altro lo sta usando come sorgente (altre tappe di
+            # questa corsa, oppure gare/tappe di altre corse). Prima veniva
+            # cancellato sempre e i riferimenti che puntavano qui restavano
+            # orfani → percorso non caricato.
+            still_needed = (
+                stage_slug in refs_in_use
+                or gpx_is_referenced(stage_slug, exclude_slugs=stage_slugs_all | {race_slug})
+            )
+            if not still_needed:
+                for p in [
+                    GPX_DIR / f"{stage_slug}-gpx.json",
+                    PUBLIC_GPX_DIR / f"{stage_slug}-gpx.json",
+                ]:
+                    if p.exists():
+                        p.unlink()
         elif gpx_points:
             gpx_data = {"slug": stage_slug, "gpx_points": gpx_points}
             gpx_str  = json.dumps(gpx_data, ensure_ascii=False, indent=2)
@@ -519,6 +661,10 @@ class RaceManagerApp:
               bg="#059669", fg="white", padx=12, pady=8, relief="flat", bd=0,
               cursor="hand2", command=self.add_stage_race).pack(side="left", padx=(0, 6))
 
+        tk.Button(button_frame, text="🏆 Aggiungi Campionato", font=("Helvetica", 10),
+              bg="#7c3aed", fg="white", padx=12, pady=8, relief="flat", bd=0,
+              cursor="hand2", command=self.add_campionato).pack(side="left", padx=(0, 6))
+
         tk.Button(button_frame, text="✏️ Modifica", font=("Helvetica", 10),
               bg="#9ca3af", fg="white", padx=12, pady=8, relief="flat", bd=0,
               cursor="hand2", command=self.edit_race).pack(side="left", padx=6)
@@ -630,11 +776,14 @@ class RaceManagerApp:
             km = data.get('distanza_km', '—')
             dislivello = data.get('dislivello_m', '—')
             
-            if tipo == 'corsa_a_tappe':
+            if tipo == 'corsa_a_tappe' or tipo == 'campionato':
                 n_tappe = data.get('n_tappe', '?')
                 is_expanded = slug in self.expanded_stages
                 expand_sym = '▼' if is_expanded else '▶'
-                prefix = f'{expand_sym} [⛰ {n_tappe}T]'
+                label_t = 'P' if tipo == 'campionato' else 'T'
+                liv = data.get('livello', '')
+                liv_tag = f' {liv[:3].upper()}' if liv else ''
+                prefix = f'{expand_sym} [⛰ {n_tappe}{label_t}{liv_tag}]'
             else:
                 prefix = '[  ]'
             
@@ -644,8 +793,8 @@ class RaceManagerApp:
             self.listbox_index_map[current_index] = slug  # Mappa indice -> slug gara
             current_index += 1
             
-            # Se la corsa a tappe è expanded, mostra le tappe indentate
-            if tipo == 'corsa_a_tappe' and slug in self.expanded_stages:
+            # Se la corsa a tappe/campionato è expanded, mostra le tappe/prove indentate
+            if (tipo == 'corsa_a_tappe' or tipo == 'campionato') and slug in self.expanded_stages:
                 for tappa in data.get('tappe', []):
                     t_numero = tappa.get('numero', '?')
                     t_nome = tappa.get('nome', '—')
@@ -708,7 +857,7 @@ class RaceManagerApp:
         tipo = data.get('tipo', '')
         
         # Mostra i dettagli della gara selezionata nel pannello info
-        if tipo == 'corsa_a_tappe':
+        if tipo == 'corsa_a_tappe' or tipo == 'campionato':
             tappe_info = ""
             for t in data.get('tappe', []):
                 gpx_exists = (GPX_DIR / f"{t.get('slug', '')}-gpx.json").exists()
@@ -789,10 +938,10 @@ GPX FILE:     {gpx_info}"""
         if not slug:
             return
         
-        # Verifica che sia una corsa a tappe (non una tappa singola)
+        # Verifica che sia una corsa a tappe o un campionato (non una tappa singola)
         data = None
         for s, d in self.filtered_races:
-            if s == slug and d.get('tipo') == 'corsa_a_tappe':
+            if s == slug and d.get('tipo') in ('corsa_a_tappe', 'campionato'):
                 data = d
                 break
         
@@ -993,19 +1142,14 @@ GPX FILE:     {gpx_info}"""
             actual_idx = displayed_indices[displayed_idx]
             gpx_slug, titolo_ref, data_gara = existing_races[actual_idx]
 
-            # Carica info dai dettagli se disponibili
-            ref_distanza = None
-            ref_dislivello = None
-            ref_luogo = None
-            details_file = GARE_DIR / f"{gpx_slug}.json"
-            if details_file.exists():
-                try:
-                    d = json.loads(details_file.read_text(encoding='utf-8'))
-                    ref_distanza  = d.get('distanza_km')
-                    ref_dislivello = d.get('dislivello_m')
-                    ref_luogo     = d.get('luogo')
-                except Exception as exc:
-                    logger.warning("on_select (GPX ref): impossibile leggere '%s': %s", details_file, exc)
+            # Il riferimento punta sempre alla sorgente reale del tracciato
+            gpx_slug = resolve_gpx_slug(gpx_slug) or gpx_slug
+
+            # Eredita dalla gara scelta giri, km e dislivello. Prima si metteva
+            # giri=1 con i km TOTALI della gara di riferimento: un GPX di 1 giro
+            # richiamato da una gara a 9 giri appariva come "1 giro = gara completa"
+            # (e alzando i giri i km venivano moltiplicati due volte).
+            ref = get_reference_info(gpx_slug)
 
             # Crea nuova gara con riferimento GPX
             new_data = {
@@ -1014,13 +1158,20 @@ GPX FILE:     {gpx_info}"""
                 'genere':       'Femminile',
                 'categoria':    ['Junior'],
                 'disciplina':   'Strada',
-                'giri':         1,
+                'giri':         ref['giri'],
                 'gpx_reference': gpx_slug,
-                'distanza_km':  ref_distanza,
-                'dislivello_m': ref_dislivello,
+                'distanza_km':  ref['distanza_km'],
+                'dislivello_m': ref['dislivello_m'],
             }
-            if ref_luogo:
-                new_data['luogo'] = ref_luogo
+            if ref.get('disciplina') == 'Tipo pista':
+                # Tipo pista: km/dislivello non si conteggiano, restano le metriche del singolo giro
+                new_data['disciplina']   = 'Tipo pista'
+                new_data['distanza_km']  = None
+                new_data['dislivello_m'] = None
+                new_data['_base_km']     = ref['_base_km']
+                new_data['_base_elev']   = ref['_base_elev']
+            if ref.get('luogo'):
+                new_data['luogo'] = ref['luogo']
 
             select_win.destroy()
             self.open_add_race_form(new_data, is_new=True)
@@ -1153,9 +1304,9 @@ GPX FILE:     {gpx_info}"""
         data = initial_data.copy()
         
         # Calcolo valori raw (per singolo giro)
-        giri_iniziali = max(1, int(data.get('giri', 1)))
-        km_iniziale = float(data.get('distanza_km', 0)) or 0
-        dislivello_iniziale = float(data.get('dislivello_m', 0)) or 0
+        giri_iniziali = max(1, int(data.get('giri') or 1))
+        km_iniziale = float(data.get('distanza_km') or 0)          # 'or 0': il valore può essere None (Tipo pista)
+        dislivello_iniziale = float(data.get('dislivello_m') or 0)
         km_raw = km_iniziale / giri_iniziali if giri_iniziali > 0 else 0
         dislivello_raw = dislivello_iniziale / giri_iniziali if giri_iniziali > 0 else 0
         if data.get('disciplina') == 'Tipo pista':
@@ -1778,12 +1929,30 @@ GPX FILE:     {gpx_info}"""
     
     def add_stage_race(self):
         """Apre il form per creare una nuova corsa a tappe"""
-        self.open_stage_race_form(initial_data=None, is_new=True)
+        self.open_stage_race_form(initial_data=None, is_new=True, tipo_evento='corsa_a_tappe')
 
-    def open_stage_race_form(self, initial_data: dict = None, is_new: bool = True):
-        """Form completo per creare/modificare una corsa a tappe"""
+    def add_campionato(self):
+        """Apre il form per creare un nuovo campionato (Mondiale/Europeo/...)"""
+        self.open_stage_race_form(initial_data=None, is_new=True, tipo_evento='campionato')
+
+    def open_stage_race_form(self, initial_data: dict = None, is_new: bool = True, tipo_evento: str = None):
+        """Form completo per creare/modificare una corsa a tappe o un campionato.
+
+        tipo_evento: 'corsa_a_tappe' o 'campionato'. Se non passato, viene dedotto
+        da initial_data['tipo'] (utile per apertura in modifica), con fallback
+        a 'corsa_a_tappe'. Determina in modo FISSO quali campi mostrare — non è
+        più un dropdown modificabile a form aperto: una corsa a tappe e un
+        campionato sono entità diverse fin dal bottone con cui si crea la gara.
+        """
+        if tipo_evento is None:
+            tipo_evento = (initial_data or {}).get('tipo') or 'corsa_a_tappe'
+        if tipo_evento not in ('corsa_a_tappe', 'campionato'):
+            tipo_evento = 'corsa_a_tappe'
+        is_campionato = tipo_evento == 'campionato'
+
         win = tk.Toplevel(self.root)
-        win.title("Nuova corsa a tappe" if is_new else f"Modifica: {(initial_data or {}).get('titolo', '')}")
+        titolo_finestra = "Nuovo campionato" if is_campionato else "Nuova corsa a tappe"
+        win.title(titolo_finestra if is_new else f"Modifica: {(initial_data or {}).get('titolo', '')}")
         win.configure(bg=BG)
 
         # ── dati interni ───────────────────────────────────────────────────
@@ -1807,9 +1976,19 @@ GPX FILE:     {gpx_info}"""
                 
                 gpx_reference = None
                 if duplicate_mode and stage_slug:
-                    gpx_reference = stage_slug
+                    # Il duplicato riusa il tracciato dell'originale. Se la tappa
+                    # originale è a sua volta solo un riferimento (nessun GPX proprio)
+                    # bisogna puntare alla SUA sorgente, non alla tappa: altrimenti
+                    # nasce un riferimento a un file che non esiste e il percorso
+                    # non si carica.
+                    gpx_reference = resolve_gpx_slug(stage_slug)
                 else:
                     gpx_reference = tappa_completa.get('gpx_reference') or t.get('gpx_reference')
+                    if gpx_reference:
+                        # Auto-riparazione di riferimenti già "a catena"
+                        gpx_reference = resolve_gpx_slug(gpx_reference) or gpx_reference
+                        if gpx_reference == stage_slug:
+                            gpx_reference = None
 
                 # ricarica i gpx_points dal file, se esiste e non e' un riferimento
                 gpx_pts = None
@@ -1833,6 +2012,14 @@ GPX FILE:     {gpx_info}"""
                     _base_km   = round(_km / _giri, 4) if _km else None
                     _base_elev = round(_elev / _giri) if _elev else None
                 
+                cat_raw = t.get('categoria')
+                if cat_raw is None:
+                    cat_raw = tappa_completa.get('categoria')
+                if isinstance(cat_raw, list):
+                    categoria_prova = cat_raw[0] if cat_raw else None
+                else:
+                    categoria_prova = cat_raw or None
+
                 stages.append({
                     'numero':       t.get('numero', len(stages) + 1),
                     'nome':         t.get('nome', ''),
@@ -1848,7 +2035,15 @@ GPX FILE:     {gpx_info}"""
                     'gpx_reference': gpx_reference,
                     '_base_km':     _base_km,
                     '_base_elev':   _base_elev,
+                    'genere':       t.get('genere') or tappa_completa.get('genere'),
+                    'categoria':    categoria_prova,
                 })
+
+        if is_campionato and stages:
+            # Le prove di un campionato si mostrano sempre in ordine cronologico
+            stages.sort(key=lambda s: s.get('data') or '9999-99-99')
+            for _i, _s in enumerate(stages):
+                _s['numero'] = _i + 1
 
         selected_stage = [None]  # indice tappa selezionata
         orphaned_stage_slugs: set[str] = set()  # slug di tappe da eliminare dal disco al salvataggio
@@ -2105,45 +2300,105 @@ GPX FILE:     {gpx_info}"""
             race_entries[key] = var
             return var
 
-        _race_field(race_frame, 0, 'titolo',     "Titolo corsa")
-        _race_date_field(race_frame, 1, 'data_inizio', "Data inizio",
-                         data.get('data_inizio') or data.get('data') or date.today().isoformat())
-        _race_date_field(race_frame, 2, 'data_fine',   "Data fine",
-                         data.get('data_fine') or '')
-        _race_field(race_frame, 3, 'luogo',       "Luogo")
+        _race_field(race_frame, 0, 'titolo', "Titolo corsa" if not is_campionato else "Titolo campionato")
 
-        # Genere combo
-        tk.Label(race_frame, text="Genere", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
-            row=4, column=0, sticky="w", padx=(0, 8), pady=4)
-        genere_var = tk.StringVar(value=data.get('genere', 'Femminile'))
-        tk.OptionMenu(race_frame, genere_var, *GENERI).grid(row=4, column=1, sticky="ew", pady=4)
-        race_entries['genere'] = genere_var
+        if not is_campionato:
+            _race_date_field(race_frame, 1, 'data_inizio', "Data inizio",
+                             data.get('data_inizio') or data.get('data') or date.today().isoformat())
+            _race_date_field(race_frame, 2, 'data_fine',   "Data fine",
+                             data.get('data_fine') or '')
+            _race_field(race_frame, 3, 'luogo',       "Luogo")
 
-        # Categoria checkboxes
-        tk.Label(race_frame, text="Categorie", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
-            row=5, column=0, sticky="w", padx=(0, 8), pady=4)
-        cat_frame = tk.Frame(race_frame, bg=BG)
-        cat_frame.grid(row=5, column=1, sticky="ew", pady=4)
-        current_cats = data.get('categoria', ['Junior'])
-        if isinstance(current_cats, str):
-            current_cats = [current_cats]
-        cat_vars: dict[str, tk.BooleanVar] = {}
-        for cat in CATEGORIE:
-            v = tk.BooleanVar(value=cat in current_cats)
-            tk.Checkbutton(cat_frame, text=cat, variable=v, bg=BG,
-                           font=("Helvetica", 9)).pack(side="left", padx=(0, 10))
-            cat_vars[cat] = v
-        race_entries['categoria'] = cat_vars
+            # Genere combo
+            tk.Label(race_frame, text="Genere", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+                row=4, column=0, sticky="w", padx=(0, 8), pady=4)
+            genere_var = tk.StringVar(value=data.get('genere', 'Femminile'))
+            tk.OptionMenu(race_frame, genere_var, *GENERI).grid(row=4, column=1, sticky="ew", pady=4)
+            race_entries['genere'] = genere_var
 
-        # World Tour (WT)
-        tk.Label(race_frame, text="World Tour (WT)", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
-            row=6, column=0, sticky="w", padx=(0, 8), pady=4)
-        wt_var = tk.BooleanVar(value=bool(data.get('wt', False)))
-        tk.Checkbutton(race_frame, text="Corsa di categoria WT", variable=wt_var, bg=BG,
-                       font=("Helvetica", 9)).grid(row=6, column=1, sticky="w", pady=4)
-        race_entries['wt'] = wt_var
+            # Categoria checkboxes
+            tk.Label(race_frame, text="Categorie", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+                row=5, column=0, sticky="w", padx=(0, 8), pady=4)
+            cat_frame = tk.Frame(race_frame, bg=BG)
+            cat_frame.grid(row=5, column=1, sticky="ew", pady=4)
+            current_cats = data.get('categoria', ['Junior'])
+            if isinstance(current_cats, str):
+                current_cats = [current_cats]
+            cat_vars: dict[str, tk.BooleanVar] = {}
+            for cat in CATEGORIE:
+                v = tk.BooleanVar(value=cat in current_cats)
+                tk.Checkbutton(cat_frame, text=cat, variable=v, bg=BG,
+                               font=("Helvetica", 9)).pack(side="left", padx=(0, 10))
+                cat_vars[cat] = v
+            race_entries['categoria'] = cat_vars
 
-        # Serie
+            # World Tour (WT) — concetto non applicabile ai campionati
+            tk.Label(race_frame, text="World Tour (WT)", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+                row=6, column=0, sticky="w", padx=(0, 8), pady=4)
+            wt_var = tk.BooleanVar(value=bool(data.get('wt', False)))
+            tk.Checkbutton(race_frame, text="Corsa di categoria WT", variable=wt_var, bg=BG,
+                           font=("Helvetica", 9)).grid(row=6, column=1, sticky="w", pady=4)
+            race_entries['wt'] = wt_var
+            livello_var = tk.StringVar(value='')  # non usato fuori dai campionati
+        else:
+            # Un campionato NON ha un range di date unico (le prove — Strada,
+            # ITT, staffetta mista/cronosquadre — possono cadere anche a mesi
+            # di distanza, specie nei campionati nazionali), né un luogo unico,
+            # né un genere/categoria unico: quello si imposta per ogni singola
+            # prova nel pannello sotto. Qui c'è solo il Livello del campionato.
+            tk.Label(race_frame, text="Livello", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+                row=1, column=0, sticky="w", padx=(0, 8), pady=4)
+            livello_var = tk.StringVar(value=data.get('livello') or LIVELLI_CAMPIONATO[0])
+            tk.OptionMenu(race_frame, livello_var, *LIVELLI_CAMPIONATO).grid(row=1, column=1, sticky="ew", pady=4)
+            race_entries['livello'] = livello_var
+
+            # Località ospitante — opzionale, generale per tutto il campionato
+            # (es. "Montreal, Canada"): le singole prove possono comunque avere
+            # un proprio luogo diverso, che ha la precedenza se impostato.
+            tk.Label(race_frame, text="Località ospitante", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+                row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+            luogo_campionato_var = tk.StringVar(value=data.get('luogo') or '')
+            tk.Entry(race_frame, textvariable=luogo_campionato_var, font=("Helvetica", 10),
+                     relief="solid", bd=1).grid(row=2, column=1, sticky="ew", pady=4)
+            race_entries['luogo'] = luogo_campionato_var
+
+            # Paese (per la bandiera di sfondo) — selezionato da un elenco
+            # chiuso apposta: un campo libero come "Località" non garantisce
+            # di riconoscere il paese in modo affidabile (refusi, sigle,
+            # lingue diverse...), un selettore sì.
+            tk.Label(race_frame, text="Paese (bandiera)", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+                row=3, column=0, sticky="w", padx=(0, 8), pady=4)
+            NESSUN_PAESE = "— nessuna bandiera —"
+            paesi_options = [NESSUN_PAESE] + sorted(PAESI_BANDIERA.keys())
+            paese_iniziale = NESSUN_PAESE
+            codice_esistente = data.get('paese')
+            if codice_esistente:
+                for nome, cod in PAESI_BANDIERA.items():
+                    if cod == codice_esistente:
+                        paese_iniziale = nome
+                        break
+            paese_var = tk.StringVar(value=paese_iniziale)
+            tk.OptionMenu(race_frame, paese_var, *paesi_options).grid(row=3, column=1, sticky="ew", pady=4)
+            race_entries['paese'] = paese_var
+
+            tk.Label(
+                race_frame,
+                text="Data, genere, categoria e disciplina si impostano per ogni\nsingola prova nel pannello qui sotto (non a livello di campionato).",
+                font=("Helvetica", 8), bg=BG, fg="#7a746b", justify="left"
+            ).grid(row=4, column=0, columnspan=2, sticky="w", padx=(0, 8), pady=(0, 4))
+
+            # Variabili "ombra" non mostrate: mantengono compatibile il resto del
+            # form (validazioni, bound del calendario tappe) senza vincoli che
+            # per un campionato non hanno senso (nessun range/genere unico).
+            race_entries['data_inizio'] = tk.StringVar(value='')
+            race_entries['data_fine']   = tk.StringVar(value='')
+            race_entries['genere']      = tk.StringVar(value='')
+            wt_var = tk.BooleanVar(value=False)
+            race_entries['wt'] = wt_var
+            cat_vars: dict[str, tk.BooleanVar] = {c: tk.BooleanVar(value=False) for c in CATEGORIE}
+            race_entries['categoria'] = cat_vars
+
+        # Serie (raggruppa edizioni dello stesso evento negli anni, es. "Mondiali")
         _race_field(race_frame, 7, 'race_series', "Serie")
 
         # Slug (auto-generato)
@@ -2160,8 +2415,23 @@ GPX FILE:     {gpx_info}"""
             if slug_manual[0]:
                 return
             titolo = race_entries['titolo'].get().strip()
+
+            if is_campionato:
+                data_s = date.today().isoformat()
+                year = data_s.split('-')[0]
+                livello_code = {'Mondiale': 'mondiale', 'Europeo': 'europeo'}.get(livello_var.get(), slugify(livello_var.get()))
+                if titolo:
+                    new_slug = slugify(titolo) + f"-{year}"
+                    if livello_code and livello_code not in new_slug:
+                        new_slug += f"-{livello_code}"
+                else:
+                    new_slug = ""
+                slug_var.set(new_slug)
+                _refresh_stage_slugs()
+                return
+
             data_s = race_entries['data_inizio'].get().strip()
-            year = data_s.split('-')[0] if len(data_s) >= 4 else "2026"
+            year = data_s.split('-')[0] if len(data_s) >= 4 else str(date.today().year)
             genere = race_entries['genere'].get()
             is_wt = wt_var.get()
             cats = [c for c, v in cat_vars.items() if v.get()]
@@ -2188,15 +2458,18 @@ GPX FILE:     {gpx_info}"""
             _refresh_stage_slugs()
 
         race_entries['titolo'].trace_add("write", _auto_slug)
-        race_entries['data_inizio'].trace_add("write", _auto_slug)
-        genere_var.trace_add("write", _auto_slug)
-        wt_var.trace_add("write", _auto_slug)
-        for v in cat_vars.values():
-            v.trace_add("write", _auto_slug)
+        if is_campionato:
+            livello_var.trace_add("write", _auto_slug)
+        else:
+            race_entries['data_inizio'].trace_add("write", _auto_slug)
+            race_entries['genere'].trace_add("write", _auto_slug)
+            wt_var.trace_add("write", _auto_slug)
+            for v in cat_vars.values():
+                v.trace_add("write", _auto_slug)
         slug_entry.bind("<KeyPress>", lambda e: slug_manual.__setitem__(0, True))
 
         # ── Sezione 2: Tappe ───────────────────────────────────────────────
-        stages_outer = tk.LabelFrame(scroll_frame, text="Tappe",
+        stages_outer = tk.LabelFrame(scroll_frame, text=("Prove" if is_campionato else "Tappe"),
                                      bg=BG, fg=FG, font=("Helvetica", 10, "bold"),
                                      padx=10, pady=8)
         stages_outer.pack(fill="both", expand=True, padx=14, pady=(0, 8))
@@ -2220,10 +2493,10 @@ GPX FILE:     {gpx_info}"""
 
         btns_l = tk.Frame(left_pane, bg=BG)
         btns_l.pack(fill="x", pady=(6, 0))
-        tk.Button(btns_l, text="+ Aggiungi Tappa", font=("Helvetica", 8), bg="#059669",
+        tk.Button(btns_l, text=("+ Aggiungi Prova" if is_campionato else "+ Aggiungi Tappa"), font=("Helvetica", 8), bg="#059669",
                   fg="white", relief="flat", bd=0, cursor="hand2",
                   command=lambda: _add_stage()).pack(fill="x", pady=(0, 3))
-        tk.Button(btns_l, text="− Rimuovi Tappa", font=("Helvetica", 8), bg="#dc2626",
+        tk.Button(btns_l, text=("− Rimuovi Prova" if is_campionato else "− Rimuovi Tappa"), font=("Helvetica", 8), bg="#dc2626",
                   fg="white", relief="flat", bd=0, cursor="hand2",
                   command=lambda: _remove_stage()).pack(fill="x")
 
@@ -2231,7 +2504,7 @@ GPX FILE:     {gpx_info}"""
         right_pane = tk.Frame(stages_pane, bg=BG)
         right_pane.pack(side="left", fill="both", expand=True)
 
-        detail_lf = tk.LabelFrame(right_pane, text="Dettaglio tappa selezionata",
+        detail_lf = tk.LabelFrame(right_pane, text=("Dettaglio prova selezionata" if is_campionato else "Dettaglio tappa selezionata"),
                                    bg=BG, fg=FG, font=("Helvetica", 9, "bold"),
                                    padx=8, pady=6)
         detail_lf.pack(fill="both", expand=True)
@@ -2273,15 +2546,17 @@ GPX FILE:     {gpx_info}"""
             stage_entries[key] = var
             return var
 
-        # Numero tappa (editabile per riordinare)
-        tk.Label(detail_lf, text="Numero tappa", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
-            row=0, column=0, sticky="w", padx=(0, 6), pady=3)
+        # Numero tappa (editabile per riordinare) — per i campionati non esiste:
+        # le prove si ordinano automaticamente per data
         numero_tappa_var = tk.IntVar(value=1)
-        tk.Spinbox(detail_lf, from_=1, to=99, textvariable=numero_tappa_var,
-                   font=("Helvetica", 9), width=6).grid(row=0, column=1, sticky="w", pady=3)
+        if not is_campionato:
+            tk.Label(detail_lf, text="Numero tappa", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+                row=0, column=0, sticky="w", padx=(0, 6), pady=3)
+            tk.Spinbox(detail_lf, from_=1, to=99, textvariable=numero_tappa_var,
+                       font=("Helvetica", 9), width=6).grid(row=0, column=1, sticky="w", pady=3)
         stage_entries['numero'] = numero_tappa_var
         
-        _make_detail_field(detail_lf, 1, 'nome',         "Nome Tappa")
+        _make_detail_field(detail_lf, 1, 'nome',         "Nome Prova" if is_campionato else "Nome Tappa")
         _make_detail_date_field(detail_lf, 2, 'data',    "Data")
         _make_detail_field(detail_lf, 3, 'distanza_km',  "Distanza (km)")
         _make_detail_field(detail_lf, 4, 'dislivello_m', "Dislivello (m)")
@@ -2429,11 +2704,25 @@ GPX FILE:     {gpx_info}"""
 
         stage_entries['luogo'] = luogo_stage_var
 
+        # Genere e Categoria della singola prova (rilevanti solo per i Campionati:
+        # in una corsa a tappe normale restano vuoti ed ereditano quelli della corsa)
+        tk.Label(detail_lf, text="Genere prova", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=9, column=0, sticky="w", padx=(0, 6), pady=3)
+        genere_stage_var = tk.StringVar(value="")
+        tk.OptionMenu(detail_lf, genere_stage_var, "", *GENERI).grid(row=9, column=1, sticky="ew", pady=3)
+        stage_entries['genere'] = genere_stage_var
+
+        tk.Label(detail_lf, text="Categoria prova", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
+            row=10, column=0, sticky="w", padx=(0, 6), pady=3)
+        categoria_stage_var = tk.StringVar(value="")
+        tk.OptionMenu(detail_lf, categoria_stage_var, "", *CATEGORIE).grid(row=10, column=1, sticky="ew", pady=3)
+        stage_entries['categoria'] = categoria_stage_var
+
         # Riga slug tappa con bottone rigenerazione
         tk.Label(detail_lf, text="Slug tappa", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
-            row=9, column=0, sticky="w", padx=(0, 6), pady=3)
+            row=11, column=0, sticky="w", padx=(0, 6), pady=3)
         slug_frame = tk.Frame(detail_lf, bg=BG)
-        slug_frame.grid(row=9, column=1, sticky="ew", pady=3)
+        slug_frame.grid(row=11, column=1, sticky="ew", pady=3)
         slug_frame.columnconfigure(0, weight=1)
         
         slug_t_var = tk.StringVar()
@@ -2443,17 +2732,24 @@ GPX FILE:     {gpx_info}"""
         slug_t_entry.grid(row=0, column=0, sticky="ew")
         
         def _regenerate_stage_slug():
-            """Rigenerazione dello slug della tappa basato su numero e dati principali"""
-            try:
-                num = int(numero_tappa_var.get())
-            except (ValueError, TypeError):
-                num = selected_stage[0] + 1 if selected_stage[0] is not None else 1
-            novo_slug = _stage_auto_slug(num)
-            slug_t_var.set(novo_slug)
-            # Aggiorna anche nel dict stages
+            """Rigenerazione dello slug della tappa/prova in base ai dati correnti nel pannello"""
             idx = selected_stage[0]
-            if idx is not None:
-                stages[idx]['slug_tappa'] = novo_slug
+            if idx is None:
+                return
+            # Costruisce un dict "provvisorio" con i valori attuali dei widget
+            # (senza toccare numero/ordine, gestiti altrove) per calcolare lo slug
+            temp_stage = dict(stages[idx])
+            temp_stage['genere']     = stage_entries['genere'].get().strip() or None
+            temp_stage['categoria']  = stage_entries['categoria'].get().strip() or None
+            temp_stage['disciplina'] = stage_entries['disciplina'].get()
+            if not is_campionato:
+                try:
+                    temp_stage['numero'] = int(numero_tappa_var.get())
+                except (ValueError, TypeError):
+                    temp_stage['numero'] = idx + 1
+            novo_slug = _stage_auto_slug(temp_stage)
+            slug_t_var.set(novo_slug)
+            stages[idx]['slug_tappa'] = novo_slug
         
         tk.Button(slug_frame, text="🔄", font=("Helvetica", 10), bg=BG, fg=FG,
                   relief="flat", bd=0, cursor="hand2",
@@ -2463,14 +2759,14 @@ GPX FILE:     {gpx_info}"""
 
         # Stato GPX
         tk.Label(detail_lf, text="GPX", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
-            row=10, column=0, sticky="w", padx=(0, 6), pady=3)
+            row=12, column=0, sticky="w", padx=(0, 6), pady=3)
         gpx_status_var = tk.StringVar(value="Nessun GPX caricato")
         gpx_status_lbl = tk.Label(detail_lf, textvariable=gpx_status_var,
                                    font=("Helvetica", 9), bg=BG, fg="#7a746b")
-        gpx_status_lbl.grid(row=10, column=1, sticky="w", pady=3)
+        gpx_status_lbl.grid(row=12, column=1, sticky="w", pady=3)
 
         gpx_btn_frame = tk.Frame(detail_lf, bg=BG)
-        gpx_btn_frame.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(4, 0))
+        gpx_btn_frame.grid(row=13, column=0, columnspan=2, sticky="ew", pady=(4, 0))
 
         def _load_gpx_for_stage():
             idx = selected_stage[0]
@@ -2619,11 +2915,38 @@ GPX FILE:     {gpx_info}"""
                     messagebox.showwarning("Attenzione", "Seleziona una gara prima", parent=ref_win)
                     return
                 chosen_slug, chosen_titolo, _ = existing_races[displayed_ref_indices[sel[0]]]
+                # Il riferimento punta sempre alla sorgente reale del tracciato
+                chosen_slug = resolve_gpx_slug(chosen_slug) or chosen_slug
+                # Eredita dalla gara/tappa scelta giri, km e dislivello: prima si
+                # azzeravano _base_km/_base_elev e il numero di giri restava a 1,
+                # così un tracciato "1 giro" salvato come "9 giri" veniva mostrato
+                # come 1 giro = gara completa.
+                ref_info = get_reference_info(chosen_slug)
                 # Applica il riferimento alla tappa corrente
                 stages[idx]['gpx_reference'] = chosen_slug
                 stages[idx]['gpx_points']    = None
-                stages[idx].pop('_base_km',   None)
-                stages[idx].pop('_base_elev', None)
+                stages[idx]['giri']          = ref_info['giri']
+                stages[idx]['_base_km']      = ref_info['_base_km']
+                stages[idx]['_base_elev']    = ref_info['_base_elev']
+                if not stages[idx].get('luogo') and ref_info.get('luogo'):
+                    stages[idx]['luogo'] = ref_info['luogo']
+                    luogo_stage_var.set(ref_info['luogo'])
+                # Prima _base_*, poi il valore dello spinner: il trace dei giri
+                # ricalcola km/dislivello a partire dai valori del singolo giro.
+                stage_entries['giri'].set(ref_info['giri'])
+                if stage_entries['disciplina'].get() == 'Tipo pista':
+                    # Tipo pista: km/dislivello non si conteggiano, restano solo le metriche del giro
+                    if ref_info['_base_km'] is not None:
+                        km_dislivello_backup_s['distanza_km'] = ref_info['_base_km']
+                    if ref_info['_base_elev'] is not None:
+                        km_dislivello_backup_s['dislivello_m'] = ref_info['_base_elev']
+                    stage_entries['distanza_km'].set('')
+                    stage_entries['dislivello_m'].set('')
+                else:
+                    if ref_info['_base_km'] is not None:
+                        stage_entries['distanza_km'].set(str(round(ref_info['_base_km'] * ref_info['giri'], 2)))
+                    if ref_info['_base_elev'] is not None:
+                        stage_entries['dislivello_m'].set(str(round(ref_info['_base_elev'] * ref_info['giri'])))
                 gpx_status_var.set(f"GPX di riferimento: {chosen_slug}")
                 gpx_status_lbl.config(fg="#2563eb")
                 _refresh_stages_list()
@@ -2651,6 +2974,18 @@ GPX FILE:     {gpx_info}"""
                   command=_clear_gpx_for_stage).pack(side="left")
 
         # Bottone salva tappa (applica al dict stages)
+        def _resort_stages_by_date():
+            """Riordina le prove di un campionato cronologicamente (per data) e
+            aggiorna selected_stage[0] in modo che il pannello di dettaglio
+            continui a mostrare la prova che era selezionata."""
+            idx = selected_stage[0]
+            current = stages[idx] if idx is not None and idx < len(stages) else None
+            stages.sort(key=lambda s: s.get('data') or '9999-99-99')
+            for i, s in enumerate(stages):
+                s['numero'] = i + 1
+            if current is not None:
+                selected_stage[0] = stages.index(current)
+
         def _save_current_stage():
             idx = selected_stage[0]
             if idx is None:
@@ -2676,21 +3011,27 @@ GPX FILE:     {gpx_info}"""
             except (ValueError, TypeError):
                 nuovo_numero = stages[idx].get('numero', idx + 1)
             
-            # Se il numero è cambiato, è necessario riordinare le tappe
-            old_numero = stages[idx]['numero']
-            if nuovo_numero != old_numero:
-                # Sposta la tappa nella lista
-                stage = stages.pop(idx)
-                stage['numero'] = nuovo_numero
-                # Inserisci nella posizione corretta (numero - 1)
-                insertion_pos = min(nuovo_numero - 1, len(stages))
-                stages.insert(insertion_pos, stage)
-                # Rinumera tutte le tappe per assicurare coerenza
-                for i, s in enumerate(stages):
-                    s['numero'] = i + 1
-                selected_stage[0] = stages.index(stage)
+            if is_campionato:
+                # Le prove non hanno un "numero" editabile: si riordinano da
+                # sole cronologicamente subito dopo il salvataggio.
+                stages[idx]['numero'] = stages[idx].get('numero', idx + 1)
             else:
-                stages[idx]['numero'] = nuovo_numero
+                # Se il numero è cambiato, è necessario riordinare le tappe
+                old_numero = stages[idx]['numero']
+                if nuovo_numero != old_numero:
+                    # Sposta la tappa nella lista
+                    stage = stages.pop(idx)
+                    stage['numero'] = nuovo_numero
+                    # Inserisci nella posizione corretta (numero - 1)
+                    insertion_pos = min(nuovo_numero - 1, len(stages))
+                    stages.insert(insertion_pos, stage)
+                    # Rinumera tutte le tappe per assicurare coerenza
+                    for i, s in enumerate(stages):
+                        s['numero'] = i + 1
+                    selected_stage[0] = stages.index(stage)
+                    idx = selected_stage[0]
+                else:
+                    stages[idx]['numero'] = nuovo_numero
             
             stages[idx]['nome']         = stage_entries['nome'].get().strip()
             stages[idx]['data']         = stage_entries['data'].get().strip()
@@ -2701,6 +3042,8 @@ GPX FILE:     {gpx_info}"""
             stages[idx]['luogo']        = stage_entries['luogo'].get().strip()
             stages[idx]['giri']         = max(1, giri)
             stages[idx]['slug_tappa']   = slug_t_var.get()
+            stages[idx]['genere']       = stage_entries['genere'].get().strip() or None
+            stages[idx]['categoria']    = stage_entries['categoria'].get().strip() or None
             
             # Se la tappa è Tipo pista, forza distanza_km e dislivello_m a None (non conteggiati)
             if stages[idx]['disciplina'] == 'Tipo pista':
@@ -2715,16 +3058,50 @@ GPX FILE:     {gpx_info}"""
                     if km_dislivello_backup_s['dislivello_m'] is not None:
                         stages[idx]['_base_elev'] = km_dislivello_backup_s['dislivello_m']
             
+            if is_campionato:
+                _resort_stages_by_date()
             _refresh_stages_list()
 
-        tk.Button(detail_lf, text="Applica modifiche tappa", font=("Helvetica", 9, "bold"),
+        tk.Button(detail_lf, text=("Applica modifiche prova" if is_campionato else "Applica modifiche tappa"), font=("Helvetica", 9, "bold"),
                   bg=ACCENT, fg="white", relief="flat", bd=0, cursor="hand2",
-                  command=_save_current_stage).grid(row=12, column=0, columnspan=2,
+                  command=_save_current_stage).grid(row=14, column=0, columnspan=2,
                                                     sticky="ew", pady=(8, 0))
 
-        # ── Helper: auto slug tappa ─────────────────────────────────────────
-        def _stage_auto_slug(stage_num: int) -> str:
+        # ── Helper: auto slug tappa/prova ────────────────────────────────────
+        def _prova_slug_suffix(stage: dict) -> str:
+            """Suffisso slug basato su genere+categoria+disciplina della prova
+            (stesso schema delle gare singole, es. 'DELI', 'MU23'), niente numero."""
+            genere     = stage.get('genere') or ''
+            categoria  = stage.get('categoria') or ''
+            disciplina = stage.get('disciplina') or ''
+            parts = []
+            cc = categoria_code(genere, categoria) if genere and categoria else ''
+            if cc:
+                parts.append(cc.lower())
+            elif categoria:
+                parts.append(slugify(categoria))
+            disc_map = {
+                'Strada': '', 'ITT': 'itt', 'TTT': 'ttt', 'Criterium': 'crit',
+                'Tipo pista': 'pista', 'Mixed Relay': 'mixed-relay',
+            }
+            dc = disc_map.get(disciplina, slugify(disciplina) if disciplina else '')
+            if dc:
+                parts.append(dc)
+            return '-'.join(parts)
+
+        def _stage_auto_slug(stage: dict) -> str:
             base_slug = slug_var.get().strip()
+            if is_campionato:
+                suffix = _prova_slug_suffix(stage)
+                candidate = f"{base_slug}-{suffix}" if suffix else (base_slug or 'prova')
+                existing = {s.get('slug_tappa') for s in stages if s is not stage and s.get('slug_tappa')}
+                final = candidate
+                i = 2
+                while final in existing:
+                    final = f"{candidate}-{i}"
+                    i += 1
+                return final
+            stage_num = stage.get('numero', 1)
             # Prova a inserire S{N} prima dell'anno (4 cifre)
             m = re.search(r'-(\d{4})-', base_slug)
             if m:
@@ -2734,8 +3111,8 @@ GPX FILE:     {gpx_info}"""
                 return base_slug + f"-S{stage_num}" if base_slug else f"tappa-S{stage_num}"
 
         def _refresh_stage_slugs():
-            for i, s in enumerate(stages):
-                s['slug_tappa'] = _stage_auto_slug(s.get('numero', i + 1))
+            for s in stages:
+                s['slug_tappa'] = _stage_auto_slug(s)
             _refresh_stages_list()
 
         # ── Helper: aggiorna listbox tappe ──────────────────────────────────
@@ -2748,7 +3125,15 @@ GPX FILE:     {gpx_info}"""
                     gpx_mark = "OK"
                 else:
                     gpx_mark = "--"
-                stage_listbox.insert(tk.END, f"S{s['numero']:>2}: {s.get('nome','?')[:16]:<16} {gpx_mark}")
+                cat_mark = ''
+                if s.get('genere') or s.get('categoria'):
+                    g_sym = '♀' if s.get('genere') == 'Femminile' else ('♂' if s.get('genere') == 'Maschile' else '')
+                    cat_mark = f" [{s.get('categoria','') or ''}{g_sym}]"
+                if is_campionato:
+                    data_mark = (s.get('data') or '')[5:] if s.get('data') else '??-??'  # MM-GG
+                    stage_listbox.insert(tk.END, f"{data_mark}  {s.get('nome','?')[:18]:<18} {gpx_mark}{cat_mark}")
+                else:
+                    stage_listbox.insert(tk.END, f"S{s['numero']:>2}: {s.get('nome','?')[:16]:<16} {gpx_mark}{cat_mark}")
             # Ri-seleziona
             if selected_stage[0] is not None and selected_stage[0] < len(stages):
                 stage_listbox.selection_set(selected_stage[0])
@@ -2773,7 +3158,9 @@ GPX FILE:     {gpx_info}"""
             stage_entries['luogo'].set(s.get('luogo', ''))
             luogo_feedback_lbl.config(text="")   # resetta feedback geocoding
             stage_entries['giri'].set(int(s.get('giri', 1)))
-            slug_t_var.set(s.get('slug_tappa', _stage_auto_slug(s.get('numero', idx + 1))))
+            slug_t_var.set(s.get('slug_tappa') or _stage_auto_slug(s))
+            stage_entries['genere'].set(s.get('genere') or '')
+            stage_entries['categoria'].set(s.get('categoria') or '')
             if s.get('gpx_reference'):
                 gpx_status_var.set(f"GPX di riferimento: {s.get('gpx_reference')}")
                 gpx_status_lbl.config(fg="#2563eb")
@@ -2816,9 +3203,9 @@ GPX FILE:     {gpx_info}"""
             num = len(stages) + 1
             new_s = {
                 'numero':       num,
-                'nome':         f"Tappa {num}",
-                'slug_tappa':   _stage_auto_slug(num),
-                'data':         race_entries['data_inizio'].get(),
+                'nome':         f"Prova {num}" if is_campionato else f"Tappa {num}",
+                'slug_tappa':   '',
+                'data':         (race_entries['data_inizio'].get() or date.today().isoformat()) if is_campionato else race_entries['data_inizio'].get(),
                 'disciplina':   'Strada',
                 'giri':         1,
                 'distanza_km':  None,
@@ -2827,14 +3214,23 @@ GPX FILE:     {gpx_info}"""
                 'velocita_media_kmh': None,
                 'gpx_points':   None,
                 'gpx_reference': None,
+                'genere':       None,
+                'categoria':    None,
             }
+            new_s['slug_tappa'] = _stage_auto_slug(new_s)
             stages.append(new_s)
+            if is_campionato:
+                stages.sort(key=lambda s: s.get('data') or '9999-99-99')
+                for _i, _s in enumerate(stages):
+                    _s['numero'] = _i + 1
             _refresh_stages_list()
-            # Seleziona la nuova tappa
+            # Seleziona la nuova tappa (ritrova la posizione: dopo il riordino
+            # per data non è detto sia l'ultima della lista)
+            new_idx = stages.index(new_s)
             stage_listbox.selection_clear(0, tk.END)
-            stage_listbox.selection_set(len(stages) - 1)
-            selected_stage[0] = len(stages) - 1
-            _load_stage_detail(selected_stage[0])
+            stage_listbox.selection_set(new_idx)
+            selected_stage[0] = new_idx
+            _load_stage_detail(new_idx)
 
         def _remove_stage():
             idx = selected_stage[0]
@@ -2853,7 +3249,7 @@ GPX FILE:     {gpx_info}"""
             for i, s in enumerate(stages):
                 old_slug = s.get('slug_tappa', '')
                 s['numero'] = i + 1
-                s['slug_tappa'] = _stage_auto_slug(i + 1)
+                s['slug_tappa'] = _stage_auto_slug(s)
                 if old_slug and old_slug != s['slug_tappa']:
                     orphaned_stage_slugs.add(old_slug)
             selected_stage[0] = None
@@ -2881,13 +3277,9 @@ GPX FILE:     {gpx_info}"""
             _save_current_stage()  # assicura che l'ultima tappa sia salvata
 
             titolo      = race_entries['titolo'].get().strip()
-            data_inizio = race_entries['data_inizio'].get().strip()
-            data_fine   = race_entries['data_fine'].get().strip()
-            luogo       = race_entries['luogo'].get().strip()
-            genere      = race_entries['genere'].get()
             race_series = race_entries['race_series'].get().strip()
-            cats        = [c for c in CATEGORIE if cat_vars[c].get()]
             race_slug   = race_entries['slug'].get().strip()
+            livello     = race_entries.get('livello').get() if is_campionato else None
 
             if not titolo:
                 messagebox.showerror("Errore", "Titolo obbligatorio", parent=win); return
@@ -2895,38 +3287,87 @@ GPX FILE:     {gpx_info}"""
                 messagebox.showerror("Errore", "Slug obbligatorio", parent=win); return
             if is_new and (GARE_DIR / f"{race_slug}.json").exists():
                 messagebox.showerror("Errore", "Slug gia esistente. Cambia data o slug.", parent=win); return
-            if not data_inizio:
-                messagebox.showerror("Errore", "Data inizio obbligatoria", parent=win); return
-            if data_fine and data_fine < data_inizio:
-                messagebox.showerror("Errore", "La data di fine non può essere precedente alla data di inizio", parent=win); return
-            if not cats:
-                messagebox.showerror("Errore", "Seleziona almeno una categoria", parent=win); return
             if not stages:
-                messagebox.showerror("Errore", "Aggiungi almeno una tappa", parent=win); return
-            for s in stages:
-                if not s.get('nome'):
-                    messagebox.showerror("Errore", f"Tappa {s['numero']}: nome obbligatorio", parent=win)
-                    return
+                messagebox.showerror("Errore", f"Aggiungi almeno una {'prova' if is_campionato else 'tappa'}", parent=win); return
+
+            if is_campionato:
+                for s in stages:
+                    if not s.get('nome'):
+                        messagebox.showerror("Errore", f"Prova {s['numero']}: nome obbligatorio", parent=win)
+                        return
+                    if not s.get('data'):
+                        messagebox.showerror("Errore", f"Prova {s['numero']} ({s.get('nome','')}): data obbligatoria", parent=win)
+                        return
+                    if not s.get('categoria'):
+                        messagebox.showerror("Errore", f"Prova {s['numero']} ({s.get('nome','')}): categoria obbligatoria", parent=win)
+                        return
+                    # Il genere non è richiesto per le prove miste (es. Mixed Relay)
+                    if s.get('disciplina') != 'Mixed Relay' and not s.get('genere'):
+                        messagebox.showerror(
+                            "Errore",
+                            f"Prova {s['numero']} ({s.get('nome','')}): genere obbligatorio (tranne per Mixed Relay)",
+                            parent=win
+                        )
+                        return
+            else:
+                data_inizio = race_entries['data_inizio'].get().strip()
+                data_fine   = race_entries['data_fine'].get().strip()
+                cats        = [c for c in CATEGORIE if cat_vars[c].get()]
+                if not data_inizio:
+                    messagebox.showerror("Errore", "Data inizio obbligatoria", parent=win); return
+                if data_fine and data_fine < data_inizio:
+                    messagebox.showerror("Errore", "La data di fine non può essere precedente alla data di inizio", parent=win); return
+                if not cats:
+                    messagebox.showerror("Errore", "Seleziona almeno una categoria", parent=win); return
+                for s in stages:
+                    if not s.get('nome'):
+                        messagebox.showerror("Errore", f"Tappa {s['numero']}: nome obbligatorio", parent=win)
+                        return
 
             if is_new:
                 _refresh_stage_slugs()
 
-            main = {
-                'titolo':       titolo,
-                'race_series':  race_series or slugify(titolo),
-                'data':         data_inizio,   # backward compat per index/filtri
-                'data_inizio':  data_inizio,
-                'data_fine':    data_fine or None,
-                'genere':       genere,
-                'categoria':    cats,
-                'luogo':        luogo or None,
-            }
-            
-            # Aggiungi WT se selezionato
-            if race_entries['wt'].get():
-                main['wt'] = True
+            if is_campionato:
+                # Nessun range di date unico: la data "principale" (usata per
+                # l'ordinamento cronologico nell'archivio) è la più vicina tra
+                # quelle delle prove.
+                date_prove = sorted(s.get('data') for s in stages if s.get('data'))
+                paese_sel = race_entries['paese'].get()
+                paese_codice = PAESI_BANDIERA.get(paese_sel)
+                main = {
+                    'titolo':       titolo,
+                    'race_series':  race_series or slugify(titolo),
+                    'data':         date_prove[0] if date_prove else date.today().isoformat(),
+                    'genere':       None,
+                    'categoria':    [],
+                    'luogo':        race_entries['luogo'].get().strip() or None,
+                    'paese':        paese_codice,
+                }
+            else:
+                data_inizio = race_entries['data_inizio'].get().strip()
+                data_fine   = race_entries['data_fine'].get().strip()
+                luogo       = race_entries['luogo'].get().strip()
+                genere      = race_entries['genere'].get()
+                cats        = [c for c in CATEGORIE if cat_vars[c].get()]
+                main = {
+                    'titolo':       titolo,
+                    'race_series':  race_series or slugify(titolo),
+                    'data':         data_inizio,   # backward compat per index/filtri
+                    'data_inizio':  data_inizio,
+                    'data_fine':    data_fine or None,
+                    'genere':       genere,
+                    'categoria':    cats,
+                    'luogo':        luogo or None,
+                }
+                # Aggiungi WT se selezionato (non applicabile ai campionati)
+                if race_entries['wt'].get():
+                    main['wt'] = True
 
-            save_stage_race(race_slug, main, stages)
+            save_stage_race(
+                race_slug, main, stages,
+                tipo='campionato' if is_campionato else 'corsa_a_tappe',
+                livello=livello,
+            )
 
             # In edit mode, se lo slug della corsa è cambiato, elimina i vecchi file principali
             if not is_new and original_slug and original_slug != race_slug:
@@ -2959,7 +3400,7 @@ GPX FILE:     {gpx_info}"""
             win.destroy()
             self.refresh_list()
 
-        tk.Button(btn_frame, text="💾 Salva corsa a tappe", font=("Helvetica", 10, "bold"),
+        tk.Button(btn_frame, text=("💾 Salva campionato" if is_campionato else "💾 Salva corsa a tappe"), font=("Helvetica", 10, "bold"),
                   bg="#059669", fg="white", padx=14, pady=8, relief="flat", bd=0,
                   cursor="hand2", command=_save_all).pack(side="left", padx=(0, 8))
         tk.Button(btn_frame, text="Annulla", font=("Helvetica", 10),
@@ -3019,7 +3460,7 @@ GPX FILE:     {gpx_info}"""
                         return
             messagebox.showwarning("Attenzione", "Corsa a tappe principale non trovata")
             return
-        elif data.get('tipo') == 'corsa_a_tappe':
+        elif data.get('tipo') in ('corsa_a_tappe', 'campionato'):
             self.open_stage_race_form(initial_data=data.copy(), is_new=False)
         else:
             self.open_add_race_form(data.copy(), is_new=False, original_slug=slug)
@@ -3064,15 +3505,15 @@ GPX FILE:     {gpx_info}"""
                     except Exception as e:
                         messagebox.showerror("Errore", f"Impossibile caricare la corsa a tappe: {e}")
                         return
-            if not data or data.get('tipo') != 'corsa_a_tappe':
-                messagebox.showwarning("Attenzione", "Corsa a tappe principale non trovata")
+            if not data or data.get('tipo') not in ('corsa_a_tappe', 'campionato'):
+                messagebox.showwarning("Attenzione", "Corsa a tappe/campionato principale non trovato")
                 return
 
         # Copia profonda per non alterare la cache
         new_data = json.loads(json.dumps(data))
         new_data.pop('slug', None)
 
-        if new_data.get('tipo') == 'corsa_a_tappe':
+        if new_data.get('tipo') in ('corsa_a_tappe', 'campionato'):
             if new_data.get('data_inizio'):
                 new_data['data_inizio'] = bump_date_year(new_data.get('data_inizio'))
             if new_data.get('data_fine'):
@@ -3128,15 +3569,16 @@ GPX FILE:     {gpx_info}"""
         title = data.get("titolo", slug)
         tipo  = data.get('tipo', '')
         
-        if tipo == 'corsa_a_tappe':
+        if tipo in ('corsa_a_tappe', 'campionato'):
             n = data.get('n_tappe', 0)
+            elemento = 'prove' if tipo == 'campionato' else 'tappe'
             ok = messagebox.askyesno(
                 "Conferma",
-                f"Eliminare '{title}' e TUTTE le sue {n} tappe?\nQuesta azione è irreversibile."
+                f"Eliminare '{title}' e TUTTE le sue {n} {elemento}?\nQuesta azione è irreversibile."
             )
             if ok:
                 delete_stage_race(slug, data.get('tappe', []))
-                messagebox.showinfo("Eliminato", "Corsa a tappe e tutte le tappe rimosse dal database")
+                messagebox.showinfo("Eliminato", f"{'Campionato' if tipo == 'campionato' else 'Corsa a tappe'} e tutte le {elemento} rimosse dal database")
                 self.refresh_list()
         else:
             ok = messagebox.askyesno("Conferma", f"Eliminare '{title}'?\nQuesta azione è irreversibile.")

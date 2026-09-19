@@ -1042,6 +1042,32 @@
     "wt": false
   },
   {
+    "slug": "road-european-championships-2026-europeo",
+    "titolo": "Road European Championships",
+    "data": "2026-10-04",
+    "year": "2026",
+    "race_series": "european championships",
+    "genere": "",
+    "categoria": [],
+    "categoria_code": "",
+    "tipo": "campionato",
+    "n_tappe": 2,
+    "wt": false
+  },
+  {
+    "slug": "road-world-championships-2026-mondiale",
+    "titolo": "Road World Championships",
+    "data": "2026-09-22",
+    "year": "2026",
+    "race_series": "world championships",
+    "genere": "",
+    "categoria": [],
+    "categoria_code": "",
+    "tipo": "campionato",
+    "n_tappe": 2,
+    "wt": false
+  },
+  {
     "slug": "romanengo-2026-DA-DJ",
     "titolo": "Romanengo",
     "data": "2026-05-23",

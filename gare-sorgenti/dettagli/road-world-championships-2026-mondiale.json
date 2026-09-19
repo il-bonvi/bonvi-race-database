@@ -1,0 +1,41 @@
+{
+  "titolo": "Road World Championships",
+  "race_series": "world championships",
+  "data": "2026-09-22",
+  "categoria": [],
+  "luogo": "Montréal, Canada",
+  "paese": "ca",
+  "tipo": "campionato",
+  "livello": "Mondiale",
+  "n_tappe": 2,
+  "distanza_km": 91.28,
+  "dislivello_m": 1698,
+  "tappe": [
+    {
+      "numero": 1,
+      "nome": "WJ ITT",
+      "slug": "road-world-championships-2026-mondiale-dj-itt",
+      "data": "2026-09-22",
+      "distanza_km": 10.7,
+      "dislivello_m": 90.0,
+      "disciplina": "ITT",
+      "genere": "Femminile",
+      "categoria": "Junior",
+      "luogo": "Agglomération de Montréal, CA"
+    },
+    {
+      "numero": 2,
+      "nome": "WJ Road Race",
+      "slug": "road-world-championships-2026-mondiale-dj",
+      "data": "2026-09-25",
+      "distanza_km": 80.58,
+      "dislivello_m": 1608.0,
+      "disciplina": "Strada",
+      "giri": 6,
+      "genere": "Femminile",
+      "categoria": "Junior",
+      "luogo": "Agglomération de Montréal, CA"
+    }
+  ],
+  "slug": "road-world-championships-2026-mondiale"
+}

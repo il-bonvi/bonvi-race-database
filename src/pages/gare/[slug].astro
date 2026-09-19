@@ -1,5 +1,5 @@
 ---
-import { formatData, formatDistanza, formatDislivello, disciplinaIcon, formatCategoria } from '../../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, disciplinaIcon, formatCategoria, campionatoTheme, provaColor, provaDashArray, countryFlagCode, campionatoFlagOpacity, WT_COLOR, CATEGORIA_COLORS, resolveGpxSlug } from '../../lib/gare.js';
 
 export async function getStaticPaths() {
   const garaFiles = import.meta.glob('../../../gare-sorgenti/dettagli/*.json', { eager: true });
@@ -24,9 +24,14 @@ const gareBySlug = new Map(
 );
 
 const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
+const isCampionato = gara.tipo === 'campionato';
+const isContenitore = isCorsaATappe || isCampionato;
 const isTappa = gara.tipo === 'tappa';
 const isTipoPista = gara.disciplina === 'Tipo pista';
 const isSpecialWTRace = gara.slug?.includes('giro-d-italia-women');
+const campTheme = isCampionato ? campionatoTheme(gara.livello) : null;
+const campFlagCode = isCampionato ? (gara.paese || countryFlagCode(gara.luogo)) : null;
+const campFlagOpacity = isCampionato ? campionatoFlagOpacity(gara.livello) : 0;
 const allRaces = Object.values(garaFiles).map((m: any) => m.default ?? m);
 
 const normalizeCategoria = (cat: unknown): string[] =>
@@ -50,13 +55,8 @@ if (isTappa && gara.corsa_a_tappe_slug) {
 }
 
 // Per il colore della top bar, genera colore solido o gradiente
-const WT_COLOR = '#8A2BE2';
-const catColorMap = {
-  'Elite':    '#E91E63',
-  'U23':      '#1B2ACF',
-  'Junior':   '#28B534',
-  'Allievi':  '#FFC107',
-} as Record<string, string>;
+// WT_COLOR e catColorMap: unica fonte in lib/gare.js (WT_COLOR, CATEGORIA_COLORS)
+const catColorMap = CATEGORIA_COLORS;
 const categorie: string[] = gara.wt ? [] : (Array.isArray(gara.categoria) ? gara.categoria : [gara.categoria]).filter(Boolean);
 
 // Colore del bordo: solido se singola categoria, gradiente se multiple (o purple per WT)
@@ -76,8 +76,8 @@ const genereA1 = gara.genere === 'Femminile' ? '0.14' : '0.22';
 const genereA2 = gara.genere === 'Femminile' ? '0.05' : '0.08';
 const genereShade = `radial-gradient(ellipse 140px 52px at 260px 0%, rgba(${genereR},${genereA1}) 0%, rgba(${genereR},${genereA2}) 35%, transparent 65%)`;
 
-// Per corse a tappe: ordina tappe per numero
-const tappe = isCorsaATappe && gara.tappe
+// Per corse a tappe / campionati: ordina le sotto-gare (tappe o prove) per numero
+const tappe = isContenitore && gara.tappe
   ? [...gara.tappe]
       .sort((a: any, b: any) => (a.numero ?? 0) - (b.numero ?? 0))
       .map((t: any) => {
@@ -86,16 +86,52 @@ const tappe = isCorsaATappe && gara.tappe
           ...t,
           _base_km: t._base_km ?? dettagliTappa._base_km,
           _base_elev: t._base_elev ?? dettagliTappa._base_elev,
-          gpx_reference: t.gpx_reference ?? dettagliTappa.gpx_reference,
+          // Se il riferimento punta a una tappa che è a sua volta un riferimento, si arriva alla sorgente reale
+          gpx_reference: (t.gpx_reference ?? dettagliTappa.gpx_reference)
+            ? resolveGpxSlug(t.gpx_reference ?? dettagliTappa.gpx_reference, gareBySlug)
+            : undefined,
+          // Per i campionati ogni prova ha genere/categoria/luogo propri (diversi tra loro)
+          genere: t.genere ?? dettagliTappa.genere,
+          categoria: t.categoria ?? dettagliTappa.categoria,
+          luogo: t.luogo ?? dettagliTappa.luogo,
         };
       })
   : [];
 
+// Per i campionati: alcune prove condividono lo stesso percorso di base
+// (es. stessa crono/circuito per più categorie, o crono e strada che
+// coincidono) — le raggruppiamo per segnalarlo in lista/legenda/mappa.
+const gpxGroupKey = (t: any) => t.gpx_reference || t.slug;
+const gpxGroupCounts: Record<string, number> = {};
+if (isCampionato) {
+  for (const t of tappe) {
+    const key = gpxGroupKey(t);
+    gpxGroupCounts[key] = (gpxGroupCounts[key] ?? 0) + 1;
+  }
+}
+const sharedRouteLabel = (t: any): string | null => {
+  const key = gpxGroupKey(t);
+  if ((gpxGroupCounts[key] ?? 0) <= 1) return null;
+  const altre = tappe.filter((o: any) => gpxGroupKey(o) === key && o !== t).map((o: any) => o.nome);
+  return altre.length ? `Stesso percorso di: ${altre.join(', ')}` : null;
+};
+
+// Range di date effettivo del campionato: calcolato dalle date reali delle
+// prove presenti (non un campo inserito a mano, che con date anche a mesi
+// di distanza sarebbe poco affidabile da mantenere aggiornato).
+const proveDateRange = (() => {
+  if (!isCampionato) return null;
+  const dates = tappe.map((t: any) => t.data).filter(Boolean).sort();
+  if (dates.length === 0) return null;
+  const first = dates[0], last = dates[dates.length - 1];
+  return first === last ? formatData(first) : `${formatData(first)} – ${formatData(last)}`;
+})();
+
 // Per corse a tappe: navigazione tra anni della stessa serie
 let yearNavigation: Array<{year: string; slug: string; isCurrent: boolean}> = [];
-if (isCorsaATappe && gara.race_series) {
+if (isContenitore && gara.race_series) {
   const stageRaces = allRaces
-    .filter((g: any) => g.tipo === 'corsa_a_tappe' && g.race_series === gara.race_series);
+    .filter((g: any) => g.tipo === gara.tipo && g.race_series === gara.race_series);
   
   const racesByYear: Record<string, any> = {};
   stageRaces.forEach((race: any) => {
@@ -118,7 +154,7 @@ if (isCorsaATappe && gara.race_series) {
 // Per gare singole: navigazione Astro tra anni e categorie (footer)
 let gpxYearNavigation: Array<{ year: string; slug: string; isCurrent: boolean }> = [];
 let gpxCategoryNavigation: Array<{ slug: string; label: string; isCurrent: boolean }> = [];
-if (!isCorsaATappe && !isTappa && gara.race_series) {
+if (!isContenitore && !isTappa && gara.race_series) {
   const currentYear = (gara.data || gara.data_inizio || '').split('-')[0];
   const currentGenere = gara.genere || '';
 
@@ -168,12 +204,20 @@ if (!isCorsaATappe && !isTappa && gara.race_series) {
 }
 
 // Per corse a tappe: genera colori per le tappe (rainbow spectrum)
+// Per campionati: colore per categoria (coerente col resto del sito) + tratteggio per genere
 const stageColors: Record<number, string> = {};
+const stageDash: Record<number, string | null> = {};
 if (isCorsaATappe && tappe.length > 0) {
   const hueStep = 360 / tappe.length;
   tappe.forEach((tappa: any, idx: number) => {
     const hue = (idx * hueStep) % 360;
     stageColors[tappa.numero] = `hsl(${hue}, 75%, 50%)`;
+    stageDash[tappa.numero] = null;
+  });
+} else if (isCampionato && tappe.length > 0) {
+  tappe.forEach((prova: any) => {
+    stageColors[prova.numero] = provaColor(prova.categoria);
+    stageDash[prova.numero] = provaDashArray(prova.genere);
   });
 }
 
@@ -193,7 +237,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{gara.titolo} — Race DB</title>
-  <meta name="description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isCorsaATappe ? gara.n_tappe + ' tappe' : (gara.distanza_km + 'km')}`} />
+  <meta name="description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isContenitore ? gara.n_tappe + (isCampionato ? ' prove' : ' tappe') : (gara.distanza_km + 'km')}`} />
 
   <!-- ── Favicon & PWA ─────────────────────────────────────────────────
        Browser (scheda + preferiti): trasparente
@@ -217,12 +261,12 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
   <!-- Open Graph -->
   <meta property="og:title"       content={`${gara.titolo} — Race DB`} />
   <meta property="og:type"        content="website" />
-  <meta property="og:description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isCorsaATappe ? gara.n_tappe + ' tappe' : (gara.distanza_km + 'km')}`} />
+  <meta property="og:description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isContenitore ? gara.n_tappe + (isCampionato ? ' prove' : ' tappe') : (gara.distanza_km + 'km')}`} />
 
   <!-- Twitter Card -->
   <meta name="twitter:card"        content="summary_large_image" />
   <meta name="twitter:title"       content={`${gara.titolo} — Race DB`} />
-  <meta name="twitter:description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isCorsaATappe ? gara.n_tappe + ' tappe' : (gara.distanza_km + 'km')}`} />
+  <meta name="twitter:description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isContenitore ? gara.n_tappe + (isCampionato ? ' prove' : ' tappe') : (gara.distanza_km + 'km')}`} />
 
   <!-- Analytics (no cookie, no banner) -->
   <script defer src="https://cloud.umami.is/script.js" data-website-id="3671101f-d5b1-4dfd-81d4-8f02dfd515b2"></script>
@@ -230,9 +274,9 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  {isCorsaATappe && <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />}
-  {isCorsaATappe && <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>}
-  {isCorsaATappe && <script is:inline src="https://unpkg.com/d3@7/dist/d3.min.js"></script>}
+  {isContenitore && <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />}
+  {isContenitore && <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>}
+  {isContenitore && <script is:inline src="https://unpkg.com/d3@7/dist/d3.min.js"></script>}
 
   <style>
     :root {
@@ -328,6 +372,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
       flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem;
     }
     .bar-cat-label { display: flex; align-items: center; gap: 0.25rem; }
+    .bar-cat-extra { color: var(--text3); }
     .genere-symbol { font-size: 0.75rem; color: var(--text3); text-transform: none; letter-spacing: 0; }
     .bar-title {
       font-family: var(--font-display);
@@ -480,6 +525,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
     .stage-name {
       font-family: var(--font-display); font-size: 1.15rem; font-weight: 700;
       color: var(--text); line-height: 1.2;
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
     }
     .stage-sub {
       display: flex; gap: 0.75rem; flex-wrap: wrap;
@@ -609,6 +655,16 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
     .elevation-legend-item { display: flex; align-items: center; gap: 0.4rem; }
     .elevation-legend-color { width: 12px; height: 12px; border-radius: 2px; }
 
+    .map-legend {
+      display: flex; gap: 0.75rem 1.5rem; flex-wrap: wrap;
+      margin-top: 1rem;
+      font-family: var(--font-mono); font-size: 0.7rem;
+      color: var(--text2);
+    }
+    .map-legend-item { display: flex; align-items: center; gap: 0.4rem; }
+    .map-legend-swatch { width: 16px; height: 4px; border-radius: 2px; flex-shrink: 0; }
+    .shared-route-note { color: var(--text3); font-style: italic; }
+
     /* ── SPECIAL STYLING FOR GIRO D'ITALIA WOMEN ── */
     body.body-special-wt {
       background: linear-gradient(135deg, rgba(255, 40, 110, 0.08) 0%, rgba(255, 40, 110, 0.04) 100%);
@@ -679,15 +735,108 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
     body.body-special-wt-recap .stage-card::before {
       background: linear-gradient(90deg, #00A3E0 0%, #FF286E 50%, #8A316C 100%);
     }
+
+    /* ── SKIN CAMPIONATI (Mondiale / Europeo / futuri livelli) ── */
+    /* Guidata da variabili CSS impostate inline sul <body> a partire dai
+       dati (livello del campionato), non da pattern-matching sullo slug:
+       basta aggiungere un livello a CAMPIONATO_THEME in gare.js. */
+    body.body-campionato .top-bar {
+      background: var(--campionato-bar-gradient) !important;
+      background-image: var(--campionato-bar-gradient) !important;
+      position: relative; overflow: hidden;
+    }
+    body.body-campionato .top-bar::after { display: none; }
+    body.body-campionato .top-bar,
+    body.body-campionato .top-bar .bar-title,
+    body.body-campionato .top-bar .bar-cat-label,
+    body.body-campionato .top-bar .bar-cat-extra,
+    body.body-campionato .top-bar .genere-symbol,
+    body.body-campionato .top-bar .bstat-v,
+    body.body-campionato .top-bar .back {
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.55);
+    }
+    body.body-campionato .top-bar .bstat-l { color: rgba(255,255,255,0.75); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+    body.body-campionato .top-bar > *:not(.europeo-stars-bg) { position: relative; z-index: 1; }
+    /* Tre stelle dorate al centro della banda blu della maglia campione
+       europeo — leggermente disposte ad arco (come sulla maglia vera),
+       non una fila piatta e perfettamente simmetrica. */
+    .europeo-stars-bg {
+      position: absolute; inset: 0; z-index: 0; pointer-events: none;
+      display: flex; align-items: center; justify-content: center; gap: 0.55rem;
+    }
+    .europeo-star {
+      color: #FFD500; font-size: 0.8rem; line-height: 1;
+      text-shadow: 0 0 2px rgba(0,0,0,0.25);
+      opacity: 0.92;
+    }
+    .europeo-star:nth-child(1) { transform: translateY(3px) rotate(-12deg) scale(0.85); }
+    .europeo-star:nth-child(2) { transform: translateY(-2px) scale(1.05); }
+    .europeo-star:nth-child(3) { transform: translateY(4px) rotate(12deg) scale(0.85); }
+    body.body-campionato .bar-divider { background: rgba(255,255,255,0.35); }
+    body.body-campionato.body-campionato-recap {
+      background: color-mix(in srgb, var(--campionato-accent) 5%, var(--bg));
+    }
+    body.body-campionato-recap .recap-body {
+      background: color-mix(in srgb, var(--campionato-accent) 4%, transparent);
+    }
+    body.body-campionato-recap .recap-totals {
+      border: none;
+      border-top: 3px solid var(--campionato-accent);
+      background: color-mix(in srgb, var(--campionato-accent) 5%, var(--surface));
+      padding: 1rem 1.25rem;
+    }
+    body.body-campionato-recap .recap-total-v { color: var(--campionato-accent); font-weight: 700; }
+    body.body-campionato-recap .stage-card::before { background: var(--campionato-gradient); }
+    body.body-campionato-recap .stage-card { border-color: color-mix(in srgb, var(--campionato-accent) 35%, var(--border)); }
+
+    /* Bandiera soffusa della località ospitante, come sfondo fisso a tutta
+       pagina — dietro il contenuto, sopra il colore di base. Intensità
+       regolata per livello (vedi campionatoFlagOpacity in gare.js). */
+    .campionato-flag-bg {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: var(--campionato-flag);
+      background-size: cover; background-position: center;
+      opacity: var(--campionato-flag-opacity, 0.08);
+    }
+    body.body-campionato-flag .top-bar,
+    body.body-campionato-flag .recap-body {
+      position: relative; z-index: 1;
+    }
+    .campionato-livello-badge {
+      display: inline-block;
+      font-family: var(--font-mono); font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+      color: #fff; background: var(--campionato-accent);
+      padding: 0.2rem 0.55rem; border-radius: 2px; margin-right: 0.5rem;
+    }
+    .prova-badge {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      font-family: var(--font-mono); font-size: 0.6rem;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 0.15rem 0.4rem; border-radius: 2px;
+      color: #fff;
+    }
   </style>
 </head>
-<body class={`${isCorsaATappe ? 'body-stage-race' : ''}${isSpecialWTRace && isCorsaATappe ? ' body-special-wt-recap' : ''}`}>
+<body
+  class={`${isContenitore ? 'body-stage-race' : ''}${isSpecialWTRace && isCorsaATappe ? ' body-special-wt-recap' : ''}${campTheme ? ' body-campionato body-campionato-recap' : ''}${campFlagCode ? ' body-campionato-flag' : ''}`}
+  style={campTheme ? `--campionato-gradient: ${campTheme.gradient}; --campionato-bar-gradient: ${campTheme.barGradient ?? campTheme.gradient}; --campionato-accent: ${campTheme.accent}; ${campFlagCode ? `--campionato-flag: url(https://flagcdn.com/w1280/${campFlagCode}.png); --campionato-flag-opacity: ${campFlagOpacity};` : ''}` : undefined}
+>
+  {campFlagCode && <div class="campionato-flag-bg" aria-hidden="true"></div>}
   <!-- ── TOP BAR (comune a tutti i tipi) ────────────────────────────────── -->
   <div class="top-bar" style={{
     "--cat-color": borderColor,
     "backgroundImage": genereShade,
     "backgroundColor": "var(--bg2)"
   }}>
+    {campTheme?.stars && (
+      <div class="europeo-stars-bg" aria-hidden="true">
+        <span class="europeo-star">★</span>
+        <span class="europeo-star">★</span>
+        <span class="europeo-star">★</span>
+      </div>
+    )}
     <a href={backHref} class="back">{backLabel}</a>
     <script is:inline define:vars={{ base, backHref: isTappa && gara.corsa_a_tappe_slug ? `${base}/gare/${gara.corsa_a_tappe_slug}/` : `${base}/` }}>
     (function() {
@@ -712,12 +861,14 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
             </span>
           ))
         )}
-        {isCorsaATappe
-          ? <span style="color:var(--text3)"> · {gara.n_tappe} tappe</span>
-          : <span style="color:var(--text3)"> · {gara.disciplina}</span>
+        {isContenitore
+          ? <span class="bar-cat-extra"> · {gara.n_tappe} {isCampionato ? 'prove' : 'tappe'}</span>
+          : <span class="bar-cat-extra"> · {gara.disciplina}</span>
         }
       </span>
-      <span class="genere-symbol">{gara.genere === 'Femminile' ? '♀' : '♂'}</span>
+      {gara.genere && (
+        <span class="genere-symbol">{gara.genere === 'Femminile' ? '♀' : '♂'}</span>
+      )}
     </span>
     <div class="bar-divider"></div>
     <div class="bar-title-with-stages">
@@ -737,7 +888,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
           </div>
         </div>
       )}
-      {!isCorsaATappe && !isTappa && (gpxYearNavigation.length > 1 || gpxCategoryNavigation.length > 1) && (
+      {!isContenitore && !isTappa && (gpxYearNavigation.length > 1 || gpxCategoryNavigation.length > 1) && (
         <div class="bar-route-nav" aria-label="Navigazione gara">
           {gpxYearNavigation.length > 1 && gpxYearNavigation.map((nav) => (
             <a
@@ -772,7 +923,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
         gara.distanza_km && (
           <div class="bstat">
             <span class="bstat-v">{formatDistanza(gara.distanza_km)}</span>
-            <span class="bstat-l">{isCorsaATappe ? 'tot dist' : 'dist'}</span>
+            <span class="bstat-l">{isContenitore ? 'tot dist' : 'dist'}</span>
           </div>
         )
       )}
@@ -787,11 +938,11 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
         gara.dislivello_m && (
           <div class="bstat">
             <span class="bstat-v">{formatDislivello(gara.dislivello_m)}</span>
-            <span class="bstat-l">{isCorsaATappe ? 'tot D+' : 'D+'}</span>
+            <span class="bstat-l">{isContenitore ? 'tot D+' : 'D+'}</span>
           </div>
         )
       )}
-      {(gara.data_inizio || gara.data) && (
+      {!isCampionato && (gara.data_inizio || gara.data) && (
         <div class="bstat">
           <span class="bstat-v">
             {isCorsaATappe && gara.data_fine
@@ -804,26 +955,28 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
     </div>
   </div>
 
-  {isCorsaATappe ? (
-    <!-- ── RECAP PAGE: corsa a tappe ─────────────────────────────────────── -->
+  {isContenitore ? (
+    <!-- ── RECAP PAGE: corsa a tappe / campionato ──────────────────────────── -->
     <div class="recap-body">
       <div class="recap-header">
         <h1 class="recap-hero-title">{gara.titolo}</h1>
         <div class="recap-meta">
           {gara.luogo && <span class="recap-meta-item">↗ {gara.luogo}</span>}
-          {(gara.data_inizio || gara.data) && (
+          {isCampionato && proveDateRange && <span class="recap-meta-item">{proveDateRange}</span>}
+          {!isCampionato && (gara.data_inizio || gara.data) && (
             <span class="recap-meta-item">
               {isCorsaATappe && gara.data_fine
                 ? `${formatData(gara.data_inizio || gara.data)} – ${formatData(gara.data_fine)}`
                 : formatData(gara.data_inizio || gara.data)}
             </span>
           )}
-          {gara.genere && <span class="recap-meta-item">{gara.genere}</span>}
+          {!isCampionato && gara.genere && <span class="recap-meta-item">{gara.genere}</span>}
+          {campTheme && <span class="recap-meta-item campionato-livello-badge">{campTheme.label}</span>}
         </div>
         <div class="recap-totals">
           <div class="recap-total-block">
             <span class="recap-total-v">{gara.n_tappe}</span>
-            <span class="recap-total-l">tappe</span>
+            <span class="recap-total-l">{isCampionato ? 'prove' : 'tappe'}</span>
           </div>
           {gara.distanza_km && (
             <div class="recap-total-block">
@@ -840,22 +993,35 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
         </div>
       </div>
 
-      {/* ── LISTA TAPPE ── */}
+      {/* ── LISTA TAPPE / PROVE ── */}
       <div class="stages-section">
-        <div class="stages-heading">Tappe</div>
+        <div class="stages-heading">{isCampionato ? 'Prove' : 'Tappe'}</div>
         <div class="stages-list">
           {tappe.map((tappa: any) => (
             <a
               href={`${base}/gare/${tappa.slug}/`}
               class="stage-card"
-              style={`--cat-color: ${borderColor}`}
+              style={`--cat-color: ${isCampionato ? (stageColors[tappa.numero] ?? borderColor) : borderColor}`}
             >
-              <div class="stage-num">{tappa.numero}</div>
+              <div class="stage-num">{isCampionato ? disciplinaIcon(tappa.disciplina) : tappa.numero}</div>
               <div class="stage-info">
-                <div class="stage-name">{tappa.nome}</div>
+                <div class="stage-name">
+                  {tappa.nome}
+                  {isCampionato && (tappa.categoria || tappa.genere) && (
+                    <span
+                      class="prova-badge"
+                      style={`background: ${stageColors[tappa.numero] ?? '#888'}`}
+                    >
+                      {formatCategoria(Array.isArray(tappa.categoria) ? tappa.categoria[0] : tappa.categoria, tappa.genere)}
+                      {tappa.genere === 'Femminile' ? ' ♀' : (tappa.genere === 'Maschile' ? ' ♂' : '')}
+                    </span>
+                  )}
+                </div>
                 <div class="stage-sub">
                   {tappa.data && <span>{formatData(tappa.data)}</span>}
                   {tappa.disciplina && <span>{disciplinaIcon(tappa.disciplina) ?? '·'} {tappa.disciplina}</span>}
+                  {isCampionato && tappa.luogo && <span>↗ {tappa.luogo}</span>}
+                  {isCampionato && sharedRouteLabel(tappa) && <span class="shared-route-note">🔗 {sharedRouteLabel(tappa)}</span>}
                 </div>
                 <div class="stage-stats">
                   {tappa.disciplina === 'Tipo pista' ? (
@@ -897,14 +1063,34 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
         </div>
       </div>
 
-      {/* ── OVERVIEW MAPS & ELEVATION ── */}
+      {/* ── OVERVIEW: planimetria (mappa) — per i campionati niente confronto altimetrico:
+           le prove sono gare indipendenti, non ha senso sovrapporne i profili ── */}
       <div class="overview-section">
-        <div class="overview-heading">Panoramica delle tappe</div>
+        <div class="overview-heading">{isCampionato ? 'Planimetria delle prove' : 'Panoramica delle tappe'}</div>
         <div class="stage-race-map-container" id="stage-map"></div>
-        <div class="elevation-container">
-          <svg class="elevation-svg" id="elevation-chart"></svg>
-        </div>
-        <div class="elevation-legend" id="elevation-legend"></div>
+        {isCampionato ? (
+          <div class="map-legend">
+            {tappe.map((tappa: any) => (
+              <span class="map-legend-item">
+                <span
+                  class="map-legend-swatch"
+                  style={`background: ${stageColors[tappa.numero] ?? '#888'}; ${stageDash[tappa.numero] ? 'background-image: repeating-linear-gradient(90deg, #fff 0 3px, transparent 3px 6px);' : ''}`}
+                ></span>
+                {formatCategoria(Array.isArray(tappa.categoria) ? tappa.categoria[0] : tappa.categoria, tappa.genere)}
+                {tappa.genere === 'Femminile' ? ' ♀' : (tappa.genere === 'Maschile' ? ' ♂' : '')}
+                {' — '}{tappa.nome}
+                {sharedRouteLabel(tappa) && <span class="shared-route-note"> 🔗 stesso percorso</span>}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div class="elevation-container">
+              <svg class="elevation-svg" id="elevation-chart"></svg>
+            </div>
+            <div class="elevation-legend" id="elevation-legend"></div>
+          </>
+        )}
       </div>
 
       {yearNavigation.length > 1 && (
@@ -930,7 +1116,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
     </>
   )}
 
-  <script is:inline define:vars={{ tappe, stageColors, isCorsaATappe, base }}>
+  <script is:inline define:vars={{ tappe, stageColors, stageDash, isCorsaATappe, isCampionato, base }}>
     function waitForLibraries() {
       return new Promise((resolve) => {
         const check = setInterval(() => {
@@ -944,7 +1130,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
     }
 
     waitForLibraries().then(() => {
-      if (isCorsaATappe && tappe && tappe.length > 0) {
+      if ((isCorsaATappe || isCampionato) && tappe && tappe.length > 0) {
         (async () => {
           const stageGpxData = {};
           for (const tappa of tappe) {
@@ -958,13 +1144,15 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
               }
             } catch (e) {}
           }
-          initStageMap(tappe, stageGpxData, stageColors);
-          drawElevationProfile(tappe, stageGpxData, stageColors);
+          initStageMap(tappe, stageGpxData, stageColors, stageDash);
+          if (!isCampionato) {
+            drawElevationProfile(tappe, stageGpxData, stageColors);
+          }
         })();
       }
     });
 
-    function initStageMap(tappe, stageGpxData, colors) {
+    function initStageMap(tappe, stageGpxData, colors, dashes) {
       const mapEl = document.getElementById('stage-map');
       if (!mapEl) return;
 
@@ -998,17 +1186,41 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
         maxZoom: 18
       }).addTo(map);
 
+      // Alcune prove (tipico nei campionati: es. crono e strada della stessa
+      // categoria) condividono lo stesso percorso di base (stesso
+      // gpx_reference): disegnarle come linee identiche sovrapposte le
+      // nasconderebbe a vicenda. Le raggruppiamo e le disegniamo come
+      // un'unica linea "a righe" alternate coi colori di ciascuna prova.
+      const gruppiPercorso = new Map();
       for (const tappa of tappe) {
-        const points = stageGpxData[tappa.numero] || [];
+        const key = tappa.gpx_reference || tappa.slug;
+        if (!gruppiPercorso.has(key)) gruppiPercorso.set(key, []);
+        gruppiPercorso.get(key).push(tappa);
+      }
+
+      for (const gruppo of gruppiPercorso.values()) {
+        const points = stageGpxData[gruppo[0].numero] || [];
         if (points.length === 0) continue;
-        const color = colors[tappa.numero] || '#888';
 
-        const latLngs = points.map(p => {
-          if (Array.isArray(p)) return [p[0], p[1]];
-          return [p.lat, p.lon];
-        });
+        const latLngs = points.map(p => (Array.isArray(p) ? [p[0], p[1]] : [p.lat, p.lon]));
+        const condiviso = isCampionato && gruppo.length > 1;
 
-        L.polyline(latLngs, { color, weight: 3, opacity: 0.85 }).addTo(map);
+        if (condiviso) {
+          const n = gruppo.length;
+          gruppo.forEach((tappa, i) => {
+            const color = colors[tappa.numero] || '#888';
+            L.polyline(latLngs, {
+              color, weight: 4, opacity: 0.9,
+              dashArray: `9, ${9 * (n - 1)}`,
+              dashOffset: String(9 * i),
+            }).addTo(map);
+          });
+        } else {
+          const tappa = gruppo[0];
+          const color = colors[tappa.numero] || '#888';
+          const dashArray = (dashes && dashes[tappa.numero]) || null;
+          L.polyline(latLngs, { color, weight: 3, opacity: 0.85, dashArray }).addTo(map);
+        }
 
         const startPoint = points[0];
         const endPoint   = points[points.length - 1];
@@ -1017,13 +1229,40 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
         const endLat   = Array.isArray(endPoint)   ? endPoint[0]   : endPoint.lat;
         const endLon   = Array.isArray(endPoint)   ? endPoint[1]   : endPoint.lon;
 
+        if (condiviso) {
+          const markerColor = colors[gruppo[0].numero] || '#888';
+          const nomiUniti = gruppo.map(t => t.nome).join(' · ');
+          L.marker([startLat, startLon], {
+            icon: L.divIcon({
+              className: 'stage-start-marker',
+              html: `<div style="background:${markerColor}; color:#fff; width:18px; height:18px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-weight:700; font-size:9px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border: 1.5px solid #fff;">${gruppo.length}</div>`,
+              iconSize: [18, 18], iconAnchor: [9, 9]
+            })
+          }).bindPopup(`Stesso percorso — ${nomiUniti} — PARTENZA`).addTo(map);
+
+          L.marker([endLat, endLon], {
+            icon: L.divIcon({
+              className: 'stage-finish-marker',
+              html: `<div style="background:${markerColor}; color:#fff; width:16px; height:16px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:10px; box-shadow: 0 1px 3px rgba(0,0,0,0.35); border: 1.5px solid #fff;">🏁</div>`,
+              iconSize: [16, 16], iconAnchor: [8, 8]
+            })
+          }).bindPopup(`Stesso percorso — ${nomiUniti} — ARRIVO`).addTo(map);
+          continue;
+        }
+
+        const tappa = gruppo[0];
+        const color = colors[tappa.numero] || '#888';
+        const markerLabel = (isCampionato && tappa.categoria)
+          ? (Array.isArray(tappa.categoria) ? tappa.categoria[0] : tappa.categoria).slice(0, 1)
+          : tappa.numero;
+
         L.marker([startLat, startLon], {
           icon: L.divIcon({
             className: 'stage-start-marker',
-            html: `<div style="background:${color}; color:#fff; width:16px; height:16px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-weight:700; font-size:8px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border: 1.5px solid #fff;">${tappa.numero}</div>`,
+            html: `<div style="background:${color}; color:#fff; width:16px; height:16px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-weight:700; font-size:8px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border: 1.5px solid #fff;">${markerLabel}</div>`,
             iconSize: [16, 16], iconAnchor: [8, 8]
           })
-        }).bindPopup(`S${tappa.numero} ${tappa.nome} - PARTENZA`).addTo(map);
+        }).bindPopup(isCampionato ? `${tappa.nome} - PARTENZA` : `S${tappa.numero} ${tappa.nome} - PARTENZA`).addTo(map);
 
         L.marker([endLat, endLon], {
           icon: L.divIcon({
@@ -1031,7 +1270,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
             html: `<div style="background:${color}; color:#fff; width:16px; height:16px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:10px; box-shadow: 0 1px 3px rgba(0,0,0,0.35); border: 1.5px solid #fff;">🏁</div>`,
             iconSize: [16, 16], iconAnchor: [8, 8]
           })
-        }).bindPopup(`S${tappa.numero} - ARRIVO`).addTo(map);
+        }).bindPopup(isCampionato ? `${tappa.nome} - ARRIVO` : `S${tappa.numero} - ARRIVO`).addTo(map);
       }
     }
 

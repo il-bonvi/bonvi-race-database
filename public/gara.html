@@ -1381,7 +1381,7 @@ let map;
             if (rb) rb.style.display = 'flex';
 
             setupLapsVisualizer();
-            applyDisplayLaps(1);
+            applyDisplayLaps(window._laps || 1);
         }
 
         function escapeXml(value) {
@@ -1541,7 +1541,8 @@ ${trkpts}
                 select.dataset.bound = '1';
             }
 
-            select.value = '1';
+            // Default: mostra tutti i giri (gara completa) invece del singolo giro
+            select.value = String(maxLaps);
         }
 
         function applyDisplayLaps(rawLaps) {
@@ -3292,8 +3293,21 @@ ${trkpts}
                 // Salva la velocità media della gara
                 window._velocitaMedia = gara.velocita_media_kmh || null;
                 
-                // Salva il numero di giri
-                window._laps = Math.max(1, parseInt(gara.giri, 10) || 1);
+                // Salva il numero di giri. Il JSON di una tappa può non contenere "giri"
+                // (vive nell'array "tappe" della corsa madre): in quel caso lo si legge da lì,
+                // altrimenti una tappa a più giri verrebbe mostrata come "1 giro".
+                let declaredLaps = parseInt(gara.giri, 10) || 0;
+                if (!declaredLaps && gara.corsa_a_tappe_slug) {
+                    try {
+                        const pRes = await fetch((baseParam ? baseParam + '/' : '') + 'gare-sorgenti/dettagli/' + gara.corsa_a_tappe_slug + '.json?v=' + encodeURIComponent(cacheBust));
+                        if (pRes.ok) {
+                            const parent = await pRes.json();
+                            const meta = (parent.tappe || []).find(t => t.slug === slug);
+                            declaredLaps = parseInt(meta && meta.giri, 10) || 0;
+                        }
+                    } catch (e) { /* fallback: inferenza dai totali */ }
+                }
+                window._laps = Math.max(1, declaredLaps || 1);
 
                 // Salva i totali dichiarati nel JSON (usati come fallback per inferire i giri)
                 window._raceDistanceKm = gara.distanza_km || null;
@@ -3309,17 +3323,34 @@ ${trkpts}
                 }
 
                 // Carica i punti GPX dal file separato ({slug}-gpx.json o gpx_reference-gpx.json)
+                // Se lo slug puntato non ha un file GPX proprio ma è a sua volta un
+                // riferimento (catena A → B → C), si segue la catena fino alla sorgente.
                 let gpxPoints = null;
-                const gpxSlug = gara.gpx_reference || slug;
-                try {
-                    const gpxPath = (baseParam ? baseParam + '/' : '') + 'gare-sorgenti/gpx/' + gpxSlug + '-gpx.json?v=' + encodeURIComponent(cacheBust);
-                    const gpxRes = await fetch(gpxPath);
-                    if (gpxRes.ok) {
-                        const gpxFile = await gpxRes.json();
-                        gpxPoints = gpxFile.gpx_points;
+                let gpxSlug = gara.gpx_reference || slug;
+                const visitedGpx = new Set();
+                const prefix = (baseParam ? baseParam + '/' : '') + 'gare-sorgenti/';
+                const bust = '?v=' + encodeURIComponent(cacheBust);
+                for (let hop = 0; hop < 8 && gpxSlug && !visitedGpx.has(gpxSlug); hop++) {
+                    visitedGpx.add(gpxSlug);
+                    try {
+                        const gpxRes = await fetch(prefix + 'gpx/' + gpxSlug + '-gpx.json' + bust);
+                        if (gpxRes.ok) {
+                            const gpxFile = await gpxRes.json();
+                            if (gpxFile.gpx_points && gpxFile.gpx_points.length > 0) {
+                                gpxPoints = gpxFile.gpx_points;
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        // Errore caricamento GPX - prova col riferimento successivo
                     }
-                } catch (e) {
-                    // Errore caricamento GPX - ignora e usa fallback
+                    try {
+                        const refRes = await fetch(prefix + 'dettagli/' + gpxSlug + '.json' + bust);
+                        if (!refRes.ok) break;
+                        gpxSlug = (await refRes.json()).gpx_reference || null;
+                    } catch (e) {
+                        break;
+                    }
                 }
 
                 // Avvia elaborazione con i punti GPX dal JSON

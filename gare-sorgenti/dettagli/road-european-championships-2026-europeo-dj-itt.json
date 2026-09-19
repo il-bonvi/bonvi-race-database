@@ -1,0 +1,20 @@
+{
+  "titolo": "Road European Championships — Prova 2: WJ ITT",
+  "tipo": "tappa",
+  "nome_tappa": "WJ ITT",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "road-european-championships-2026-europeo",
+  "corsa_a_tappe_titolo": "Road European Championships",
+  "race_series": "european championships",
+  "data": "2026-10-07",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "ITT",
+  "distanza_km": 21.96,
+  "dislivello_m": 393.0,
+  "velocita_media_kmh": 38.0,
+  "luogo": "SI",
+  "slug": "road-european-championships-2026-europeo-dj-itt"
+}

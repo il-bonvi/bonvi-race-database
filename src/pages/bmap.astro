@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import LangSwitcher from '../components/LangSwitcher.astro';
-import { GENERI, CATEGORIE, DISCIPLINE } from '../lib/gare.js';
+import { GENERI, CATEGORIE, DISCIPLINE, resolveGpxSlug } from '../lib/gare.js';
 import 'leaflet/dist/leaflet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -58,17 +58,70 @@ const gareData: any[] = [];
 for (const [detailSlug, g] of Object.entries(dettagliMap)) {
   if (g.tipo === 'tappa') continue;
 
+  // Campionati (Mondiale/Europeo): a differenza delle corse a tappe, ogni prova
+  // ha genere/categoria/disciplina propri e indipendenti (es. crono donne + strada uomini).
+  // Non ha quindi senso una singola entry "contenitore" colorata come le corse a tappe:
+  // ogni prova diventa una entry a sé, con il proprio colore/tratteggio e il link diretto
+  // alla sua pagina — esattamente come una gara singola.
+  if (g.tipo === 'campionato' && g.tappe?.length > 0) {
+    for (const t of (g.tappe as any[])) {
+      const tDett = dettagliMap[t.slug] ?? t;
+      const gpxSlug = resolveGpxSlug(t.gpx_reference || tDett?.gpx_reference || t.slug, dettagliMap);
+      const gpxEntry = gpxEntries[gpxSlug];
+      if (!gpxEntry) continue; // nessun GPX per questa prova → escludi dalla mappa
+
+      const provaDistanza = tDett.distanza_km ?? t.distanza_km ?? 0;
+      const MAX = Math.max(300, Math.ceil(provaDistanza * 20));
+      const step = gpxEntry.ptsBruti.length > MAX ? Math.floor(gpxEntry.ptsBruti.length / MAX) : 1;
+      const decimated = gpxEntry.ptsBruti.filter((_, i) => i % step === 0);
+
+      const dataProva = tDett.data || t.data || g.data;
+      const year = new Date(dataProva).getFullYear();
+      anni.add(year);
+
+      const provaCategoria = Array.isArray(tDett.categoria)
+        ? tDett.categoria
+        : (tDett.categoria ? [tDett.categoria] : (t.categoria ? [t.categoria] : []));
+
+      gareData.push({
+        slug:          tDett.slug || t.slug,
+        titolo:        tDett.titolo || `${g.titolo} — ${t.nome ?? ''}`,
+        data:          dataProva,
+        anno:          year,
+        mese:          new Date(dataProva).getMonth(),
+        genere:        tDett.genere ?? t.genere ?? '',
+        categoria:     provaCategoria,
+        disciplina:    tDett.disciplina ?? t.disciplina ?? '',
+        tipo:          'campionato_prova',
+        livello:       g.livello ?? null,
+        tappe:         [],
+        distanza_km:   provaDistanza || null,
+        dislivello_m:  tDett.dislivello_m ?? t.dislivello_m ?? null,
+        luogo:         tDett.luogo ?? t.luogo ?? g.luogo ?? '',
+        wt:            false,
+        lat:           gpxEntry.lat,
+        lon:           gpxEntry.lon,
+        polylines:     [decimated],
+        polylineToTappeIdx: [0],
+        gpxKey:        gpxSlug,
+        startPt:       gpxEntry.start,
+        endPts:        [gpxEntry.end],
+      });
+    }
+    continue;
+  }
+
   // Determina slug/i GPX
   let gpxSlugs: string[] = [];
   if (g.tipo === 'corsa_a_tappe' && g.tappe?.length > 0) {
     gpxSlugs = (g.tappe as any[])
       .map((t: any) => {
         const tDett = dettagliMap[t.slug];
-        return t.gpx_reference || tDett?.gpx_reference || t.slug;
+        return resolveGpxSlug(t.gpx_reference || tDett?.gpx_reference || t.slug, dettagliMap);
       })
       .filter(Boolean);
   } else {
-    gpxSlugs = [g.gpx_reference || detailSlug];
+    gpxSlugs = [resolveGpxSlug(g.gpx_reference || detailSlug, dettagliMap)];
   }
 
   // Trova il primo GPX disponibile per il centro mappa
@@ -267,6 +320,7 @@ window.__BASE_URL__  = base;
 </script>
 
 <script>
+import { CATEGORIA_COLORS, WT_COLOR, CAMPIONATO_MAP_COLORS } from '../lib/gare.js';
 (async () => {
   // ── Dizionario traduzioni EN (inline, nessun problema di timing) ──────────
   const EN: Record<string, any> = {
@@ -341,8 +395,17 @@ window.__BASE_URL__  = base;
   const gareData:any[]=(window as any).__GARE_DATA__||[];
   const base:string=(window as any).__BASE_URL__||'';
 
-  const catColor:Record<string,string>={WT:'#8A2BE2',Elite:'#E91E63',U23:'#1B2ACF',Junior:'#28B534',Allievi:'#FFC107'};
-  const getColor=(g:any)=>g.wt?'#8A2BE2':(catColor[(g.categoria||[])[0]]??'#888');
+  const catColor:Record<string,string> = CATEGORIA_COLORS;
+  const campColors:Record<string,string> = CAMPIONATO_MAP_COLORS;
+  // Colori di una entry: per i campionati (prove Mondiale/Europeo) un colore unico
+  // legato al livello dell'evento, non alla categoria della prova.
+  const raceColors=(g:any):string[]=>{
+    if(g.tipo==='campionato_prova') return [campColors[g.livello] ?? '#888'];
+    if(g.wt) return [WT_COLOR];
+    const cats:string[]=g.categoria||[];
+    return cats.length ? cats.map((c:string)=>catColor[c]??'#888') : ['#888'];
+  };
+  const getColor=(g:any)=>raceColors(g)[0];
 
   // ── Offset geografico zoom-aware per linee parallele ─────────────────────
   const pxToDeg=(px:number,lat:number,zoom:number)=>{
@@ -473,7 +536,7 @@ window.__BASE_URL__  = base;
     const catLabel = tr('legend_category','Categoria');
     const menLabel = tr('gen_Maschile','Maschile');
     const womenLabel = tr('gen_Femminile','Femminile');
-    d.innerHTML=`<div class="legend-title">${catLabel}</div>${['WT','Elite','U23','Junior','Allievi'].map(c=>`<div class="legend-row"><span class="legend-dot" style="background:${catColor[c]}"></span>${c==='WT'?'World Tour':(T?.['cat_'+c]??c)}</div>`).join('')}<div class="legend-divider"></div><div class="legend-row"><span class="legend-dot solid"></span>${menLabel}</div><div class="legend-row"><span class="legend-dot dashed"></span>${womenLabel}</div>`;
+    d.innerHTML=`<div class="legend-title">${catLabel}</div>${['WT','Elite','U23','Junior','Allievi'].map(c=>`<div class="legend-row"><span class="legend-dot" style="background:${c==='WT'?WT_COLOR:catColor[c]}"></span>${c==='WT'?'World Tour':(T?.['cat_'+c]??c)}</div>`).join('')}<div class="legend-divider"></div>${Object.entries(campColors).map(([liv,col])=>`<div class="legend-row"><span class="legend-dot" style="background:${col}"></span>${liv}</div>`).join('')}<div class="legend-divider"></div><div class="legend-row"><span class="legend-dot solid"></span>${menLabel}</div><div class="legend-row"><span class="legend-dot dashed"></span>${womenLabel}</div>`;
     return d;
   };
   leg.addTo(map);
@@ -482,8 +545,10 @@ window.__BASE_URL__  = base;
     const d=new Date(g.data);
     const ds=`${d.getDate()} ${MESI[d.getMonth()]} ${d.getFullYear()}`;
     const cats:string[]=g.categoria||[];
-    const catBadges=g.wt
-      ?`<span style="color:#8A2BE2;font-weight:600">World Tour</span>`
+    const catBadges=g.tipo==='campionato_prova'
+      ?`<span style="color:${campColors[g.livello]??'#888'};font-weight:600">${g.livello??''}</span>${cats.length?`<span style="opacity:0.4"> · </span>${cats.map((c:string)=>T?.['cat_'+c]??c).join(', ')}`:''}`
+      :g.wt
+      ?`<span style="color:${WT_COLOR};font-weight:600">World Tour</span>`
       :cats.map((c:string)=>{
         const col=catColor[c]??'#888';
         const rawLabel=T?.['cat_'+c]??c;
@@ -574,11 +639,10 @@ window.__BASE_URL__  = base;
     // Mostra start marker grande con icona — ma solo se la prima tappa matcha il filtro disciplina
     if(g.startPt && shouldShowStartMarker(g)) {
       const cats:string[]=g.categoria||[];
-      const markerBg=g.wt
-        ?'#8A2BE2'
-        :(cats.length>1
-          ?`linear-gradient(90deg,${cats.map((c:string)=>catColor[c]??'#888').join(',')})`
-          :(catColor[cats[0]]??'#888'));
+      const _cols=raceColors(g);
+      const markerBg=_cols.length>1
+        ?`linear-gradient(90deg,${_cols.join(',')})`
+        :_cols[0];
       const startIcon=L.divIcon({
         className:'',
         html:`<div style="width:14px;height:14px;background:${markerBg};border:1.5px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;box-sizing:border-box;">🚩</div>`,
@@ -629,8 +693,7 @@ window.__BASE_URL__  = base;
     spatialGrid.clear();
     entries.forEach((e, ei) => {
       if (!e.visible) return;
-      e.cats.forEach((cat: string) => {
-        const col = catColor[cat] ?? '#888';
+      raceColors(e.gara).forEach((col: string) => {
         e.rawPtsList.forEach((pts: [number,number][]) => {
           pts.forEach((pt) => {
             const k = cellKey(pt[0], pt[1]);
@@ -672,7 +735,7 @@ window.__BASE_URL__  = base;
   ) => {
     const n = allColors.length;
     const hasExternalOverlap = n > allColors.filter(col =>
-      entry.cats.map((c:string) => catColor[c]??'#888').includes(col)
+      raceColors(entry.gara).includes(col)
     ).length;
     const baseW = hasExternalOverlap ? 5 : n === 1 ? 2 : n === 2 ? 3 : 4;
     const w = baseW/n;
@@ -682,7 +745,13 @@ window.__BASE_URL__  = base;
     const offsetPx = (selfColorIdx - (n-1)/2) * w;
     const deg = pxToDeg(offsetPx, midLat, zoom);
     const shifted = applyOffset(pts, deg);
-    const poly = L.polyline(shifted, { color, weight: w, opacity: 0.85 });
+    // Per le prove dei campionati (dove può capitare che due prove condividano lo
+    // stesso percorso ma con genere diverso, es. crono uomini/donne) distingui il
+    // genere col tratteggio, coerentemente con la legenda solido/tratteggiato.
+    const dashArray = (entry.gara.tipo === 'campionato_prova' && entry.gara.genere === 'Femminile')
+      ? '6,5'
+      : undefined;
+    const poly = L.polyline(shifted, { color, weight: w, opacity: 0.85, dashArray });
     poly.on('click', (e: any) => { 
       L.DomEvent.stopPropagation(e); 
       showEndMarkers(entry);
@@ -738,8 +807,7 @@ window.__BASE_URL__  = base;
     entries.forEach((entry, ei) => {
       if (!entry.visible) return;
       hasVisiblePolyline.set(entry, false);
-      const myCats: string[] = entry.cats;
-      const myColors = myCats.map((c: string) => catColor[c] ?? '#888');
+      const myColors = raceColors(entry.gara);
 
       entry.rawPtsList.forEach((rawPts: [number,number][], ptIdx: number) => {
         // Se è una corsa a tappe con filtro disciplina, filtra i polylines
@@ -782,8 +850,8 @@ window.__BASE_URL__  = base;
             const allColors = allCatOrder
               .map(c => catColor[c])
               .filter(col => col && allColorsSet.has(col)) as string[];
-            // Colori non-standard
-            others.forEach(col => { if (!allColors.includes(col)) allColors.push(col); });
+            // Colori non-standard (campionati, altre entry vicine)
+            [...others, ...myColors].forEach(col => { if (!allColors.includes(col)) allColors.push(col); });
 
             const myIdx = allColors.indexOf(myCol);
             const ctxKey = allColors.join(',');
@@ -830,11 +898,10 @@ window.__BASE_URL__  = base;
 
     // Start marker — sempre visibile, minimal dot con colore categoria
     if(g.startPt) {
-      const markerBg=g.wt
-        ?'#8A2BE2'
-        :(cats.length>1
-          ?`linear-gradient(90deg,${cats.map((c:string)=>catColor[c]??'#888').join(',')})`
-          :(catColor[cats[0]]??'#888'));
+      const _cols=raceColors(g);
+      const markerBg=_cols.length>1
+        ?`linear-gradient(90deg,${_cols.join(',')})`
+        :_cols[0];
       const sm = L.marker(g.startPt, {
         icon: L.divIcon({
           className:'',
@@ -914,7 +981,7 @@ window.__BASE_URL__  = base;
       entries.forEach((entry, ei) => {
         if (!entry.visible) return;
         hasVisiblePolyline.set(entry, false);
-        const myColors = entry.cats.map((c: string) => catColor[c] ?? '#888');
+        const myColors = raceColors(entry.gara);
         entry.rawPtsList.forEach((rawPts: [number,number][], ptIdx: number) => {
           // Se è una corsa a tappe con filtro disciplina, filtra i polylines
           if (entry.gara.tipo === 'corsa_a_tappe' && disciplineSelezionate.size > 0) {
@@ -946,7 +1013,7 @@ window.__BASE_URL__  = base;
               const others = nearbyColors(pt[0], pt[1], ei);
               const allColorsSet = new Set([...myColors, ...others]);
               const allColors = allCatOrder2.map(c=>catColor[c]).filter(col=>col&&allColorsSet.has(col)) as string[];
-              others.forEach(col=>{if(!allColors.includes(col))allColors.push(col);});
+              [...others, ...myColors].forEach(col=>{if(!allColors.includes(col))allColors.push(col);});
               const myIdx = allColors.indexOf(myCol);
               const ctxKey = allColors.join(',');
               if (ctxKey !== runCtxKey) {
@@ -1019,7 +1086,7 @@ window.__BASE_URL__  = base;
   // Helper: controlla se il startMarker dovrebbe essere visibile (prima tappa deve matchare il filtro disciplina)
   function shouldShowStartMarker(g: any): boolean {
     if (disciplineSelezionate.size === 0) return true; // Senza filtro, mostra sempre
-    if (g.tipo !== 'corsa_a_tappe') return true; // Solo corse a tappe controllano la prima tappa
+    if (!g.tipo === 'corsa_a_tappe') return true; // Solo corse a tappe/campionati controllano la prima tappa
     
     const firstTappa = g.tappe?.[0];
     if (!firstTappa || !firstTappa.disciplina) return true; // Se non esiste tappa 0, mostra comunque
