@@ -1,0 +1,508 @@
+---
+// campionati.astro — Recap dei campionati (Mondiali / Europei / NAT Champ)
+//
+// Non è la schermata di default del sito: si raggiunge dal link "Campionati" nella sidebar
+// (e dal tag NAT Champ nella pagina di una singola prova).
+//
+//  • Mondiali / Europei: contenitori (tipo "campionato") → una riga per campionato, link alla pagina prove.
+//  • NAT Champ: NON sono contenitori. Ogni prova è una gara autonoma marcata livello "Nazionale" + paese
+//    (sedi e mesi diversi). Qui si raggruppano per (paese, anno) → una "edizione" con l'elenco cronologico
+//    delle prove, i totali e una mappa con tutti i percorsi.
+import Base from '../layouts/Base.astro';
+import LangSwitcher from '../components/LangSwitcher.astro';
+import {
+  formatDistanza, formatDislivello, formatData, formatDateRange, dateRange,
+  disciplinaIcon, formatCategoria, provaColor, provaDashArray,
+  countryFlagCode, paeseNome, isNatChamp, NAT_LABEL, resolveGpxSlug,
+} from '../lib/gare.js';
+import 'leaflet/dist/leaflet.css';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+// ── Dati (build time) ────────────────────────────────────────────────────────
+const garaFiles = import.meta.glob('../../gare-sorgenti/dettagli/*.json', { eager: true });
+const gpxFiles  = import.meta.glob('../../gare-sorgenti/gpx/*-gpx.json', { eager: true });
+const all: any[] = Object.values(garaFiles).map((m: any) => m.default ?? m);
+const bySlug = new Map(all.map((g: any) => [g.slug, g]));
+
+const gpxPoints: Record<string, [number, number][]> = {};
+for (const [path, mod] of Object.entries(gpxFiles)) {
+  const d: any = (mod as any).default ?? mod;
+  const pts = d?.gpx_points ?? [];
+  if (pts.length === 0) continue;
+  const slug = path.split('/').pop()!.replace(/-gpx\.json$/, '');
+  gpxPoints[slug] = pts.map((p: any) => [p.lat, p.lon] as [number, number]);
+}
+
+// Polilinea decimata (~1 punto ogni 50 m, min 300): come BMAP
+function polyline(g: any): [number, number][] {
+  const key = resolveGpxSlug(g.gpx_reference || g.slug, bySlug);
+  const pts = gpxPoints[key];
+  if (!pts) return [];
+  const km = Number(g.distanza_km ?? g._base_km ?? 0);
+  const MAX = Math.max(300, Math.ceil(km * 20));
+  const step = pts.length > MAX ? Math.floor(pts.length / MAX) : 1;
+  return pts.filter((_, i) => i % step === 0);
+}
+
+const flagSrc = (code: string | null) => (code ? `https://flagcdn.com/w40/${code}.png` : null);
+
+// ── NAT Champ: raggruppa le prove per (paese, anno) ──────────────────────────
+type Edition = { key: string; paese: string; anno: number; prove: any[]; km: number; elev: number };
+const natMap = new Map<string, Edition>();
+for (const g of all.filter(isNatChamp)) {
+  const paese = (g.paese || countryFlagCode(g.luogo) || '').toLowerCase();
+  const anno = new Date(g.data).getFullYear();
+  const key = `${paese}-${anno}`;
+  if (!natMap.has(key)) natMap.set(key, { key, paese, anno, prove: [], km: 0, elev: 0 });
+  const ed = natMap.get(key)!;
+  const categoria = Array.isArray(g.categoria) ? g.categoria : (g.categoria ? [g.categoria] : []);
+  ed.prove.push({
+    slug: g.slug,
+    titolo: g.titolo,
+    data: g.data,
+    luogo: g.luogo ?? '',
+    genere: g.genere ?? '',
+    categoria,
+    disciplina: g.disciplina ?? '',
+    distanza_km: g.distanza_km ?? null,
+    dislivello_m: g.dislivello_m ?? null,
+    base_km: g._base_km ?? null,
+    base_elev: g._base_elev ?? null,
+    giri: g.giri ?? 1,
+    color: provaColor(categoria),
+    dash: provaDashArray(g.genere),
+    gpxKey: resolveGpxSlug(g.gpx_reference || g.slug, bySlug),
+    poly: polyline(g),
+  });
+}
+const editions: Edition[] = Array.from(natMap.values());
+for (const ed of editions) {
+  ed.prove.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+  ed.km = ed.prove.reduce((s, p) => s + (Number(p.distanza_km) || 0), 0);
+  ed.elev = ed.prove.reduce((s, p) => s + (Number(p.dislivello_m) || 0), 0);
+}
+editions.sort((a, b) => b.anno - a.anno || paeseNome(a.paese).localeCompare(paeseNome(b.paese)));
+
+const paesiNat = Array.from(new Set(editions.map((e) => e.paese)))
+  .sort((a, b) => paeseNome(a).localeCompare(paeseNome(b)));
+
+// Dati per il client (mappa): solo le polilinee e ciò che serve al popup
+const champData = {
+  editions: editions.map((e) => ({
+    key: e.key, paese: e.paese, anno: e.anno,
+    prove: e.prove.map((p) => ({
+      slug: p.slug, titolo: p.titolo, color: p.color, dash: p.dash, gpxKey: p.gpxKey, poly: p.poly,
+      label: [p.categoria.map((c: string) => formatCategoria(c, p.genere)).join('/'), p.genere === 'Femminile' ? '♀' : (p.genere === 'Maschile' ? '♂' : '')].filter(Boolean).join(' '),
+    })),
+  })),
+};
+
+// ── Mondiali / Europei: contenitori ──────────────────────────────────────────
+const contenitori = (livello: string) =>
+  all
+    .filter((g: any) => g.tipo === 'campionato' && g.livello === livello)
+    .sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime());
+const mondiali = contenitori('Mondiale');
+const europei  = contenitori('Europeo');
+---
+
+<Base title="Campionati — BRD Race Database">
+<div class="page">
+
+  <header class="topbar">
+    <a href={`${base}/`} class="brand" aria-label="Home">
+      <span class="brand-mark">BRD</span>
+      <span class="brand-name">Race Database</span>
+    </a>
+    <nav class="topnav">
+      <a href={`${base}/`} data-i18n="nav_upcoming">Prossime Gare</a>
+      <a href={`${base}/archivio`} data-i18n="nav_archive">Archivio</a>
+      <a href={`${base}/bmap`} data-i18n="nav_bmap">BMAP</a>
+      <a href={`${base}/campionati`} class="active" data-i18n="nav_champs">Campionati</a>
+    </nav>
+    <LangSwitcher />
+  </header>
+
+  <main class="content">
+    <h1 class="page-title" data-i18n="champs_title">Campionati</h1>
+    <p class="page-sub" data-i18n="champs_sub">Recap dei campionati caricati: Mondiali, Europei e campionati nazionali.</p>
+
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="mondiali"  data-i18n="tab_wc">Mondiali</button>
+      <button class="tab" role="tab" data-tab="europei"   data-i18n="tab_ec">Europei</button>
+      <button class="tab active" role="tab" data-tab="nazionali" data-i18n="tab_nat">Nazionali <span class="tab-tag">NAT Champ</span></button>
+    </div>
+
+    <!-- ═════ MONDIALI ═════ -->
+    <section class="panel" id="panel-mondiali" hidden>
+      {mondiali.length === 0 ? (
+        <div class="empty" data-i18n="empty_wc">Nessun mondiale caricato.</div>
+      ) : (
+        <ul class="champ-list">
+          {mondiali.map((g: any) => (
+            <li>
+              <a class="champ-row" href={`${base}/gare/${g.slug}/`}>
+                {flagSrc(g.paese || countryFlagCode(g.luogo)) && <img class="flag" src={flagSrc(g.paese || countryFlagCode(g.luogo))!} alt="" loading="lazy" />}
+                <span class="champ-main">
+                  <span class="champ-title">{g.titolo}</span>
+                  <span class="champ-meta">{g.luogo ?? ''}</span>
+                </span>
+                <span class="champ-date">{formatDateRange(dateRange(g))} · {new Date(g.data).getFullYear()}</span>
+                <span class="champ-n">{g.n_tappe} <span data-i18n="trials">prove</span></span>
+                <span class="champ-go" data-i18n="see_trials">Vedi prove →</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+
+    <!-- ═════ EUROPEI ═════ -->
+    <section class="panel" id="panel-europei" hidden>
+      {europei.length === 0 ? (
+        <div class="empty" data-i18n="empty_ec">Nessun europeo caricato.</div>
+      ) : (
+        <ul class="champ-list">
+          {europei.map((g: any) => (
+            <li>
+              <a class="champ-row" href={`${base}/gare/${g.slug}/`}>
+                {flagSrc(g.paese || countryFlagCode(g.luogo)) && <img class="flag" src={flagSrc(g.paese || countryFlagCode(g.luogo))!} alt="" loading="lazy" />}
+                <span class="champ-main">
+                  <span class="champ-title">{g.titolo}</span>
+                  <span class="champ-meta">{g.luogo ?? ''}</span>
+                </span>
+                <span class="champ-date">{formatDateRange(dateRange(g))} · {new Date(g.data).getFullYear()}</span>
+                <span class="champ-n">{g.n_tappe} <span data-i18n="trials">prove</span></span>
+                <span class="champ-go" data-i18n="see_trials">Vedi prove →</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+
+    <!-- ═════ NAZIONALI (NAT Champ) ═════ -->
+    <section class="panel" id="panel-nazionali">
+      {editions.length === 0 ? (
+        <div class="empty" data-i18n="empty_nat">Nessun campionato nazionale caricato.</div>
+      ) : (
+        <>
+          <div class="nat-controls">
+            <label class="ctl">
+              <span data-i18n="ctl_country">Nazione</span>
+              <select id="nat-paese">
+                {paesiNat.map((p) => <option value={p}>{paeseNome(p) || '—'}</option>)}
+              </select>
+            </label>
+            <label class="ctl">
+              <span data-i18n="ctl_year">Anno</span>
+              <select id="nat-anno"></select>
+            </label>
+          </div>
+
+          {editions.map((ed) => (
+            <article class="edition" data-key={ed.key} data-paese={ed.paese} data-anno={ed.anno} hidden>
+              <header class="ed-head">
+                {flagSrc(ed.paese) && <img class="flag flag-lg" src={flagSrc(ed.paese)!} alt="" />}
+                <div class="ed-titles">
+                  <h2 class="ed-title">{NAT_LABEL} · {paeseNome(ed.paese)} {ed.anno}</h2>
+                  <div class="ed-sub">
+                    {ed.prove.length} <span data-i18n="trials">prove</span> ·
+                    {formatDateRange({ start: ed.prove[0].data, end: ed.prove[ed.prove.length - 1].data === ed.prove[0].data ? null : ed.prove[ed.prove.length - 1].data })}
+                  </div>
+                </div>
+                <div class="ed-totals">
+                  <div><span class="tot-v">{ed.km.toFixed(0)}</span><span class="tot-l">km</span></div>
+                  <div><span class="tot-v">{Math.round(ed.elev)}</span><span class="tot-l" data-i18n="tot_elev">m D+</span></div>
+                </div>
+              </header>
+
+              <ol class="prove">
+                {ed.prove.map((p: any) => (
+                  <li class="prova" style={`--c: ${p.color}`}>
+                    <a href={`${base}/gare/${p.slug}/`} class="prova-link">
+                      <span class={`prova-bar${p.dash ? ' prova-bar--dash' : ''}`} aria-hidden="true"></span>
+                      <span class="prova-date">{formatData(p.data)}</span>
+                      <span class="prova-main">
+                        <span class="prova-title">
+                          {p.titolo}
+                          {p.categoria.map((c: string) => (
+                            <span class="prova-cat" data-cat={c}>{formatCategoria(c, p.genere)}</span>
+                          ))}
+                          <span class="prova-gen">{p.genere === 'Femminile' ? '♀' : (p.genere === 'Maschile' ? '♂' : '')}</span>
+                        </span>
+                        <span class="prova-meta">{p.luogo}</span>
+                      </span>
+                      <span class="prova-disc">{disciplinaIcon(p.disciplina)} {p.disciplina}</span>
+                      <span class="prova-num">
+                        {p.disciplina === 'Tipo pista'
+                          ? (p.base_km ? `${formatDistanza(p.base_km)} / lap` : '—')
+                          : (p.distanza_km ? formatDistanza(p.distanza_km) : '—')}
+                        {p.giri > 1 && <span class="prova-giri"> · {p.giri} <span data-i18n="laps">giri</span></span>}
+                      </span>
+                      <span class="prova-num prova-elev">
+                        {p.disciplina === 'Tipo pista'
+                          ? (p.base_elev ? formatDislivello(p.base_elev) : '—')
+                          : (p.dislivello_m ? formatDislivello(p.dislivello_m) : '—')}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </article>
+          ))}
+
+          <div id="nat-map" class="nat-map"></div>
+          <p class="map-note" data-i18n="map_note">Colore = categoria · tratteggio = femminile · percorsi condivisi: linea a righe.</p>
+        </>
+      )}
+    </section>
+  </main>
+</div>
+</Base>
+
+<script is:inline define:vars={{ champData }}>
+  window.__CHAMP__ = champData;
+</script>
+
+<script>
+  const EN: Record<string, string> = {
+    nav_upcoming: 'Upcoming Races', nav_archive: 'Archive', nav_bmap: 'BMAP', nav_champs: 'Championships',
+    champs_title: 'Championships',
+    champs_sub: 'Recap of the loaded championships: World, European and national championships.',
+    tab_wc: 'World', tab_ec: 'European', tab_nat: 'National <span class="tab-tag">NAT Champ</span>',
+    empty_wc: 'No world championships loaded.', empty_ec: 'No European championships loaded.',
+    empty_nat: 'No national championships loaded.',
+    trials: 'events', see_trials: 'View events →', laps: 'laps',
+    ctl_country: 'Country', ctl_year: 'Year', tot_elev: 'm elev.',
+    map_note: 'Colour = category · dashed = women · shared routes: striped line.',
+  };
+  const EN_CAT: Record<string, string> = { Allievi: 'U16' };
+  const lang = localStorage.getItem('brd-lang') || 'it';
+  if (lang === 'en') {
+    document.querySelectorAll<HTMLElement>('[data-i18n]').forEach((el) => {
+      const k = el.dataset.i18n!;
+      if (EN[k] !== undefined) el.innerHTML = EN[k];
+    });
+    document.querySelectorAll<HTMLElement>('.prova-cat[data-cat]').forEach((el) => {
+      const c = el.dataset.cat!;
+      if (EN_CAT[c]) el.textContent = EN_CAT[c];
+    });
+  }
+
+  // ── Tab ────────────────────────────────────────────────────────────────────
+  const tabs = Array.from(document.querySelectorAll<HTMLElement>('.tab'));
+  const panels: Record<string, HTMLElement | null> = {
+    mondiali: document.getElementById('panel-mondiali'),
+    europei: document.getElementById('panel-europei'),
+    nazionali: document.getElementById('panel-nazionali'),
+  };
+
+  // ── NAT Champ: selezione nazione/anno + mappa ──────────────────────────────
+  const data = (window as any).__CHAMP__ as { editions: any[] };
+  const selPaese = document.getElementById('nat-paese') as HTMLSelectElement | null;
+  const selAnno = document.getElementById('nat-anno') as HTMLSelectElement | null;
+  const editionEls = Array.from(document.querySelectorAll<HTMLElement>('.edition'));
+
+  let map: any = null;
+  let layer: any = null;
+  let Lref: any = null;
+
+  async function ensureMap() {
+    if (map || !document.getElementById('nat-map')) return;
+    const mod: any = await import('leaflet');
+    Lref = mod.default ?? mod;
+    map = Lref.map('nat-map', { center: [42.5, 12.5], zoom: 5, scrollWheelZoom: true });
+    Lref.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(map);
+    layer = Lref.layerGroup().addTo(map);
+  }
+
+  async function drawMap(key: string) {
+    await ensureMap();
+    if (!map) return;
+    layer.clearLayers();
+    const ed = data.editions.find((e) => e.key === key);
+    if (!ed) return;
+
+    // Prove sullo stesso percorso: la prima a tinta piena, le altre tratteggiate sopra (linea "a righe")
+    const groups = new Map<string, any[]>();
+    for (const p of ed.prove) {
+      if (!p.poly || p.poly.length === 0) continue;
+      if (!groups.has(p.gpxKey)) groups.set(p.gpxKey, []);
+      groups.get(p.gpxKey)!.push(p);
+    }
+    const bounds: any[] = [];
+    const base = (document.querySelector('a.brand') as HTMLAnchorElement).getAttribute('href')!.replace(/\/$/, '');
+    for (const grp of groups.values()) {
+      grp.forEach((p, idx) => {
+        const shared = grp.length > 1;
+        const dash = shared ? (idx > 0 ? '9,9' : null) : (p.dash || null);
+        const line = Lref.polyline(p.poly, { color: p.color, weight: 4, opacity: 0.9, dashArray: dash });
+        const popup = `<a href="${base}/gare/${p.slug}/">${p.titolo}</a><br>${p.label}`;
+        line.bindPopup(popup);
+        line.addTo(layer);
+        // Le prove di un nazionale sono in sedi anche lontane tra loro: a zoom di nazione il percorso è un
+        // puntino, quindi ogni prova ha anche un marcatore di partenza ben visibile.
+        if (idx === 0 || !shared) {
+          Lref.circleMarker(p.poly[0], { radius: 7, color: '#fff', weight: 2, fillColor: p.color, fillOpacity: 1 })
+            .bindPopup(popup).addTo(layer);
+        }
+        bounds.push(...p.poly);
+      });
+    }
+    map.invalidateSize();
+    if (bounds.length > 0) map.fitBounds(bounds, { padding: [24, 24] });
+  }
+
+  function fillYears(paese: string, wanted?: number) {
+    if (!selAnno) return;
+    const years = data.editions.filter((e) => e.paese === paese).map((e) => e.anno).sort((a, b) => b - a);
+    selAnno.innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join('');
+    if (wanted && years.includes(wanted)) selAnno.value = String(wanted);
+  }
+
+  function showEdition() {
+    if (!selPaese || !selAnno) return;
+    const key = `${selPaese.value}-${selAnno.value}`;
+    editionEls.forEach((el) => { el.hidden = el.dataset.key !== key; });
+    drawMap(key);
+    history.replaceState(null, '', `#nazionali-${key}`);
+  }
+
+  function activate(tab: string, opts: { paese?: string; anno?: number } = {}) {
+    tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === tab));
+    Object.entries(panels).forEach(([k, el]) => { if (el) el.hidden = k !== tab; });
+    if (tab === 'nazionali' && selPaese && selAnno) {
+      if (opts.paese && Array.from(selPaese.options).some((o) => o.value === opts.paese)) selPaese.value = opts.paese;
+      fillYears(selPaese.value, opts.anno);
+      showEdition();
+    } else {
+      history.replaceState(null, '', `#${tab}`);
+    }
+  }
+
+  tabs.forEach((t) => t.addEventListener('click', () => activate(t.dataset.tab!)));
+  selPaese?.addEventListener('change', () => { fillYears(selPaese!.value); showEdition(); });
+  selAnno?.addEventListener('change', showEdition);
+
+  // Deep link: #mondiali | #europei | #nazionali | #nazionali-it-2026
+  (function init() {
+    const h = location.hash.replace('#', '');
+    const m = h.match(/^nazionali-([a-z]{2})-(\d{4})$/i);
+    if (m) return activate('nazionali', { paese: m[1].toLowerCase(), anno: Number(m[2]) });
+    if (h === 'mondiali' || h === 'europei') return activate(h);
+    activate('nazionali');
+  })();
+</script>
+
+<style is:global>
+  .page { min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+
+  .page .topbar {
+    display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+    padding: 0.9rem 1.5rem; background: var(--bg2); border-bottom: 1px solid var(--border);
+  }
+  .page .brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--text); }
+  .page .brand-mark {
+    font-family: var(--font-display); font-size: 0.82rem; font-weight: 800; letter-spacing: 0.08em;
+    background: var(--text); color: var(--bg); padding: 0.27rem 0.43rem; border-radius: 2px;
+  }
+  .page .brand-name { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; }
+  .page .topnav { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .page .topnav a {
+    font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text2); text-decoration: none; padding: 0.35rem 0.7rem; border: 1px solid var(--border); border-radius: 3px;
+  }
+  .page .topnav a:hover { color: var(--text); border-color: var(--text2); }
+  .page .topnav a.active { color: var(--bg); background: var(--text); border-color: var(--text); }
+
+  .page .content { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .page-title { font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; letter-spacing: -0.01em; }
+  .page-sub { color: var(--text2); margin: 0.3rem 0 1.5rem; font-size: 0.95rem; }
+
+  .tabs { display: flex; gap: 0.4rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .tab {
+    font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em;
+    background: none; border: 1px solid transparent; border-bottom: none; padding: 0.6rem 1rem; cursor: pointer; color: var(--text2);
+    margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); background: var(--bg2); border-color: var(--border); font-weight: 600; }
+  .tab-tag {
+    font-size: 0.55rem; background: var(--text); color: var(--bg); padding: 0.1rem 0.35rem; border-radius: 2px;
+    margin-left: 0.3rem; vertical-align: middle;
+  }
+  .panel[hidden], .edition[hidden] { display: none; }
+
+  .empty { padding: 3rem 1rem; text-align: center; color: var(--text2); border: 1px dashed var(--border); background: var(--bg2); }
+
+  /* Mondiali / Europei */
+  .champ-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+  .champ-row {
+    display: grid; grid-template-columns: auto 1fr auto auto auto; align-items: center; gap: 1rem;
+    padding: 0.9rem 1.1rem; background: var(--surface); border: 1px solid var(--border);
+    text-decoration: none; color: var(--text); transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .champ-row:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+  .champ-main { display: flex; flex-direction: column; }
+  .champ-title { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; }
+  .champ-meta, .champ-date, .champ-n { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text2); }
+  .champ-go { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
+  .flag { width: 28px; height: auto; border: 1px solid var(--border); border-radius: 2px; }
+  .flag-lg { width: 44px; }
+
+  /* Nazionali */
+  .nat-controls { display: flex; gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+  .ctl { display: flex; flex-direction: column; gap: 0.25rem; font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text2); }
+  .ctl select {
+    font-family: var(--font-body); font-size: 0.95rem; padding: 0.45rem 0.7rem; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); min-width: 10rem; border-radius: 2px;
+  }
+
+  .ed-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .ed-titles { flex: 1; min-width: 12rem; }
+  .ed-title { font-family: var(--font-display); font-size: 1.7rem; font-weight: 800; }
+  .ed-sub { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text2); margin-top: 0.15rem; }
+  .ed-totals { display: flex; gap: 1.5rem; }
+  .ed-totals > div { display: flex; flex-direction: column; align-items: flex-end; }
+  .tot-v { font-family: var(--font-display); font-size: 1.7rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  .tot-l { font-family: var(--font-mono); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); }
+
+  .prove { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.5rem; }
+  .prova-link {
+    position: relative; display: grid; grid-template-columns: 6px 4.2rem 1fr 7.5rem 8rem 5.5rem; align-items: center; gap: 0.9rem;
+    padding: 0.7rem 1rem 0.7rem 0; background: var(--surface); border: 1px solid var(--border);
+    text-decoration: none; color: var(--text); overflow: hidden; transition: box-shadow 0.12s;
+  }
+  .prova-link:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+  .prova-bar { align-self: stretch; background: var(--c); }
+  .prova-bar--dash { background: repeating-linear-gradient(180deg, var(--c) 0 6px, transparent 6px 10px); }
+  .prova-date { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text2); }
+  .prova-main { display: flex; flex-direction: column; min-width: 0; }
+  .prova-title { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .prova-cat {
+    font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+    color: var(--c); border: 1px solid var(--c); padding: 0.05rem 0.4rem; border-radius: 2px;
+  }
+  .prova-gen { color: var(--text2); font-size: 0.85rem; }
+  .prova-meta { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prova-disc { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text2); }
+  .prova-num { font-family: var(--font-mono); font-size: 0.78rem; text-align: right; }
+  .prova-giri { color: var(--text2); }
+  .prova-elev { color: var(--text2); }
+
+  .nat-map { height: 420px; border: 1px solid var(--border); background: var(--bg3); z-index: 0; }
+  .map-note { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text2); margin-top: 0.5rem; }
+
+  @media (max-width: 760px) {
+    .champ-row { grid-template-columns: auto 1fr; }
+    .champ-date, .champ-n, .champ-go { grid-column: 2; }
+    .prova-link { grid-template-columns: 6px 1fr auto; row-gap: 0.2rem; }
+    .prova-date { display: none; }
+    .prova-disc, .prova-elev { display: none; }
+  }
+</style>

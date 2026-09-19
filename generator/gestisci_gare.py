@@ -31,7 +31,11 @@ from race_utils import (
     GENERI,
     DISCIPLINE,
     LIVELLI_CAMPIONATO,
+    LIVELLO_NAZIONALE,
     PAESI_BANDIERA,
+    prova_nome,
+    nat_valori_auto,
+    nat_applica_auto,
     slugify,
     categoria_code,
     get_slug_suffix,
@@ -295,6 +299,12 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list, tipo: str = '
     stage_slugs_all = {x['slug_tappa'] for x in stages}
     refs_in_use     = {x.get('gpx_reference') for x in stages if x.get('gpx_reference')}
 
+    # Campionati: il nome della prova è FISSO, ricavato da genere/categoria/disciplina
+    # (es. "WJ Road Race", "WJ ITT"): mai un nome libero né "Prova N".
+    if is_campionato:
+        for s in stages:
+            s['nome'] = prova_nome(s.get('genere'), s.get('categoria'), s.get('disciplina'))
+
     # Totali km/dislivello: per le corse a tappe è il percorso complessivo,
     # per i campionati è una somma puramente statistica (le prove restano gare
     # indipendenti, ma sapere quanti km "in totale" si sono disegnati è utile).
@@ -353,7 +363,8 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list, tipo: str = '
         # (diversi da prova a prova); per le corse a tappe si eredita dalla corsa
         stage_genere    = (s.get('genere') or main_data.get('genere', '')) if is_campionato else main_data.get('genere', '')
         stage_categoria = ([s.get('categoria')] if is_campionato and s.get('categoria') else main_data.get('categoria', []))
-        nome_label = f"Prova {s['numero']}: {s['nome']}" if is_campionato else f"Tappa {s['numero']}: {s['nome']}"
+        # Campionati: solo il nome fisso della prova (es. "TEST WC — WJ Road Race"), senza "Prova N"
+        nome_label = s['nome'] if is_campionato else f"Tappa {s['numero']}: {s['nome']}"
         stage_data = {
             "titolo":               f"{main_data['titolo']} — {nome_label}",
             "tipo":                 "tappa",
@@ -915,6 +926,7 @@ DATA:         {data.get('data', '—')}
 GENERE:       {data.get('genere', '—')}
 CATEGORIE:    {', '.join(data.get('categoria', [])) if isinstance(data.get('categoria'), list) else data.get('categoria', '—')}
 {'WORLD TOUR:   ⭐ SÌ' if data.get('wt') else ''}
+{('NAT CHAMP:    🏆 ' + str(data.get('paese', '')).upper()) if data.get('livello') == LIVELLO_NAZIONALE else ''}
 DISCIPLINA:   {data.get('disciplina', '—')}
 DISTANZA:     {data.get('distanza_km', '—')} km
 DISLIVELLO:   {data.get('dislivello_m', '—')} m
@@ -1297,11 +1309,17 @@ GPX FILE:     {gpx_info}"""
         """Apre il form per compilare/modificare i dettagli della gara"""
         edit_win = tk.Toplevel(self.root)
         edit_win.title("Aggiungi gara" if is_new else f"Modifica: {initial_data.get('titolo', '')}")
-        edit_win.geometry("500x850")
+        edit_win.geometry("500x930")
         edit_win.configure(bg=BG)
         
         # Crea copia per modifiche
         data = initial_data.copy()
+
+        # NAT Champ: "nat_champ"/"paese_nat" sono campi SOLO del form. Nel JSON diventano
+        # livello = "Nazionale" + paese = <codice ISO> (vedi save_changes).
+        _nome_da_codice = {cod: nome for nome, cod in PAESI_BANDIERA.items()}
+        data['nat_champ'] = data.get('livello') == LIVELLO_NAZIONALE
+        data['paese_nat'] = _nome_da_codice.get(data.get('paese'), "—")
         
         # Calcolo valori raw (per singolo giro)
         giri_iniziali = max(1, int(data.get('giri') or 1))
@@ -1338,6 +1356,8 @@ GPX FILE:     {gpx_info}"""
             ("categoria", "Categorie", "categoria_checkboxes", CATEGORIE),
             ("disciplina", "Disciplina", "combo", DISCIPLINE),
             ("wt", "World Tour (WT)", "checkbox"),
+            ("nat_champ", "Campionato nazionale (NAT Champ)", "checkbox"),
+            ("paese_nat", "Paese del campionato", "combo", ["—"] + sorted(PAESI_BANDIERA.keys())),
             ("gpx_reference", "GPX di riferimento (slug)", "combo_gare", opzioni_gare, opzioni_gare_vals),
         ]
         
@@ -1674,6 +1694,38 @@ GPX FILE:     {gpx_info}"""
                 slug_manual.set(True)
             entries['slug'].bind("<KeyPress>", on_slug_edit)
         
+        # ── NAT Champ: auto-popola titolo, serie e slug ──────────────────────────
+        # Spuntando "Campionato nazionale" e scegliendo Paese + Disciplina il form compila da solo
+        #   titolo  → es. "Italiano Strada"     serie → es. "ita road"     slug → es. italiano-strada-2026-DJ
+        # Un campo modificato a mano non viene più sovrascritto (finché non si ri-spunta NAT Champ).
+        # In modifica lo slug NON viene toccato (si rinominerebbero i file): usa "Rigenera slug".
+        nat_state = {'ultimo_auto': {}, 'forza': False}
+
+        def _nat_autofill(*_):
+            if not entries['nat_champ'].get():
+                return
+            auto = nat_valori_auto(PAESI_BANDIERA.get(entries['paese_nat'].get()), entries['disciplina'].get())
+            if not auto:
+                return  # paese o disciplina non ancora scelti: si riprova al prossimo cambio
+            attuali = {'titolo': entries['titolo'].get(), 'race_series': entries['race_series'].get()}
+            da_scrivere = nat_applica_auto(auto, attuali, nat_state['ultimo_auto'], nat_state['forza'])
+            nat_state['forza'] = False
+            nat_state['ultimo_auto'] = auto
+            for campo, valore in da_scrivere.items():
+                entries[campo].delete(0, tk.END)
+                entries[campo].insert(0, valore)
+            if is_new:
+                update_slug()
+
+        def _on_nat_toggle(*_):
+            if entries['nat_champ'].get():
+                nat_state['forza'] = True   # appena spuntato: sovrascrive anche titolo/serie già presenti
+            _nat_autofill()
+
+        entries['nat_champ'].trace_add("write", _on_nat_toggle)
+        entries['paese_nat'].trace_add("write", _nat_autofill)
+        entries['disciplina'].trace_add("write", _nat_autofill)
+        
         # Genera slug iniziale SOLO per gare nuove
         if is_new:
             update_slug()
@@ -1809,6 +1861,11 @@ GPX FILE:     {gpx_info}"""
                         del data[key]
                     continue
                 
+                if key in ("nat_champ", "paese_nat"):
+                    # Campi solo-form: vengono tradotti in livello/paese dopo il ciclo
+                    data[key] = widget.get()
+                    continue
+                
                 if key == "gpx_reference":
                     current_val = widget.get()
                     if not current_val or current_val == "[GPX Caricato]":
@@ -1873,6 +1930,23 @@ GPX FILE:     {gpx_info}"""
             if not data.get('slug', '').strip():
                 messagebox.showerror("Errore", "Slug obbligatorio")
                 return
+            
+            # NAT Champ: campi del form → livello/paese nel JSON.
+            # Validato PRIMA di rinominare/spostare i file, così un errore non lascia dati a metà.
+            nat_attivo = bool(data.get('nat_champ', False))
+            codice_paese = PAESI_BANDIERA.get(data.get('paese_nat', "—"))
+            if nat_attivo and not codice_paese:
+                messagebox.showerror("Errore", "NAT Champ: seleziona il paese del campionato")
+                return
+            data.pop('nat_champ', None)
+            data.pop('paese_nat', None)
+            if nat_attivo:
+                data['livello'] = LIVELLO_NAZIONALE
+                data['paese'] = codice_paese
+            elif data.get('livello') == LIVELLO_NAZIONALE:
+                # NAT Champ disattivato: rimuove i due campi
+                data.pop('livello', None)
+                data.pop('paese', None)
             
             # ── Rinomina file se lo slug è cambiato ──────────────────────────
             if not is_new and original_slug and original_slug != data.get('slug'):
@@ -2556,7 +2630,10 @@ GPX FILE:     {gpx_info}"""
                        font=("Helvetica", 9), width=6).grid(row=0, column=1, sticky="w", pady=3)
         stage_entries['numero'] = numero_tappa_var
         
-        _make_detail_field(detail_lf, 1, 'nome',         "Nome Prova" if is_campionato else "Nome Tappa")
+        _make_detail_field(detail_lf, 1, 'nome',         "Nome prova (auto)" if is_campionato else "Nome Tappa")
+        if is_campionato:
+            # Nome FISSO: si genera da genere/categoria/disciplina, non si digita
+            stage_widgets['nome'].config(state="readonly", readonlybackground="#ede9e2")
         _make_detail_date_field(detail_lf, 2, 'data',    "Data")
         _make_detail_field(detail_lf, 3, 'distanza_km',  "Distanza (km)")
         _make_detail_field(detail_lf, 4, 'dislivello_m', "Dislivello (m)")
@@ -2717,6 +2794,19 @@ GPX FILE:     {gpx_info}"""
         categoria_stage_var = tk.StringVar(value="")
         tk.OptionMenu(detail_lf, categoria_stage_var, "", *CATEGORIE).grid(row=10, column=1, sticky="ew", pady=3)
         stage_entries['categoria'] = categoria_stage_var
+
+        # Campionati: nome prova FISSO "<genere><categoria> <disciplina>" (es. "WJ Road Race"),
+        # ricalcolato ogni volta che cambia uno dei tre campi
+        if is_campionato:
+            def _refresh_prova_nome(*_):
+                stage_entries['nome'].set(prova_nome(
+                    genere_stage_var.get().strip() or None,
+                    categoria_stage_var.get().strip() or None,
+                    disc_s_var.get(),
+                ))
+            for _v in (genere_stage_var, categoria_stage_var, disc_s_var):
+                _v.trace_add("write", _refresh_prova_nome)
+            _refresh_prova_nome()
 
         # Riga slug tappa con bottone rigenerazione
         tk.Label(detail_lf, text="Slug tappa", font=("Helvetica", 9, "bold"), bg=BG, fg=FG).grid(
@@ -3044,6 +3134,8 @@ GPX FILE:     {gpx_info}"""
             stages[idx]['slug_tappa']   = slug_t_var.get()
             stages[idx]['genere']       = stage_entries['genere'].get().strip() or None
             stages[idx]['categoria']    = stage_entries['categoria'].get().strip() or None
+            if is_campionato:
+                stages[idx]['nome'] = prova_nome(stages[idx]['genere'], stages[idx]['categoria'], stages[idx]['disciplina'])
             
             # Se la tappa è Tipo pista, forza distanza_km e dislivello_m a None (non conteggiati)
             if stages[idx]['disciplina'] == 'Tipo pista':
@@ -3203,7 +3295,7 @@ GPX FILE:     {gpx_info}"""
             num = len(stages) + 1
             new_s = {
                 'numero':       num,
-                'nome':         f"Prova {num}" if is_campionato else f"Tappa {num}",
+                'nome':         prova_nome(None, None, 'Strada') if is_campionato else f"Tappa {num}",
                 'slug_tappa':   '',
                 'data':         (race_entries['data_inizio'].get() or date.today().isoformat()) if is_campionato else race_entries['data_inizio'].get(),
                 'disciplina':   'Strada',
@@ -3292,9 +3384,6 @@ GPX FILE:     {gpx_info}"""
 
             if is_campionato:
                 for s in stages:
-                    if not s.get('nome'):
-                        messagebox.showerror("Errore", f"Prova {s['numero']}: nome obbligatorio", parent=win)
-                        return
                     if not s.get('data'):
                         messagebox.showerror("Errore", f"Prova {s['numero']} ({s.get('nome','')}): data obbligatoria", parent=win)
                         return

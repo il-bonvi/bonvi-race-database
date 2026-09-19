@@ -31,7 +31,104 @@ logger = logging.getLogger(__name__)
 CATEGORIE  = ["Elite", "U23", "Junior", "Allievi"]
 GENERI     = ["Maschile", "Femminile"]
 DISCIPLINE = ["Strada", "Criterium", "ITT", "TTT", "Tipo pista", "Mixed Relay"]
-LIVELLI_CAMPIONATO = ["Mondiale", "Europeo"]  # futuri: "Campionato Italiano", "Olimpiadi"
+LIVELLI_CAMPIONATO = ["Mondiale", "Europeo"]  # contenitori con più prove (futuri: "Olimpiadi")
+
+# NAT Champ (campionati nazionali): NON sono contenitori. Ogni prova è una gara autonoma
+# (sedi e mesi diversi), marcata nel JSON con  livello = "Nazionale"  +  paese = <codice ISO>.
+# Il recap per nazione/anno si ricava raggruppando queste gare (pagina /campionati).
+LIVELLO_NAZIONALE = "Nazionale"
+
+# ── NAT Champ: titolo e serie generati in automatico ─────────────────────────
+# Selezionando "Campionato nazionale" + Paese + Disciplina nel form:
+#   Italia + Strada  →  titolo "Italiano Strada",  serie "ita road"  (slug: italiano-strada-2026-...)
+#   Italia + TTT     →  titolo "Italiano TTT",     serie "ita ttt"
+# Il titolo usa l'aggettivo di nazionalità al maschile; la serie una sigla di 3 lettere + disciplina.
+NAT_AGGETTIVO = {
+    "it": "Italiano", "ca": "Canadese", "si": "Sloveno", "fr": "Francese", "es": "Spagnolo",
+    "be": "Belga", "nl": "Olandese", "ch": "Svizzero", "de": "Tedesco", "at": "Austriaco",
+    "pt": "Portoghese", "gb": "Britannico", "rw": "Ruandese", "au": "Australiano",
+    "us": "Statunitense", "dk": "Danese", "no": "Norvegese", "se": "Svedese", "pl": "Polacco",
+    "cz": "Ceco", "sk": "Slovacco", "hr": "Croato", "hu": "Ungherese", "co": "Colombiano",
+    "jp": "Giapponese", "qa": "Qatariota", "ae": "Emiratino",
+}
+NAT_SIGLA_SERIE = {
+    "it": "ita", "ca": "can", "si": "slo", "fr": "fra", "es": "esp", "be": "bel", "nl": "ned",
+    "ch": "sui", "de": "ger", "at": "aut", "pt": "por", "gb": "gbr", "rw": "rwa", "au": "aus",
+    "us": "usa", "dk": "den", "no": "nor", "se": "swe", "pl": "pol", "cz": "cze", "sk": "svk",
+    "hr": "cro", "hu": "hun", "co": "col", "jp": "jpn", "qa": "qat", "ae": "uae",
+}
+NAT_DISCIPLINA_SERIE = {
+    "Strada": "road", "ITT": "itt", "TTT": "ttt", "Criterium": "crit",
+    "Mixed Relay": "mixed relay", "Tipo pista": "lap",
+}
+
+
+def nat_valori_auto(codice_paese, disciplina):
+    """Titolo e serie automatici di un NAT Champ, o None se paese/disciplina non bastano."""
+    agg = NAT_AGGETTIVO.get(codice_paese or "")
+    sigla = NAT_SIGLA_SERIE.get(codice_paese or "")
+    if not agg or not sigla or not disciplina:
+        return None
+    return {
+        "titolo": f"{agg} {disciplina}",   # le discipline si chiamano già come le vuoi nel titolo (Strada, ITT, TTT...)
+        "race_series": f"{sigla} {NAT_DISCIPLINA_SERIE.get(disciplina, disciplina.lower())}",
+    }
+
+
+def nat_applica_auto(auto, attuali, ultimo_auto, forza):
+    """Decide quali campi sovrascrivere con i valori automatici.
+
+    Si sovrascrive un campo se: è vuoto, oppure contiene ancora l'ultimo valore automatico
+    (quindi non è stato modificato a mano), oppure `forza` (appena spuntato NAT Champ).
+    Ritorna {campo: nuovo_valore} solo per i campi che cambiano davvero.
+    """
+    da_scrivere = {}
+    for campo, nuovo in auto.items():
+        attuale = (attuali.get(campo) or "").strip()
+        if forza or not attuale or attuale == (ultimo_auto or {}).get(campo):
+            if attuale != nuovo:
+                da_scrivere[campo] = nuovo
+    return da_scrivere
+
+
+# ── Nome fisso delle prove dei campionati (Mondiale/Europeo) ─────────────────
+# Le prove NON hanno un nome libero: seguono sempre il pattern
+#     <genere><categoria> <disciplina>      es. "WJ Road Race", "WJ ITT", "WJ Mixed Relay"
+# e la relativa sigla
+#     <genere><categoria><disciplina>       es. "WJRR", "WJITT", "WJMR"
+# Genere: W donne, M uomini, X misto (prove senza genere, es. Mixed Relay).
+# Categoria: E Elite, U U23, J Junior, A Allievi.
+# ⚠ Tenere in sync con le stesse tabelle in src/lib/gare.js (provaNome / provaSigla).
+GENERE_CODICE = {"Femminile": "W", "Maschile": "M"}
+CATEGORIA_CODICE = {"Elite": "E", "U23": "U", "Junior": "J", "Allievi": "A"}
+DISCIPLINA_CODICE = {
+    "Strada": "RR", "ITT": "ITT", "TTT": "TTT",
+    "Criterium": "CRIT", "Mixed Relay": "MR", "Tipo pista": "TP",
+}
+DISCIPLINA_NOME = {
+    "Strada": "Road Race", "ITT": "ITT", "TTT": "TTT",
+    "Criterium": "Criterium", "Mixed Relay": "Mixed Relay", "Tipo pista": "Track Format",
+}
+
+
+def _prova_prefisso(genere, categoria) -> str:
+    cats = categoria if isinstance(categoria, (list, tuple)) else ([categoria] if categoria else [])
+    cod_cat = "".join(CATEGORIA_CODICE.get(c, "") for c in cats)
+    if not cod_cat:
+        return ""  # prova non ancora completa (categoria mancante): solo disciplina
+    return GENERE_CODICE.get(genere, "X") + cod_cat
+
+
+def prova_nome(genere, categoria, disciplina) -> str:
+    """Nome fisso di una prova di campionato, es. 'WJ Road Race'."""
+    disc = DISCIPLINA_NOME.get(disciplina, disciplina or "")
+    return f"{_prova_prefisso(genere, categoria)} {disc}".strip()
+
+
+def prova_sigla(genere, categoria, disciplina) -> str:
+    """Sigla di una prova di campionato, es. 'WJRR'."""
+    disc = DISCIPLINA_CODICE.get(disciplina, (disciplina or "").upper())
+    return f"{_prova_prefisso(genere, categoria)}{disc}"
 
 # Paesi selezionabili per la bandiera di sfondo dei campionati (nome
 # visualizzato in italiano -> codice ISO 3166-1 alpha-2). Va tenuta in sync

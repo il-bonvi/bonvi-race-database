@@ -1,5 +1,5 @@
 ---
-import { formatData, formatDistanza, formatDislivello, disciplinaIcon, formatCategoria, campionatoTheme, provaColor, provaDashArray, countryFlagCode, campionatoFlagOpacity, WT_COLOR, CATEGORIA_COLORS, resolveGpxSlug } from '../../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, disciplinaIcon, formatCategoria, campionatoTheme, provaColor, provaDashArray, countryFlagCode, campionatoFlagOpacity, WT_COLOR, CATEGORIA_COLORS, resolveGpxSlug, isNatChamp, NAT_LABEL, provaNome, provaSigla, compareProve } from '../../lib/gare.js';
 
 export async function getStaticPaths() {
   const garaFiles = import.meta.glob('../../../gare-sorgenti/dettagli/*.json', { eager: true });
@@ -27,6 +27,11 @@ const isCorsaATappe = gara.tipo === 'corsa_a_tappe';
 const isCampionato = gara.tipo === 'campionato';
 const isContenitore = isCorsaATappe || isCampionato;
 const isTappa = gara.tipo === 'tappa';
+// NAT Champ: gara singola marcata livello "Nazionale" + paese → link al recap dei campionati nazionali
+const isNat = isNatChamp(gara);
+const natPaese = isNat ? (gara.paese || countryFlagCode(gara.luogo) || '') : '';
+const natAnno = isNat ? new Date(gara.data).getFullYear() : '';
+const natRecapHref = `${base}/campionati/#nazionali-${natPaese}-${natAnno}`;
 const isTipoPista = gara.disciplina === 'Tipo pista';
 const isSpecialWTRace = gara.slug?.includes('giro-d-italia-women');
 const campTheme = isCampionato ? campionatoTheme(gara.livello) : null;
@@ -45,14 +50,28 @@ const categorieMatch = (cat1: unknown, cat2: unknown): boolean => {
 
 // Per navigazione tra tappe: carica la corsa a tappe parent se necessario
 let tappeDelleGara: any[] = [];
+let parentContenitore: any = null;
 if (isTappa && gara.corsa_a_tappe_slug) {
   const corsaATappeParent = Object.values(garaFiles)
     .map((m: any) => m.default ?? m)
     .find((g: any) => g.slug === gara.corsa_a_tappe_slug);
+  parentContenitore = corsaATappeParent ?? null;
   if (corsaATappeParent && corsaATappeParent.tappe) {
     tappeDelleGara = [...corsaATappeParent.tappe].sort((a: any, b: any) => (a.numero ?? 0) - (b.numero ?? 0));
   }
 }
+
+// Le prove di un campionato (Mondiale/Europeo) NON sono tappe: niente "Prova N" né "S1/S2" in topbar.
+// Hanno un nome fisso <genere><categoria> <disciplina> (es. "WJ Road Race") e una sigla (es. "WJRR").
+const parentIsCampionato = parentContenitore?.tipo === 'campionato';
+// Navigazione tra le prove di un campionato: ordine FISSO (categoria alto→basso, poi RR→ITT→TTT→Mixed Relay),
+// non cronologico
+if (parentIsCampionato) {
+  tappeDelleGara = [...tappeDelleGara].sort(compareProve);
+}
+const titoloVisibile: string = (isTappa && parentIsCampionato)
+  ? `${parentContenitore.titolo} — ${provaNome(gara)}`
+  : gara.titolo;
 
 // Per il colore della top bar, genera colore solido o gradiente
 // WT_COLOR e catColorMap: unica fonte in lib/gare.js (WT_COLOR, CATEGORIA_COLORS)
@@ -94,6 +113,15 @@ const tappe = isContenitore && gara.tappe
           genere: t.genere ?? dettagliTappa.genere,
           categoria: t.categoria ?? dettagliTappa.categoria,
           luogo: t.luogo ?? dettagliTappa.luogo,
+          // Campionati: nome e sigla FISSI dal pattern (mai il nome libero salvato nei dati)
+          ...(isCampionato ? (() => {
+            const p = {
+              genere: t.genere ?? dettagliTappa.genere,
+              categoria: t.categoria ?? dettagliTappa.categoria,
+              disciplina: t.disciplina ?? dettagliTappa.disciplina,
+            };
+            return { nome: provaNome(p), sigla: provaSigla(p) };
+          })() : {}),
         };
       })
   : [];
@@ -236,8 +264,8 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{gara.titolo} — Race DB</title>
-  <meta name="description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isContenitore ? gara.n_tappe + (isCampionato ? ' prove' : ' tappe') : (gara.distanza_km + 'km')}`} />
+  <title>{titoloVisibile} — Race DB</title>
+  <meta name="description" content={`${titoloVisibile} - ${gara.luogo ?? ''} - ${isContenitore ? gara.n_tappe + (isCampionato ? ' prove' : ' tappe') : (gara.distanza_km + 'km')}`} />
 
   <!-- ── Favicon & PWA ─────────────────────────────────────────────────
        Browser (scheda + preferiti): trasparente
@@ -259,14 +287,14 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
   <!-- ──────────────────────────────────────────────────────────────────── -->
 
   <!-- Open Graph -->
-  <meta property="og:title"       content={`${gara.titolo} — Race DB`} />
+  <meta property="og:title"       content={`${titoloVisibile} — Race DB`} />
   <meta property="og:type"        content="website" />
-  <meta property="og:description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isContenitore ? gara.n_tappe + (isCampionato ? ' prove' : ' tappe') : (gara.distanza_km + 'km')}`} />
+  <meta property="og:description" content={`${titoloVisibile} - ${gara.luogo ?? ''} - ${isContenitore ? gara.n_tappe + (isCampionato ? ' prove' : ' tappe') : (gara.distanza_km + 'km')}`} />
 
   <!-- Twitter Card -->
   <meta name="twitter:card"        content="summary_large_image" />
-  <meta name="twitter:title"       content={`${gara.titolo} — Race DB`} />
-  <meta name="twitter:description" content={`${gara.titolo} - ${gara.luogo ?? ''} - ${isContenitore ? gara.n_tappe + (isCampionato ? ' prove' : ' tappe') : (gara.distanza_km + 'km')}`} />
+  <meta name="twitter:title"       content={`${titoloVisibile} — Race DB`} />
+  <meta name="twitter:description" content={`${titoloVisibile} - ${gara.luogo ?? ''} - ${isContenitore ? gara.n_tappe + (isCampionato ? ' prove' : ' tappe') : (gara.distanza_km + 'km')}`} />
 
   <!-- Analytics (no cookie, no banner) -->
   <script defer src="https://cloud.umami.is/script.js" data-website-id="3671101f-d5b1-4dfd-81d4-8f02dfd515b2"></script>
@@ -373,6 +401,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
     }
     .bar-cat-label { display: flex; align-items: center; gap: 0.25rem; }
     .bar-cat-extra { color: var(--text3); }
+    .bar-nat-link { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
     .genere-symbol { font-size: 0.75rem; color: var(--text3); text-transform: none; letter-spacing: 0; }
     .bar-title {
       font-family: var(--font-display);
@@ -388,6 +417,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
     }
     .bar-stages-links { display: flex; gap: 0.3rem; }
     .bar-stage-link {
+      white-space: nowrap; font-family: var(--font-mono); letter-spacing: 0.04em;
       padding: 0.3rem 0.5rem; text-decoration: none; font-size: 0.7rem;
       font-weight: 600; color: var(--text3); transition: all 0.15s;
       cursor: pointer;
@@ -863,7 +893,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
         )}
         {isContenitore
           ? <span class="bar-cat-extra"> · {gara.n_tappe} {isCampionato ? 'prove' : 'tappe'}</span>
-          : <span class="bar-cat-extra"> · {gara.disciplina}</span>
+          : <span class="bar-cat-extra"> · {gara.disciplina}{isNat && <> · <a class="bar-nat-link" href={natRecapHref}>{NAT_LABEL}</a></>}</span>
         }
       </span>
       {gara.genere && (
@@ -872,7 +902,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
     </span>
     <div class="bar-divider"></div>
     <div class="bar-title-with-stages">
-      <span class="bar-title">{gara.titolo}</span>
+      <span class="bar-title">{titoloVisibile}</span>
       {isTappa && tappeDelleGara.length > 0 && (
         <div class="bar-stages">
           <div class="bar-stages-links">
@@ -880,9 +910,9 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
               <a
                 href={`${base}/gare/${t.slug}/`}
                 class={`bar-stage-link ${slug === t.slug ? 'current' : ''}`}
-                title={`${t.nome} (${t.distanza_km} km)`}
+                title={`${parentIsCampionato ? provaNome(t) : t.nome} (${t.distanza_km} km)`}
               >
-                S{t.numero}
+                {parentIsCampionato ? provaSigla(t) : `S${t.numero}`}
               </a>
             ))}
           </div>
@@ -1112,7 +1142,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
   ) : (
     <!-- ── GPX VIEWER (gara normale o singola tappa) ─────────────────────── -->
     <>
-      <iframe class="report-frame" src={`${base}/gara.html?gara=${slug}&base=${base}&embed=1&v=${Date.now()}`} title={gara.titolo}></iframe>
+      <iframe class="report-frame" src={`${base}/gara.html?gara=${slug}&base=${base}&embed=1&v=${Date.now()}`} title={titoloVisibile}></iframe>
     </>
   )}
 
@@ -1359,7 +1389,7 @@ const backLabel = isTappa && gara.corsa_a_tappe_titolo
           if (!stageGpxData[tappa.numero] || stageGpxData[tappa.numero].length === 0) continue;
           const item = document.createElement('div');
           item.className = 'elevation-legend-item';
-          item.innerHTML = `<div class="elevation-legend-color" style="background: ${colors[tappa.numero]}; margin-top: 2px;"></div><span>S${tappa.numero} ${tappa.nome}</span>`;
+          item.innerHTML = `<div class="elevation-legend-color" style="background: ${colors[tappa.numero]}; margin-top: 2px;"></div><span>${isCampionato ? '' : 'S' + tappa.numero + ' '}${tappa.nome}</span>`;
           legendEl.appendChild(item);
         }
       }
