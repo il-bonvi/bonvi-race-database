@@ -1,0 +1,41 @@
+{
+  "titolo": "Road European Championships",
+  "race_series": "european championships",
+  "data": "2026-10-04",
+  "categoria": [],
+  "luogo": "Ljubljana, Slovenia",
+  "paese": "si",
+  "tipo": "campionato",
+  "livello": "Europeo",
+  "n_tappe": 2,
+  "distanza_km": 88.35,
+  "dislivello_m": 1578,
+  "tappe": [
+    {
+      "numero": 1,
+      "nome": "WJ Road Race",
+      "slug": "road-european-championships-2026-europeo-dj",
+      "data": "2026-10-04",
+      "distanza_km": 66.39,
+      "dislivello_m": 1185.0,
+      "disciplina": "Strada",
+      "giri": 3,
+      "genere": "Femminile",
+      "categoria": "Junior",
+      "luogo": "SI"
+    },
+    {
+      "numero": 2,
+      "nome": "WJ ITT",
+      "slug": "road-european-championships-2026-europeo-dj-itt",
+      "data": "2026-10-07",
+      "distanza_km": 21.96,
+      "dislivello_m": 393.0,
+      "disciplina": "ITT",
+      "genere": "Femminile",
+      "categoria": "Junior",
+      "luogo": "SI"
+    }
+  ],
+  "slug": "road-european-championships-2026-europeo"
+}

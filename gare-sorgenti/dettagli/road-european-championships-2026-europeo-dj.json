@@ -1,0 +1,21 @@
+{
+  "titolo": "Road European Championships — Prova 1: WJ Road Race",
+  "tipo": "tappa",
+  "nome_tappa": "WJ Road Race",
+  "numero_tappa": 1,
+  "corsa_a_tappe_slug": "road-european-championships-2026-europeo",
+  "corsa_a_tappe_titolo": "Road European Championships",
+  "race_series": "european championships",
+  "data": "2026-10-04",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 66.39,
+  "dislivello_m": 1185.0,
+  "velocita_media_kmh": 36.5,
+  "luogo": "SI",
+  "slug": "road-european-championships-2026-europeo-dj",
+  "giri": 3
+}

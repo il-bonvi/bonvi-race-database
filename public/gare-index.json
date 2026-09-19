@@ -212,6 +212,21 @@
     "wt": false
   },
   {
+    "slug": "coppa-rosa-2026-DA",
+    "titolo": "Coppa Rosa",
+    "data": "2026-09-12",
+    "year": "2026",
+    "race_series": "coppa rosa",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "corridonia-2026-DJ-DU-DELI",
     "titolo": "Corridonia",
     "data": "2026-05-31",
@@ -1027,6 +1042,32 @@
     "wt": false
   },
   {
+    "slug": "road-european-championships-2026-europeo",
+    "titolo": "Road European Championships",
+    "data": "2026-10-04",
+    "year": "2026",
+    "race_series": "european championships",
+    "genere": "",
+    "categoria": [],
+    "categoria_code": "",
+    "tipo": "campionato",
+    "n_tappe": 2,
+    "wt": false
+  },
+  {
+    "slug": "road-world-championships-2026-mondiale",
+    "titolo": "Road World Championships",
+    "data": "2026-09-22",
+    "year": "2026",
+    "race_series": "world championships",
+    "genere": "",
+    "categoria": [],
+    "categoria_code": "",
+    "tipo": "campionato",
+    "n_tappe": 2,
+    "wt": false
+  },
+  {
     "slug": "romanengo-2026-DA-DJ",
     "titolo": "Romanengo",
     "data": "2026-05-23",
@@ -1194,6 +1235,21 @@
       "Junior"
     ],
     "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "villaverla-2026-DA",
+    "titolo": "Villaverla",
+    "data": "2026-09-06",
+    "year": "2026",
+    "race_series": "villaverla",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
     "tipo": null,
     "n_tappe": null,
     "wt": false

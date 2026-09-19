@@ -1,0 +1,20 @@
+{
+  "titolo": "Road World Championships — Prova 1: WJ ITT",
+  "tipo": "tappa",
+  "nome_tappa": "WJ ITT",
+  "numero_tappa": 1,
+  "corsa_a_tappe_slug": "road-world-championships-2026-mondiale",
+  "corsa_a_tappe_titolo": "Road World Championships",
+  "race_series": "world championships",
+  "data": "2026-09-22",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "ITT",
+  "distanza_km": 10.7,
+  "dislivello_m": 90.0,
+  "velocita_media_kmh": 40.0,
+  "luogo": "Agglomération de Montréal, CA",
+  "slug": "road-world-championships-2026-mondiale-dj-itt"
+}

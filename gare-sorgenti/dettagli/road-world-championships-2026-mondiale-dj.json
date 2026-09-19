@@ -1,0 +1,21 @@
+{
+  "titolo": "Road World Championships — Prova 2: WJ Road Race",
+  "tipo": "tappa",
+  "nome_tappa": "WJ Road Race",
+  "numero_tappa": 2,
+  "corsa_a_tappe_slug": "road-world-championships-2026-mondiale",
+  "corsa_a_tappe_titolo": "Road World Championships",
+  "race_series": "world championships",
+  "data": "2026-09-25",
+  "genere": "Femminile",
+  "categoria": [
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "distanza_km": 80.58,
+  "dislivello_m": 1608.0,
+  "velocita_media_kmh": 37.0,
+  "luogo": "Agglomération de Montréal, CA",
+  "slug": "road-world-championships-2026-mondiale-dj",
+  "giri": 6
+}
