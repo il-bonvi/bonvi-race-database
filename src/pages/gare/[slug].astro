@@ -1,5 +1,5 @@
 ---
-import { formatData, formatDistanza, formatDislivello, disciplinaIcon, formatCategoria, campionatoTheme, provaColor, provaDashArray, countryFlagCode, campionatoFlagOpacity, WT_COLOR, CATEGORIA_COLORS } from '../../lib/gare.js';
+import { formatData, formatDistanza, formatDislivello, disciplinaIcon, formatCategoria, campionatoTheme, provaColor, provaDashArray, countryFlagCode, campionatoFlagOpacity, WT_COLOR, CATEGORIA_COLORS, resolveGpxSlug } from '../../lib/gare.js';
 
 export async function getStaticPaths() {
   const garaFiles = import.meta.glob('../../../gare-sorgenti/dettagli/*.json', { eager: true });
@@ -86,7 +86,10 @@ const tappe = isContenitore && gara.tappe
           ...t,
           _base_km: t._base_km ?? dettagliTappa._base_km,
           _base_elev: t._base_elev ?? dettagliTappa._base_elev,
-          gpx_reference: t.gpx_reference ?? dettagliTappa.gpx_reference,
+          // Se il riferimento punta a una tappa che è a sua volta un riferimento, si arriva alla sorgente reale
+          gpx_reference: (t.gpx_reference ?? dettagliTappa.gpx_reference)
+            ? resolveGpxSlug(t.gpx_reference ?? dettagliTappa.gpx_reference, gareBySlug)
+            : undefined,
           // Per i campionati ogni prova ha genere/categoria/luogo propri (diversi tra loro)
           genere: t.genere ?? dettagliTappa.genere,
           categoria: t.categoria ?? dettagliTappa.categoria,

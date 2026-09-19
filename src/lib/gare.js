@@ -258,3 +258,22 @@ export function formatCategoria(categoria, genere) {
   }
   return categoria;
 }
+
+// ── GPX: risoluzione dei riferimenti ─────────────────────────────────────────
+// Una gara/tappa può riusare il tracciato di un'altra (campo gpx_reference).
+// Il riferimento deve puntare alla sorgente reale del tracciato; se per qualche
+// motivo punta a una gara/tappa che a sua volta è solo un riferimento (catena),
+// la si segue fino in fondo invece di cercare un file -gpx.json che non esiste.
+// bySlug: Map o oggetto { slug: dettagli }
+export function resolveGpxSlug(slug, bySlug) {
+  const lookup = (k) => (bySlug instanceof Map ? bySlug.get(k) : bySlug?.[k]);
+  const seen = new Set();
+  let cur = slug;
+  while (cur && !seen.has(cur)) {
+    seen.add(cur);
+    const next = lookup(cur)?.gpx_reference;
+    if (!next) break;
+    cur = next;
+  }
+  return cur;
+}

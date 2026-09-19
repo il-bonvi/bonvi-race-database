@@ -16,5 +16,6 @@
   "dislivello_m": 1975.0,
   "velocita_media_kmh": 40.0,
   "luogo": "SI",
-  "slug": "test-ec-2026-europeo-meli"
+  "slug": "test-ec-2026-europeo-meli",
+  "giri": 5
 }

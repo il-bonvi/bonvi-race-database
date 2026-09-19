@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import LangSwitcher from '../components/LangSwitcher.astro';
-import { GENERI, CATEGORIE, DISCIPLINE } from '../lib/gare.js';
+import { GENERI, CATEGORIE, DISCIPLINE, resolveGpxSlug } from '../lib/gare.js';
 import 'leaflet/dist/leaflet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -66,7 +66,7 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
   if (g.tipo === 'campionato' && g.tappe?.length > 0) {
     for (const t of (g.tappe as any[])) {
       const tDett = dettagliMap[t.slug] ?? t;
-      const gpxSlug = t.gpx_reference || tDett?.gpx_reference || t.slug;
+      const gpxSlug = resolveGpxSlug(t.gpx_reference || tDett?.gpx_reference || t.slug, dettagliMap);
       const gpxEntry = gpxEntries[gpxSlug];
       if (!gpxEntry) continue; // nessun GPX per questa prova → escludi dalla mappa
 
@@ -117,11 +117,11 @@ for (const [detailSlug, g] of Object.entries(dettagliMap)) {
     gpxSlugs = (g.tappe as any[])
       .map((t: any) => {
         const tDett = dettagliMap[t.slug];
-        return t.gpx_reference || tDett?.gpx_reference || t.slug;
+        return resolveGpxSlug(t.gpx_reference || tDett?.gpx_reference || t.slug, dettagliMap);
       })
       .filter(Boolean);
   } else {
-    gpxSlugs = [g.gpx_reference || detailSlug];
+    gpxSlugs = [resolveGpxSlug(g.gpx_reference || detailSlug, dettagliMap)];
   }
 
   // Trova il primo GPX disponibile per il centro mappa

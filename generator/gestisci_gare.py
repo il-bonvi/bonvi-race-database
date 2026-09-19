@@ -119,6 +119,83 @@ def gpx_is_referenced(target_slug: str, exclude_slugs: set | None = None) -> boo
     return False
 
 
+def resolve_gpx_slug(slug: str, max_depth: int = 8) -> str | None:
+    """Segue la catena di gpx_reference fino allo slug che ha DAVVERO un file GPX.
+
+    Serve perché un riferimento deve puntare sempre alla sorgente reale del
+    tracciato: se punta a una gara/tappa che a sua volta è solo un riferimento
+    (nessun file -gpx.json proprio) il viewer non trova nessun punto e il
+    percorso non si carica.
+    Ritorna None se la catena non porta a nessun file GPX.
+    """
+    seen: set[str] = set()
+    current = slug
+    while current and current not in seen and len(seen) < max_depth:
+        if (GPX_DIR / f"{current}-gpx.json").exists():
+            return current
+        seen.add(current)
+        details = GARE_DIR / f"{current}.json"
+        if not details.exists():
+            return None
+        try:
+            current = json.loads(details.read_text(encoding='utf-8')).get('gpx_reference')
+        except Exception as exc:
+            logger.warning("resolve_gpx_slug: impossibile leggere '%s': %s", details, exc)
+            return None
+    return None
+
+
+def get_reference_info(slug: str) -> dict:
+    """Legge da una gara/tappa esistente i dati che vanno ereditati quando se ne
+    riusa il GPX: numero di giri, km/dislivello totali e del singolo giro.
+
+    Per le tappe il numero di giri può mancare nel JSON della tappa (vive nell'array
+    'tappe' della corsa madre): in quel caso viene letto da lì.
+    """
+    info = {'giri': 1, 'distanza_km': None, 'dislivello_m': None, 'luogo': None,
+            'disciplina': None, '_base_km': None, '_base_elev': None}
+    details = GARE_DIR / f"{slug}.json"
+    if not details.exists():
+        return info
+    try:
+        d = json.loads(details.read_text(encoding='utf-8'))
+    except Exception as exc:
+        logger.warning("get_reference_info: impossibile leggere '%s': %s", details, exc)
+        return info
+
+    meta = {}
+    parent_slug = d.get('corsa_a_tappe_slug')
+    if parent_slug and (GARE_DIR / f"{parent_slug}.json").exists():
+        try:
+            parent = json.loads((GARE_DIR / f"{parent_slug}.json").read_text(encoding='utf-8'))
+            meta = next((t for t in parent.get('tappe', []) if t.get('slug') == slug), {})
+        except Exception as exc:
+            logger.warning("get_reference_info: impossibile leggere '%s': %s", parent_slug, exc)
+
+    def pick(key):
+        return d.get(key) if d.get(key) is not None else meta.get(key)
+
+    try:
+        giri = max(1, int(pick('giri') or 1))
+    except (ValueError, TypeError):
+        giri = 1
+    info.update({
+        'giri': giri,
+        'distanza_km': pick('distanza_km'),
+        'dislivello_m': pick('dislivello_m'),
+        'luogo': pick('luogo'),
+        'disciplina': pick('disciplina'),
+        '_base_km': pick('_base_km'),
+        '_base_elev': pick('_base_elev'),
+    })
+    # Metriche del singolo giro: se non salvate, si ricavano dal totale
+    if info['_base_km'] is None and info['distanza_km']:
+        info['_base_km'] = round(float(info['distanza_km']) / giri, 4)
+    if info['_base_elev'] is None and info['dislivello_m']:
+        info['_base_elev'] = round(float(info['dislivello_m']) / giri)
+    return info
+
+
 def save_race(slug: str, data: dict):
     """Salva i dettagli gara in gare-sorgenti/dettagli/ e, se presenti, i punti
     GPX in gare-sorgenti/gpx/{slug}-gpx.json. Sincronizza in public/.
@@ -185,6 +262,38 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list, tipo: str = '
     - livello: per i campionati, es. 'Mondiale' / 'Europeo' (vedi LIVELLI_CAMPIONATO)
     """
     is_campionato = tipo == 'campionato'
+
+    # ── Normalizza i riferimenti GPX ─────────────────────────────────────────
+    # Un gpx_reference deve puntare sempre alla sorgente REALE del tracciato (uno
+    # slug con un proprio file -gpx.json), mai a una tappa/gara che a sua volta è
+    # solo un riferimento: nel viewer, in BMAP e nella pagina della corsa il
+    # percorso non si caricherebbe. Si risolve quindi la catena, tenendo conto
+    # sia dello stato in memoria di questa corsa (non ancora scritto su disco)
+    # sia di quello su disco.
+    _mem_own_gpx = {x['slug_tappa'] for x in stages if x.get('gpx_points') and not x.get('gpx_reference')}
+    _mem_refs    = {x['slug_tappa']: x.get('gpx_reference') for x in stages if x.get('gpx_reference')}
+
+    def _resolve_ref(ref):
+        seen = set()
+        while ref and ref not in seen:
+            if ref in _mem_own_gpx:
+                return ref
+            seen.add(ref)
+            if ref in _mem_refs:
+                ref = _mem_refs[ref]
+                continue
+            return resolve_gpx_slug(ref) or ref
+        return ref
+
+    for s in stages:
+        ref = s.get('gpx_reference')
+        if ref:
+            ref = _resolve_ref(ref)
+            # Riferimento a se stessa: la tappa ha già il proprio GPX
+            s['gpx_reference'] = None if ref == s['slug_tappa'] else ref
+
+    stage_slugs_all = {x['slug_tappa'] for x in stages}
+    refs_in_use     = {x.get('gpx_reference') for x in stages if x.get('gpx_reference')}
 
     # Totali km/dislivello: per le corse a tappe è il percorso complessivo,
     # per i campionati è una somma puramente statistica (le prove restano gare
@@ -262,6 +371,9 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list, tipo: str = '
             "velocita_media_kmh":   s.get('velocita_media_kmh'),
             "luogo":                s.get('luogo') or main_data.get('luogo'),
             "slug":                 stage_slug,
+            # Il viewer (gara.html) legge i giri dal JSON della tappa: senza questo
+            # campo una tappa a più giri veniva mostrata come "1 giro".
+            "giri":                 s.get('giri', 1) if s.get('giri', 1) > 1 else None,
         }
         gpx_reference = s.get('gpx_reference')
         if gpx_reference:
@@ -282,12 +394,22 @@ def save_stage_race(race_slug: str, main_data: dict, stages: list, tipo: str = '
 
         gpx_points = s.get('gpx_points')
         if gpx_reference:
-            for p in [
-                GPX_DIR / f"{stage_slug}-gpx.json",
-                PUBLIC_GPX_DIR / f"{stage_slug}-gpx.json",
-            ]:
-                if p.exists():
-                    p.unlink()
+            # La tappa ora usa il GPX di un'altra: il suo file proprio si elimina
+            # SOLO se nessun altro lo sta usando come sorgente (altre tappe di
+            # questa corsa, oppure gare/tappe di altre corse). Prima veniva
+            # cancellato sempre e i riferimenti che puntavano qui restavano
+            # orfani → percorso non caricato.
+            still_needed = (
+                stage_slug in refs_in_use
+                or gpx_is_referenced(stage_slug, exclude_slugs=stage_slugs_all | {race_slug})
+            )
+            if not still_needed:
+                for p in [
+                    GPX_DIR / f"{stage_slug}-gpx.json",
+                    PUBLIC_GPX_DIR / f"{stage_slug}-gpx.json",
+                ]:
+                    if p.exists():
+                        p.unlink()
         elif gpx_points:
             gpx_data = {"slug": stage_slug, "gpx_points": gpx_points}
             gpx_str  = json.dumps(gpx_data, ensure_ascii=False, indent=2)
@@ -1020,19 +1142,14 @@ GPX FILE:     {gpx_info}"""
             actual_idx = displayed_indices[displayed_idx]
             gpx_slug, titolo_ref, data_gara = existing_races[actual_idx]
 
-            # Carica info dai dettagli se disponibili
-            ref_distanza = None
-            ref_dislivello = None
-            ref_luogo = None
-            details_file = GARE_DIR / f"{gpx_slug}.json"
-            if details_file.exists():
-                try:
-                    d = json.loads(details_file.read_text(encoding='utf-8'))
-                    ref_distanza  = d.get('distanza_km')
-                    ref_dislivello = d.get('dislivello_m')
-                    ref_luogo     = d.get('luogo')
-                except Exception as exc:
-                    logger.warning("on_select (GPX ref): impossibile leggere '%s': %s", details_file, exc)
+            # Il riferimento punta sempre alla sorgente reale del tracciato
+            gpx_slug = resolve_gpx_slug(gpx_slug) or gpx_slug
+
+            # Eredita dalla gara scelta giri, km e dislivello. Prima si metteva
+            # giri=1 con i km TOTALI della gara di riferimento: un GPX di 1 giro
+            # richiamato da una gara a 9 giri appariva come "1 giro = gara completa"
+            # (e alzando i giri i km venivano moltiplicati due volte).
+            ref = get_reference_info(gpx_slug)
 
             # Crea nuova gara con riferimento GPX
             new_data = {
@@ -1041,13 +1158,20 @@ GPX FILE:     {gpx_info}"""
                 'genere':       'Femminile',
                 'categoria':    ['Junior'],
                 'disciplina':   'Strada',
-                'giri':         1,
+                'giri':         ref['giri'],
                 'gpx_reference': gpx_slug,
-                'distanza_km':  ref_distanza,
-                'dislivello_m': ref_dislivello,
+                'distanza_km':  ref['distanza_km'],
+                'dislivello_m': ref['dislivello_m'],
             }
-            if ref_luogo:
-                new_data['luogo'] = ref_luogo
+            if ref.get('disciplina') == 'Tipo pista':
+                # Tipo pista: km/dislivello non si conteggiano, restano le metriche del singolo giro
+                new_data['disciplina']   = 'Tipo pista'
+                new_data['distanza_km']  = None
+                new_data['dislivello_m'] = None
+                new_data['_base_km']     = ref['_base_km']
+                new_data['_base_elev']   = ref['_base_elev']
+            if ref.get('luogo'):
+                new_data['luogo'] = ref['luogo']
 
             select_win.destroy()
             self.open_add_race_form(new_data, is_new=True)
@@ -1180,9 +1304,9 @@ GPX FILE:     {gpx_info}"""
         data = initial_data.copy()
         
         # Calcolo valori raw (per singolo giro)
-        giri_iniziali = max(1, int(data.get('giri', 1)))
-        km_iniziale = float(data.get('distanza_km', 0)) or 0
-        dislivello_iniziale = float(data.get('dislivello_m', 0)) or 0
+        giri_iniziali = max(1, int(data.get('giri') or 1))
+        km_iniziale = float(data.get('distanza_km') or 0)          # 'or 0': il valore può essere None (Tipo pista)
+        dislivello_iniziale = float(data.get('dislivello_m') or 0)
         km_raw = km_iniziale / giri_iniziali if giri_iniziali > 0 else 0
         dislivello_raw = dislivello_iniziale / giri_iniziali if giri_iniziali > 0 else 0
         if data.get('disciplina') == 'Tipo pista':
@@ -1852,9 +1976,19 @@ GPX FILE:     {gpx_info}"""
                 
                 gpx_reference = None
                 if duplicate_mode and stage_slug:
-                    gpx_reference = stage_slug
+                    # Il duplicato riusa il tracciato dell'originale. Se la tappa
+                    # originale è a sua volta solo un riferimento (nessun GPX proprio)
+                    # bisogna puntare alla SUA sorgente, non alla tappa: altrimenti
+                    # nasce un riferimento a un file che non esiste e il percorso
+                    # non si carica.
+                    gpx_reference = resolve_gpx_slug(stage_slug)
                 else:
                     gpx_reference = tappa_completa.get('gpx_reference') or t.get('gpx_reference')
+                    if gpx_reference:
+                        # Auto-riparazione di riferimenti già "a catena"
+                        gpx_reference = resolve_gpx_slug(gpx_reference) or gpx_reference
+                        if gpx_reference == stage_slug:
+                            gpx_reference = None
 
                 # ricarica i gpx_points dal file, se esiste e non e' un riferimento
                 gpx_pts = None
@@ -2781,11 +2915,38 @@ GPX FILE:     {gpx_info}"""
                     messagebox.showwarning("Attenzione", "Seleziona una gara prima", parent=ref_win)
                     return
                 chosen_slug, chosen_titolo, _ = existing_races[displayed_ref_indices[sel[0]]]
+                # Il riferimento punta sempre alla sorgente reale del tracciato
+                chosen_slug = resolve_gpx_slug(chosen_slug) or chosen_slug
+                # Eredita dalla gara/tappa scelta giri, km e dislivello: prima si
+                # azzeravano _base_km/_base_elev e il numero di giri restava a 1,
+                # così un tracciato "1 giro" salvato come "9 giri" veniva mostrato
+                # come 1 giro = gara completa.
+                ref_info = get_reference_info(chosen_slug)
                 # Applica il riferimento alla tappa corrente
                 stages[idx]['gpx_reference'] = chosen_slug
                 stages[idx]['gpx_points']    = None
-                stages[idx].pop('_base_km',   None)
-                stages[idx].pop('_base_elev', None)
+                stages[idx]['giri']          = ref_info['giri']
+                stages[idx]['_base_km']      = ref_info['_base_km']
+                stages[idx]['_base_elev']    = ref_info['_base_elev']
+                if not stages[idx].get('luogo') and ref_info.get('luogo'):
+                    stages[idx]['luogo'] = ref_info['luogo']
+                    luogo_stage_var.set(ref_info['luogo'])
+                # Prima _base_*, poi il valore dello spinner: il trace dei giri
+                # ricalcola km/dislivello a partire dai valori del singolo giro.
+                stage_entries['giri'].set(ref_info['giri'])
+                if stage_entries['disciplina'].get() == 'Tipo pista':
+                    # Tipo pista: km/dislivello non si conteggiano, restano solo le metriche del giro
+                    if ref_info['_base_km'] is not None:
+                        km_dislivello_backup_s['distanza_km'] = ref_info['_base_km']
+                    if ref_info['_base_elev'] is not None:
+                        km_dislivello_backup_s['dislivello_m'] = ref_info['_base_elev']
+                    stage_entries['distanza_km'].set('')
+                    stage_entries['dislivello_m'].set('')
+                else:
+                    if ref_info['_base_km'] is not None:
+                        stage_entries['distanza_km'].set(str(round(ref_info['_base_km'] * ref_info['giri'], 2)))
+                    if ref_info['_base_elev'] is not None:
+                        stage_entries['dislivello_m'].set(str(round(ref_info['_base_elev'] * ref_info['giri'])))
                 gpx_status_var.set(f"GPX di riferimento: {chosen_slug}")
                 gpx_status_lbl.config(fg="#2563eb")
                 _refresh_stages_list()
