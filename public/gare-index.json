@@ -137,6 +137,38 @@
     "wt": false
   },
   {
+    "slug": "bolzano-2026-DA",
+    "titolo": "Bolzano",
+    "data": "2026-09-27",
+    "year": "2026",
+    "race_series": "bolzano",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "bolzano-2026-DJ-DU-DELI",
+    "titolo": "Bolzano",
+    "data": "2026-09-27",
+    "year": "2026",
+    "race_series": "bolzano",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "bovolone-2026-DA",
     "titolo": "Bovolone",
     "data": "2026-05-03",

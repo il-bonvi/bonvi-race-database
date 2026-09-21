@@ -1,0 +1,17 @@
+{
+  "titolo": "Bolzano",
+  "data": "2026-09-27",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "Criterium",
+  "giri": 12,
+  "gpx_reference": "bolzano-2026-DJ-DU-DELI",
+  "distanza_km": 48.96,
+  "dislivello_m": 120.0,
+  "luogo": "Bolzano - Bozen, IT",
+  "slug": "bolzano-2026-DA",
+  "race_series": "bolzano",
+  "velocita_media_kmh": 37.0
+}

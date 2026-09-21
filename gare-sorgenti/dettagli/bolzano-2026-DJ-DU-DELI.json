@@ -1,0 +1,20 @@
+{
+  "titolo": "Bolzano",
+  "race_series": "bolzano",
+  "data": "2026-09-27",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Criterium",
+  "giri": 20,
+  "velocita_media_kmh": 41.0,
+  "distanza_km": 81.6,
+  "dislivello_m": 200.0,
+  "_center_lat": 46.47258,
+  "_center_lon": 11.32815,
+  "slug": "bolzano-2026-DJ-DU-DELI",
+  "luogo": "Bolzano - Bozen, IT"
+}
