@@ -1,0 +1,18 @@
+{
+  "titolo": "Cronoscalata Palù",
+  "race_series": "cronoscalata palù",
+  "data": "2026-09-26",
+  "genere": "Femminile",
+  "categoria": [
+    "Allievi"
+  ],
+  "disciplina": "ITT",
+  "giri": 1,
+  "velocita_media_kmh": 24.0,
+  "distanza_km": 4.01,
+  "dislivello_m": 175.0,
+  "_center_lat": 46.16568,
+  "_center_lon": 11.15737,
+  "slug": "cronoscalata-palu-2026-DA",
+  "luogo": "Trento, IT"
+}

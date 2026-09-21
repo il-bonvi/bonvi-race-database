@@ -292,6 +292,38 @@
     "wt": false
   },
   {
+    "slug": "cronoscalata-palu-2026-DA",
+    "titolo": "Cronoscalata Palù",
+    "data": "2026-09-26",
+    "year": "2026",
+    "race_series": "cronoscalata palù",
+    "genere": "Femminile",
+    "categoria": [
+      "Allievi"
+    ],
+    "categoria_code": "DA",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
+    "slug": "cronoscalata-palu-2026-DJ-DU-DELI",
+    "titolo": "Cronoscalata Palù",
+    "data": "2026-09-26",
+    "year": "2026",
+    "race_series": "cronoscalata palù",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "de-nardi-2026-MU-MELI",
     "titolo": "De Nardi",
     "data": "2026-05-03",

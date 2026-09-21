@@ -1,0 +1,20 @@
+{
+  "titolo": "Cronoscalata Palù",
+  "race_series": "cronoscalata palù",
+  "data": "2026-09-26",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "ITT",
+  "giri": 1,
+  "velocita_media_kmh": 25.0,
+  "distanza_km": 5.06,
+  "dislivello_m": 240.0,
+  "_center_lat": 46.16568,
+  "_center_lon": 11.15737,
+  "slug": "cronoscalata-palu-2026-DJ-DU-DELI",
+  "luogo": "Trento, IT"
+}
