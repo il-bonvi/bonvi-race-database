@@ -2,7 +2,7 @@
 import Base from '../layouts/Base.astro';
 import GaraCard from '../components/GaraCard.astro';
 import LangSwitcher from '../components/LangSwitcher.astro';
-import { GENERI, CATEGORIE, DISCIPLINE } from '../lib/gare.js';
+import { GENERI, CATEGORIE, DISCIPLINE, dateRange } from '../lib/gare.js';
 
 const garaFiles = import.meta.glob('../../gare-sorgenti/dettagli/*.json', { eager: true });
 let gare = Object.values(garaFiles).map((m: any) => m.default ?? m);
@@ -205,7 +205,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
                             data-dislivello={g.dislivello_m ?? 0}
                             data-percorsi={((g.tipo === 'corsa_a_tappe' || g.tipo === 'campionato') && g.tappe?.length > 0) ? g.tappe.length : 1}
                             data-month={monthKey}
-                            data-date={new Date((g.tipo === 'corsa_a_tappe' || g.tipo === 'campionato') && g.data_fine ? g.data_fine : g.data).getTime()}
+                            data-date={new Date(dateRange(g).end || dateRange(g).start || 0).getTime()}
                             data-tipo={g.tipo ?? ''}
                             data-tappe-json={JSON.stringify(g.tappe?.map((t: any) => ({ disciplina: t.disciplina })) ?? [])}
                           >
