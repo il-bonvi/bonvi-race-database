@@ -1164,6 +1164,23 @@
     "wt": false
   },
   {
+    "slug": "san-daniele-del-friuli-2026-DJ-DU-DELI",
+    "titolo": "San Daniele del Friuli",
+    "data": "2026-10-04",
+    "year": "2026",
+    "race_series": "san daniele del friuli",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "tarzo-2026-DA",
     "titolo": "Tarzo",
     "data": "2026-07-26",
