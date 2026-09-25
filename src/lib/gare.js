@@ -227,6 +227,17 @@ export function provaDashArray(genere) {
   return genere === 'Femminile' ? '6,5' : null;
 }
 
+// Sfumatura rosa/blu per genere, stessa palette delle card in home (GaraCard).
+export function genereShade(genere) {
+  if (genere === 'Femminile') {
+    return 'radial-gradient(ellipse at 100% 0%, rgba(225,0,100,0.16) 0%, rgba(225,0,100,0.05) 40%, transparent 70%)';
+  }
+  if (genere === 'Maschile') {
+    return 'radial-gradient(ellipse at 100% 0%, rgba(80,150,215,0.22) 0%, rgba(80,150,215,0.08) 40%, transparent 70%)';
+  }
+  return 'none';
+}
+
 export function disciplinaIcon(disciplina) {
   return {
     'Strada':     '↗',

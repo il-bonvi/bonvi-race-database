@@ -12,7 +12,7 @@ import Base from '../layouts/Base.astro';
 import LangSwitcher from '../components/LangSwitcher.astro';
 import {
   formatDistanza, formatDislivello, formatData, formatDateRange, dateRange,
-  disciplinaIcon, formatCategoria, provaColor, provaDashArray,
+  disciplinaIcon, formatCategoria, provaColor, provaDashArray, genereShade,
   countryFlagCode, paeseNome, isNatChamp, NAT_LABEL, resolveGpxSlug,
 } from '../lib/gare.js';
 import 'leaflet/dist/leaflet.css';
@@ -220,7 +220,7 @@ const europei  = contenitori('Europeo');
 
               <ol class="prove">
                 {ed.prove.map((p: any) => (
-                  <li class="prova" style={`--c: ${p.color}`}>
+                  <li class="prova" style={`--c: ${p.color}; --genere-shade: ${genereShade(p.genere)}`}>
                     <a href={`${base}/gare/${p.slug}/`} class="prova-link">
                       <span class={`prova-bar${p.dash ? ' prova-bar--dash' : ''}`} aria-hidden="true"></span>
                       <span class="prova-date">{formatData(p.data)}</span>
@@ -230,7 +230,9 @@ const europei  = contenitori('Europeo');
                           {p.categoria.map((c: string) => (
                             <span class="prova-cat" data-cat={c}>{formatCategoria(c, p.genere)}</span>
                           ))}
-                          <span class="prova-gen">{p.genere === 'Femminile' ? '♀' : (p.genere === 'Maschile' ? '♂' : '')}</span>
+                          {p.genere && (
+                            <span class="prova-gen" data-genere={p.genere}>{p.genere === 'Femminile' ? '♀' : '♂'}</span>
+                          )}
                         </span>
                         <span class="prova-meta">{p.luogo}</span>
                       </span>
@@ -474,11 +476,21 @@ const europei  = contenitori('Europeo');
 
   .prove { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.5rem; }
   .prova-link {
-    position: relative; display: grid; grid-template-columns: 6px 4.2rem 1fr 7.5rem 8rem 5.5rem; align-items: center; gap: 0.9rem;
+    position: relative; z-index: 0; display: grid; grid-template-columns: 6px 4.2rem 1fr 7.5rem 8rem 5.5rem; align-items: center; gap: 0.9rem;
     padding: 0.7rem 1rem 0.7rem 0; background: var(--surface); border: 1px solid var(--border);
     text-decoration: none; color: var(--text); overflow: hidden; transition: box-shadow 0.12s;
   }
   .prova-link:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+  /* Sfumatura genere — angolo alto destra, stessa palette rosa/blu delle card in home */
+  .prova-link::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 45%; height: 100%;
+    background: var(--genere-shade);
+    pointer-events: none;
+    z-index: -1;
+  }
   .prova-bar { align-self: stretch; background: var(--c); }
   .prova-bar--dash { background: repeating-linear-gradient(180deg, var(--c) 0 6px, transparent 6px 10px); }
   .prova-date { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text2); }
@@ -488,7 +500,12 @@ const europei  = contenitori('Europeo');
     font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
     color: var(--c); border: 1px solid var(--c); padding: 0.05rem 0.4rem; border-radius: 2px;
   }
-  .prova-gen { color: var(--text2); font-size: 0.85rem; }
+  .prova-gen {
+    font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+    padding: 0.05rem 0.4rem; border-radius: 2px;
+  }
+  .prova-gen[data-genere="Femminile"] { color: #d1006a; border: 1px solid #d1006a; }
+  .prova-gen[data-genere="Maschile"] { color: #1f6fbf; border: 1px solid #1f6fbf; }
   .prova-meta { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .prova-disc { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text2); }
   .prova-num { font-family: var(--font-mono); font-size: 0.78rem; text-align: right; }
