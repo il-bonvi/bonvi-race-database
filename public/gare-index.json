@@ -482,6 +482,23 @@
     "wt": false
   },
   {
+    "slug": "giro-dell-emilia-2026-DWT",
+    "titolo": "Giro dell'Emilia",
+    "data": "2026-10-03",
+    "year": "2026",
+    "race_series": "giro dell'emilia",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23",
+      "Junior"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": true
+  },
+  {
     "slug": "giro-della-castellania-2026-DJ-DU-DELI",
     "titolo": "Giro della Castellania",
     "data": "2026-04-11",

@@ -1,0 +1,21 @@
+{
+  "titolo": "Giro dell'Emilia",
+  "race_series": "giro dell'emilia",
+  "data": "2026-10-03",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23",
+    "Junior"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 38.5,
+  "distanza_km": 114.25,
+  "dislivello_m": 918.0,
+  "_center_lat": 44.478460000000005,
+  "_center_lon": 11.29471,
+  "slug": "giro-dell-emilia-2026-DWT",
+  "luogo": "Bologna, IT",
+  "wt": true
+}
