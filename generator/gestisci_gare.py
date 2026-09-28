@@ -14,12 +14,18 @@ Funzionalità:
   - Modifica metadati race
   - Elimina race dal database
   - Aggiungi nuova race (riusa dialog genera_report.py)
+  - Anteprima locale (npm run dev + apri browser)
 """
 
 import sys
 import json
 import re
 import logging
+import os
+import shutil
+import subprocess
+import threading
+import webbrowser
 from datetime import datetime, date
 from tkinter import ttk, filedialog
 import tkinter as tk
@@ -547,6 +553,8 @@ class RaceManagerApp:
         self.filtered_races = []  # Gare filtrate
         self.expanded_stages = set()  # Slug delle corse a tappe expand nel listbox
         self.listbox_index_map = {}  # Mapping da indice listbox a slug gara/tappa
+        self._preview_proc = None  # processo npm run dev (anteprima locale)
+        self._preview_url = "http://localhost:4321"
         
         # State filtri
         self.filter_state = {
@@ -687,6 +695,10 @@ class RaceManagerApp:
         tk.Button(button_frame, text="🗑️ Elimina", font=("Helvetica", 10),
               bg="#dc2626", fg="white", padx=12, pady=8, relief="flat", bd=0,
               cursor="hand2", command=self.delete_race).pack(side="left", padx=6)
+
+        tk.Button(button_frame, text="🖥️ Anteprima", font=("Helvetica", 10),
+              bg="#0d9488", fg="white", padx=12, pady=8, relief="flat", bd=0,
+              cursor="hand2", command=self.open_preview).pack(side="left", padx=6)
 
         tk.Button(button_frame, text="📤 Push", font=("Helvetica", 10),
               bg="#8b5cf6", fg="white", padx=12, pady=8, relief="flat", bd=0,
@@ -3676,6 +3688,138 @@ GPX FILE:     {gpx_info}"""
                 messagebox.showinfo("Eliminato", "Gara rimossa dal database")
                 self.refresh_list()
     
+    def open_preview(self):
+        """Avvia `npm run dev` (se non già in esecuzione) e apre il browser sulla preview."""
+        # Se il server è già attivo, riapri solo il browser
+        if self._preview_proc is not None and self._preview_proc.poll() is None:
+            webbrowser.open(self._preview_url)
+            messagebox.showinfo(
+                "Anteprima",
+                f"Server di sviluppo già in esecuzione.\nApro {self._preview_url}"
+            )
+            return
+
+        package_json = ARCHIVIO_DIR / "package.json"
+        if not package_json.exists():
+            messagebox.showerror(
+                "Errore",
+                f"package.json non trovato in:\n{ARCHIVIO_DIR}\n\n"
+                "Assicurati di avviare gestisci_gare.py dalla root del progetto."
+            )
+            return
+
+        # Controlla se la porta tipica è già in ascolto (server avviato fuori dalla GUI)
+        if any(self._port_in_use(port) for port in (4321, 5173, 3000, 4173, 8080)):
+            for port in (4321, 5173, 3000, 4173, 8080):
+                if self._port_in_use(port):
+                    self._preview_url = f"http://localhost:{port}"
+                    break
+            webbrowser.open(self._preview_url)
+            messagebox.showinfo(
+                "Anteprima",
+                f"Sembra già attivo un server su {self._preview_url}.\nApro il browser."
+            )
+            return
+
+        def _reader(proc):
+            """Legge stdout di npm e cerca l'URL locale (Vite/Next/Astro...)."""
+            url_re = re.compile(
+                r"https?://(?:localhost|127\.0\.0\.1):\d+[^\s]*",
+                re.IGNORECASE,
+            )
+            opened = False
+            try:
+                for line in iter(proc.stdout.readline, ""):
+                    if not line:
+                        break
+                    line = line.rstrip()
+                    logger.info("[npm] %s", line)
+                    m = url_re.search(line)
+                    if m and not opened:
+                        url = m.group(0).rstrip("/")
+                        if "localhost" in url or "127.0.0.1" in url:
+                            self._preview_url = url
+                            self.root.after(0, lambda u=url: webbrowser.open(u))
+                            opened = True
+            except Exception as exc:
+                logger.warning("open_preview reader: %s", exc)
+            finally:
+                try:
+                    proc.stdout.close()
+                except Exception:
+                    pass
+
+        try:
+            env = os.environ.copy()
+            env["BROWSER"] = "none"  # evita che Vite apra un secondo tab
+            npm_command = shutil.which("npm.cmd" if os.name == "nt" else "npm")
+            if not npm_command:
+                raise FileNotFoundError("npm.cmd" if os.name == "nt" else "npm")
+            self._preview_proc = subprocess.Popen(
+                [npm_command, "run", "dev"],
+                cwd=str(ARCHIVIO_DIR),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                env=env,
+                start_new_session=True,
+            )
+        except FileNotFoundError:
+            messagebox.showerror(
+                "Errore",
+                "npm non trovato.\nInstalla Node.js / npm e riprova."
+            )
+            self._preview_proc = None
+            return
+        except Exception as e:
+            messagebox.showerror("Errore", f"Impossibile avviare npm run dev:\n{e}")
+            self._preview_proc = None
+            return
+
+        threading.Thread(
+            target=_reader, args=(self._preview_proc,), daemon=True
+        ).start()
+
+        # Fallback: dopo qualche secondo apri comunque la URL tipica Vite
+        def _fallback_open():
+            if self._preview_proc is not None and self._preview_proc.poll() is None:
+                webbrowser.open(self._preview_url)
+
+        self.root.after(3500, _fallback_open)
+        messagebox.showinfo(
+            "Anteprima",
+            "Avvio di `npm run dev` in corso…\n"
+            "Il browser si aprirà appena il server sarà pronto\n"
+            f"(di solito {self._preview_url})."
+        )
+
+    @staticmethod
+    def _port_in_use(port: int) -> bool:
+        """True se qualcosa è in ascolto su localhost:port."""
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.3)
+            try:
+                return s.connect_ex(("127.0.0.1", port)) == 0
+            except OSError:
+                return False
+
+    def stop_preview(self):
+        """Ferma il server di sviluppo avviato dalla GUI (se attivo)."""
+        proc = self._preview_proc
+        if proc is None or proc.poll() is not None:
+            self._preview_proc = None
+            return
+        try:
+            os.killpg(os.getpgid(proc.pid), 15)
+        except Exception:
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+        self._preview_proc = None
+
     def push_changes(self):
         """Esegue git push automatico"""
         success, msg = git_push_changes()
@@ -3688,4 +3832,10 @@ GPX FILE:     {gpx_info}"""
 if __name__ == "__main__":
     root = tk.Tk()
     app = RaceManagerApp(root)
+
+    def _on_close():
+        app.stop_preview()
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", _on_close)
     root.mainloop()
