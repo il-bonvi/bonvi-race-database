@@ -324,6 +324,21 @@
     "wt": false
   },
   {
+    "slug": "dairago-2026-DJ",
+    "titolo": "Dairago",
+    "data": "2026-10-11",
+    "year": "2026",
+    "race_series": "dairago",
+    "genere": "Femminile",
+    "categoria": [
+      "Junior"
+    ],
+    "categoria_code": "DJ",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": false
+  },
+  {
     "slug": "de-nardi-2026-MU-MELI",
     "titolo": "De Nardi",
     "data": "2026-05-03",
@@ -490,8 +505,7 @@
     "genere": "Femminile",
     "categoria": [
       "Elite",
-      "U23",
-      "Junior"
+      "U23"
     ],
     "categoria_code": "DELI",
     "tipo": null,
