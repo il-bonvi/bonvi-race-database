@@ -1322,6 +1322,22 @@
     "wt": false
   },
   {
+    "slug": "veneto-classic-2026-DWT",
+    "titolo": "Veneto Classic",
+    "data": "2026-10-14",
+    "year": "2026",
+    "race_series": "veneto classic",
+    "genere": "Femminile",
+    "categoria": [
+      "Elite",
+      "U23"
+    ],
+    "categoria_code": "DELI",
+    "tipo": null,
+    "n_tappe": null,
+    "wt": true
+  },
+  {
     "slug": "vicenza-bionde-2026-MU",
     "titolo": "Vicenza Bionde",
     "data": "2026-04-26",

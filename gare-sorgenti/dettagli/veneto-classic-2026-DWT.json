@@ -1,0 +1,20 @@
+{
+  "titolo": "Veneto Classic",
+  "race_series": "veneto classic",
+  "data": "2026-10-14",
+  "genere": "Femminile",
+  "categoria": [
+    "Elite",
+    "U23"
+  ],
+  "disciplina": "Strada",
+  "giri": 1,
+  "velocita_media_kmh": 40.0,
+  "distanza_km": 107.76,
+  "dislivello_m": 683.0,
+  "_center_lat": 45.53745000000001,
+  "_center_lon": 11.54875,
+  "slug": "veneto-classic-2026-DWT",
+  "luogo": "Vicenza, IT",
+  "wt": true
+}
