@@ -1,6 +1,6 @@
 {
-  "titolo": "Veneto Classic",
-  "race_series": "veneto classic",
+  "titolo": "Veneto Women",
+  "race_series": "veneto women",
   "data": "2026-10-14",
   "genere": "Femminile",
   "categoria": [
@@ -14,7 +14,7 @@
   "dislivello_m": 683.0,
   "_center_lat": 45.53745000000001,
   "_center_lon": 11.54875,
-  "slug": "veneto-classic-2026-DWT",
+  "slug": "veneto-women-2026-DWT",
   "luogo": "Vicenza, IT",
   "wt": true
 }
