@@ -300,6 +300,30 @@
             display: none;
         }
 
+        /* ── Altimetria fissa in alto durante lo scroll ── */
+        /* Contiene gli z-index interni di Leaflet, così la mappa passa sempre SOTTO l'altimetria fissa */
+        #map { position: relative; z-index: 0; }
+        .panel.elev-sticky {
+            position: sticky;
+            top: 0;
+            z-index: 900;
+            transition: box-shadow 0.25s ease, border-radius 0.25s ease;
+        }
+        .panel.elev-sticky.is-stuck {
+            box-shadow: 0 8px 20px rgba(0,0,0,0.20);
+            border-radius: 0 0 8px 8px;
+        }
+        /* Altezza massima del grafico = 50% dell'altezza finestra (su schermi bassi lascia spazio allo scroll) */
+        #elevation-chart {
+            max-width: calc(50vh * 900 / 290);
+            margin-left: auto;
+            margin-right: auto;
+        }
+        /* Quando si scrolla a un elemento (es. dettaglio salita) non finisce sotto l'altimetria fissa */
+        #climb-detail-chart, #climbs-section { scroll-margin-top: calc(var(--elev-sticky-h, 0px) + 8px); }
+
+        .climbs-section.is-empty .climbs-header { border-bottom: none; }
+
         /* Climb Detection Styles */
         .climbs-section {
             background: white;
@@ -917,7 +941,8 @@
             </div>
             <div id="mobile-sv-hint">👆 Tieni premuto sulla mappa per Street View. Attenzione, l'orientamento potrebbe essere errato.</div>
             
-            <div class="panel">
+            <div id="elev-sticky-sentinel" style="height:1px;margin-bottom:-1px;pointer-events:none;"></div>
+            <div class="panel elev-sticky" id="elev-panel">
                 <div id="elevation-chart"></div>
                 <div class="gradient-legend">
                     <div id="selection-stats" style="display:flex;gap:2rem;align-items:center;width:100%;font-size:0.85rem;justify-content:space-between;">
@@ -966,24 +991,39 @@
                 </div>
                 <div class="climbs-params-panel" id="climbs-params-panel">
                     <div class="param-group">
-                        <label class="param-label">Pendenza min. inizio</label>
-                        <input type="number" class="param-input" id="param-min-grade" value="3.5" min="1" max="15" step="0.5">
-                        <span class="param-hint">% — soglia per iniziare una salita</span>
+                        <label class="param-label">Smoothing quota</label>
+                        <input type="number" class="param-input" id="param-smooth-m" value="30" min="0" max="150" step="5">
+                        <span class="param-hint">m — raggio di media sull'altimetria</span>
                     </div>
                     <div class="param-group">
-                        <label class="param-label">Pendenza max. fine</label>
-                        <input type="number" class="param-input" id="param-max-grade-end" value="2" min="0" max="5" step="0.5">
-                        <span class="param-hint">% — soglia per terminare una salita</span>
+                        <label class="param-label">Pendenza di riferimento</label>
+                        <input type="number" class="param-input" id="param-ref-grade" value="3" min="0" max="6" step="0.5">
+                        <span class="param-hint">% — sotto questa un tratto non è salita (taglia attacchi/finali piatti)</span>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Tolleranza</label>
+                        <input type="number" class="param-input" id="param-drop-tol" value="12" min="2" max="80" step="1">
+                        <span class="param-hint">m — dislivello "perso" (calo o piano) che chiude la salita</span>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Pendenza media min.</label>
+                        <input type="number" class="param-input" id="param-min-avg-grade" value="3" min="0" max="12" step="0.5">
+                        <span class="param-hint">% — scarta lunghi tratti troppo dolci</span>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Unisci salite: pausa max</label>
+                        <input type="number" class="param-input" id="param-merge-pause" value="15" min="0" max="100" step="5">
+                        <span class="param-hint">% della più corta delle due salite (0 = non unire)</span>
+                    </div>
+                    <div class="param-group">
+                        <label class="param-label">Unisci salite: calo max</label>
+                        <input type="number" class="param-input" id="param-merge-drop" value="5" min="0" max="100" step="5">
+                        <span class="param-hint">% del dislivello della più piccola, perso nella pausa</span>
                     </div>
                     <div class="param-group">
                         <label class="param-label">Segmenti minimi</label>
                         <input type="number" class="param-input" id="param-min-segments" value="7" min="2" max="30" step="1">
                         <span class="param-hint">× 50 m = lunghezza minima</span>
-                    </div>
-                    <div class="param-group">
-                        <label class="param-label">Gap massimo</label>
-                        <input type="number" class="param-input" id="param-max-gap" value="5" min="0" max="20" step="1">
-                        <span class="param-hint">segmenti di pianura tollerati</span>
                     </div>
                     <div class="param-group">
                         <label class="param-label">Difficoltà minima</label>
@@ -2229,7 +2269,7 @@ ${trkpts}
                 // Hint testuale piccolo
                 const hint = document.createElement('div');
                 hint.textContent = 'Doppio clic per reset zoom';
-                hint.style.cssText = 'position:absolute;top:6px;right:8px;font-size:10px;color:#9ca3af;font-family:Inter,sans-serif;pointer-events:none;';
+                hint.style.cssText = 'position:absolute;top:calc(var(--elev-hidden-h, 0px) + 6px);right:8px;font-size:10px;color:#9ca3af;font-family:Inter,sans-serif;pointer-events:none;';
                 container.appendChild(hint);
             }
 
@@ -2347,7 +2387,7 @@ ${trkpts}
 
             // ── Pannello statistiche selezione ──
             const selPanel = document.createElement('div');
-            selPanel.style.cssText = 'position:absolute;top:8px;left:50%;transform:translateX(-50%);display:none;background:rgba(15,15,15,0.92);color:#fff;padding:7px 16px;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;z-index:9999;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.35);gap:18px;align-items:center;pointer-events:none;';
+            selPanel.style.cssText = 'position:absolute;top:calc(var(--elev-hidden-h, 0px) + 8px);left:50%;transform:translateX(-50%);display:none;background:rgba(15,15,15,0.92);color:#fff;padding:7px 16px;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;z-index:9999;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.35);gap:18px;align-items:center;pointer-events:none;';
             container.appendChild(selPanel);
 
             function showSelectionStats(x0, x1) {
@@ -2437,6 +2477,8 @@ ${trkpts}
             window._elevYScale = yScale;
             window._elevG = g;
             window._elevMargin = margin;
+            window._elevMaxEle = maxEle;
+            updateElevStickyOffset();
 
             // ── Click destro sull'altimetria → apre pannello SV (solo desktop) ──
             const svgNode = svg.node();
@@ -2477,6 +2519,54 @@ ${trkpts}
 
             // Re-disegna i marker della salita selezionata dopo ogni zoom/reset
             redrawClimbElevationMarkers();
+        }
+
+        // ── Anteprima hover (non persistente) di inizio/fine salita ───────────────
+        let _climbHoverLayers = [];
+
+        function clearClimbHoverPreview() {
+            _climbHoverLayers.forEach(l => map.removeLayer(l));
+            _climbHoverLayers = [];
+            const svg = d3.select('#elevation-chart svg');
+            if (svg.node()) svg.selectAll('.climb-hover-marker').remove();
+        }
+
+        function showClimbHoverPreview(climb, index, card) {
+            clearClimbHoverPreview();
+            if (!routeData || !routeData.points) return;
+            if (card && card.classList.contains('highlighted')) return; // già evidenziata col click
+
+            const pts = routeData.points;
+            const grads = smoothGradient(pts.map(p => p.gradient), 6);
+            const ends = [climb.startIndex, climb.endIndex]
+                .map(idx => ({ pt: pts[idx], color: getGradientColor(grads[idx]) }));
+
+            // Planimetria: stessi marker della selezione (senza zoom né popup)
+            ends.forEach(o => {
+                const m = L.circleMarker([o.pt.lat, o.pt.lon], {
+                    radius: 8, fillColor: o.color, color: '#000', weight: 2,
+                    opacity: 1, fillOpacity: 0.9, interactive: false
+                }).addTo(map);
+                _climbHoverLayers.push(m);
+            });
+
+            // Altimetria (solo i punti dentro l'intervallo visibile)
+            const svg = d3.select('#elevation-chart svg');
+            const chartGroup = svg.select('g');
+            const xS = window._elevXScale, yS = window._elevYScale;
+            if (!svg.node() || !chartGroup.node() || !xS || !yS) return;
+            const [d0, d1] = xS.domain();
+            ends.forEach(o => {
+                const km = o.pt.dist / 1000;
+                if (km < d0 || km > d1) return;
+                const cx = xS(km), cy = yS(o.pt.ele);
+                chartGroup.append('circle')
+                    .attr('class', 'climb-hover-marker')
+                    .attr('cx', cx).attr('cy', cy)
+                    .attr('r', 7).attr('fill', o.color)
+                    .attr('stroke', '#fff').attr('stroke-width', 2)
+                    .style('pointer-events', 'none');
+            });
         }
 
         function redrawClimbElevationMarkers() {
@@ -2520,12 +2610,82 @@ ${trkpts}
         
         // Climb Detection Functions
         const CLIMB_PARAMS_DEFAULTS = {
-            minGrade: 3.5,
-            maxGradeEnd: 1,
             minSegments: 7,
-            maxGap: 5,
-            minDifficulty: 20
+            minDifficulty: 20,
+            smoothM: 30,
+            refGrade: 3,
+            dropTol: 12,
+            minAvgGrade: 3,
+            mergePausePct: 15,
+            mergeDropPct: 5
         };
+
+        // Legge un numero da un input rispettando lo 0 (a differenza di `|| default`)
+        function readParamNum(id, def) {
+            const el = document.getElementById(id);
+            const v = el ? parseFloat(el.value) : NaN;
+            return Number.isFinite(v) ? v : def;
+        }
+
+
+        // ── Altimetria fissa in alto durante lo scroll ───────────────────────────
+        // L'altimetria si aggancia in alto, ma non dal bordo della card: lo spazio vuoto sopra la quota
+        // massima (il "cap" di 300 m sopra il picco) scorre fuori dallo schermo. L'agganciamento avviene
+        // quando in cima resta solo una fascia di ELEV_STICKY_HEADROOM_M metri sopra il picco (sempre
+        // la stessa, qualunque sia il percorso); se il bordo cadrebbe a metà di un'etichetta dell'asse,
+        // viene alzato quel tanto che basta a lasciarla intera.
+        const ELEV_STICKY_HEADROOM_M = 45;
+        let _elevStickyHidden = null;
+        let _elevStickyIO = null;
+
+        function observeElevSticky(hiddenPx) {
+            const panel = document.getElementById('elev-panel');
+            const sentinel = document.getElementById('elev-sticky-sentinel');
+            if (!panel || !sentinel || !('IntersectionObserver' in window)) return;
+            if (_elevStickyIO) _elevStickyIO.disconnect();
+            // Ombra "staccata" solo quando l'altimetria è davvero agganciata (rootMargin = parte nascosta)
+            _elevStickyIO = new IntersectionObserver(([e]) => {
+                panel.classList.toggle('is-stuck', !e.isIntersecting && e.boundingClientRect.top < 0);
+            }, { rootMargin: `${Math.round(hiddenPx)}px 0px 0px 0px`, threshold: [0] });
+            _elevStickyIO.observe(sentinel);
+        }
+
+        function updateElevStickyOffset() {
+            const panel = document.getElementById('elev-panel');
+            const chart = document.getElementById('elevation-chart');
+            if (!panel || !chart) return;
+            let hidden = 0;
+            const yS = window._elevYScale, m = window._elevMargin;
+            if (yS && m && window._elevMaxEle != null && chart.clientWidth > 0) {
+                const k = chart.clientWidth / 900;                       // px per unità del viewBox
+                const yMax = yS.domain()[1];
+                const svgPerM = Math.abs(yS(1) - yS(0));                 // unità del viewBox per metro
+                let topVal = Math.min(yMax, window._elevMaxEle + ELEV_STICKY_HEADROOM_M);
+                const ticks = typeof yS.ticks === 'function' ? yS.ticks(6) : [];   // stesse linee dell'asse Y
+                const cut = ticks.find(tk => Math.abs(tk - topVal) * svgPerM < 9);
+                if (cut !== undefined) topVal = Math.min(yMax, cut + 10 / svgPerM);
+                hidden = Math.max(0, (m.top + yS(topVal)) * k);
+            }
+            hidden = Math.round(hidden);
+            const root = document.documentElement.style;
+            root.setProperty('--elev-hidden-h', hidden + 'px');                           // overlay interni al grafico
+            root.setProperty('--elev-sticky-h', Math.max(0, panel.offsetHeight - hidden) + 'px'); // altezza visibile da agganciata
+            if (hidden !== _elevStickyHidden) {
+                _elevStickyHidden = hidden;
+                panel.style.top = (-hidden) + 'px';
+                observeElevSticky(hidden);
+            }
+        }
+
+        function initStickyElevation() {
+            const panel = document.getElementById('elev-panel');
+            if (!panel) return;
+            if ('ResizeObserver' in window) {
+                new ResizeObserver(() => updateElevStickyOffset()).observe(panel);
+            }
+            updateElevStickyOffset();
+        }
+        initStickyElevation();
 
         function toggleClimbParams() {
             const panel = document.getElementById('climbs-params-panel');
@@ -2546,12 +2706,134 @@ ${trkpts}
         }
 
         function resetClimbParams() {
-            document.getElementById('param-min-grade').value      = CLIMB_PARAMS_DEFAULTS.minGrade;
-            document.getElementById('param-max-grade-end').value  = CLIMB_PARAMS_DEFAULTS.maxGradeEnd;
+            document.getElementById('param-smooth-m').value       = CLIMB_PARAMS_DEFAULTS.smoothM;
+            document.getElementById('param-ref-grade').value      = CLIMB_PARAMS_DEFAULTS.refGrade;
+            document.getElementById('param-drop-tol').value       = CLIMB_PARAMS_DEFAULTS.dropTol;
+            document.getElementById('param-min-avg-grade').value  = CLIMB_PARAMS_DEFAULTS.minAvgGrade;
+            document.getElementById('param-merge-pause').value    = CLIMB_PARAMS_DEFAULTS.mergePausePct;
+            document.getElementById('param-merge-drop').value     = CLIMB_PARAMS_DEFAULTS.mergeDropPct;
             document.getElementById('param-min-segments').value   = CLIMB_PARAMS_DEFAULTS.minSegments;
-            document.getElementById('param-max-gap').value        = CLIMB_PARAMS_DEFAULTS.maxGap;
             document.getElementById('param-min-difficulty').value = CLIMB_PARAMS_DEFAULTS.minDifficulty;
             applyClimbParams();
+        }
+
+        // ── Rilevamento per PROMINENZA ───────────────────────────────────────────
+        // Idea: profilo altimetrico smussato (a distanza costante) + "inclinato" di una
+        // pendenza di riferimento g0:  f(d) = quota(d) - g0*d.
+        // Una salita è un tratto in cui f sale da un minimo a un massimo, e viene chiusa solo
+        // quando f perde più di `tol` metri (discesa O tratto piatto lungo). Così:
+        //  - inizio/fine cadono sui veri cambi di pendenza (nessuna griglia da 50 m)
+        //  - attacchi e finali piatti vengono tagliati da soli
+        //  - piccole discese/falsipiani interni non spezzano la salita
+        function zigzagPivots(f, tol) {
+            const piv = [];
+            const n = f.length;
+            if (n < 2) return piv;
+            let dir = 0, minI = 0, maxI = 0, extI = 0;
+            for (let i = 1; i < n; i++) {
+                if (dir === 0) {
+                    if (f[i] < f[minI]) minI = i;
+                    if (f[i] > f[maxI]) maxI = i;
+                    if (f[i] - f[minI] >= tol)      { piv.push({ i: minI, t: 'min' }); dir = 1;  extI = i; }
+                    else if (f[maxI] - f[i] >= tol) { piv.push({ i: maxI, t: 'max' }); dir = -1; extI = i; }
+                } else if (dir === 1) {
+                    if (f[i] > f[extI]) extI = i;
+                    else if (f[extI] - f[i] >= tol) { piv.push({ i: extI, t: 'max' }); dir = -1; extI = i; }
+                } else {
+                    if (f[i] < f[extI]) extI = i;
+                    else if (f[i] - f[extI] >= tol) { piv.push({ i: extI, t: 'min' }); dir = 1; extI = i; }
+                }
+            }
+            if (dir !== 0) piv.push({ i: extI, t: dir === 1 ? 'max' : 'min' });
+            return piv;
+        }
+
+        // Ritorna { sections, climbs } nello stesso formato del metodo classico.
+        // Le sezioni da 50 m vengono costruite DENTRO ogni salita, a partire dal suo inizio
+        // esatto, e concatenate (così grafico di dettaglio e pendenza max restano compatibili).
+        function detectClimbsByProminence(opts) {
+            const pts = routeData.points;
+            const n = pts.length;
+            const dist = pts.map(p => p.dist);
+            const eleS = smoothByDistance(pts.map(p => p.ele), dist, opts.smoothM);
+            const g0 = opts.refGrade / 100;
+            const f = eleS.map((e, i) => e - g0 * dist[i]);
+
+            const piv = zigzagPivots(f, opts.dropTol);
+            const SECTION_LENGTH = 50;
+            const MIN_LAST = 25;           // ultima sezione più corta di così viene fusa con la precedente
+            const sections = [];
+            const climbs = [];
+
+            const cand = [];
+            for (let k = 0; k + 1 < piv.length; k++) {
+                if (piv[k].t === 'min' && piv[k + 1].t === 'max' && piv[k + 1].i > piv[k].i) {
+                    cand.push({ s: piv[k].i, e: piv[k + 1].i });
+                }
+            }
+
+            // Unione di salite vicine. Gli estremi restano decisi dalla pendenza di riferimento
+            // (inizi/fini netti), ma due salite separate da una pausa BREVE rispetto alla loro
+            // lunghezza (e senza vera discesa) sono una salita sola. La regola è relativa alla
+            // più corta delle due, così una salitella non si "attacca" a una grande salita lontana.
+            // Avviene prima dei filtri di lunghezza/difficoltà, quindi non perde salite spezzate.
+            if (opts.mergePausePct > 0) {
+                let merged = true;
+                while (merged) {
+                    merged = false;
+                    for (let k = 0; k + 1 < cand.length; k++) {
+                        const A = cand[k], B = cand[k + 1];
+                        const lenA = dist[A.e] - dist[A.s], lenB = dist[B.e] - dist[B.s];
+                        const gap = dist[B.s] - dist[A.e];
+                        const gainA = eleS[A.e] - eleS[A.s], gainB = eleS[B.e] - eleS[B.s];
+                        let minEle = eleS[A.e];
+                        for (let i = A.e; i <= B.s; i++) if (eleS[i] < minEle) minEle = eleS[i];
+                        const drop = eleS[A.e] - minEle;
+                        if (gap <= (opts.mergePausePct / 100) * Math.min(lenA, lenB) &&
+                            drop <= (opts.mergeDropPct / 100) * Math.min(gainA, gainB)) {
+                            cand.splice(k, 2, { s: A.s, e: B.e });
+                            merged = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            for (const { s, e } of cand) {
+
+                // confini delle sezioni da 50 m dentro la salita
+                const bounds = [s];
+                let cs = s;
+                for (let i = s + 1; i <= e; i++) {
+                    if (dist[i] - dist[cs] >= SECTION_LENGTH || i === e) {
+                        bounds.push(i);
+                        cs = i;
+                    }
+                }
+                // fondi un'ultima sezione troppo corta
+                if (bounds.length > 2 && dist[bounds[bounds.length - 1]] - dist[bounds[bounds.length - 2]] < MIN_LAST) {
+                    bounds.splice(bounds.length - 2, 1);
+                }
+
+                const firstSeg = sections.length;
+                for (let b = 0; b + 1 < bounds.length; b++) {
+                    const a = bounds[b], z = bounds[b + 1];
+                    const d = dist[z] - dist[a];
+                    const dz = pts[z].ele - pts[a].ele;
+                    sections.push({
+                        sectionIndex: sections.length,
+                        startIndex: a,
+                        endIndex: z,
+                        distance: d,
+                        elevation: dz,
+                        grade: d > 0 ? (dz / d) * 100 : 0
+                    });
+                }
+                if (sections.length - 1 >= firstSeg) {
+                    climbs.push({ startSegment: firstSeg, endSegment: sections.length - 1 });
+                }
+            }
+            return { sections, climbs };
         }
 
         function detectAndDisplayClimbs() {
@@ -2564,73 +2846,23 @@ ${trkpts}
             detectedClimbs = [];
 
             // Read params from UI (with fallback to defaults)
-            const pMinGrade      = parseFloat(document.getElementById('param-min-grade')?.value)      || CLIMB_PARAMS_DEFAULTS.minGrade;
-            const pMaxGradeEnd   = parseFloat(document.getElementById('param-max-grade-end')?.value)  || CLIMB_PARAMS_DEFAULTS.maxGradeEnd;
             const pMinSegments   = parseInt(document.getElementById('param-min-segments')?.value)      || CLIMB_PARAMS_DEFAULTS.minSegments;
-            const pMaxGap        = parseInt(document.getElementById('param-max-gap')?.value)           ?? CLIMB_PARAMS_DEFAULTS.maxGap;
             const pMinDifficulty = parseFloat(document.getElementById('param-min-difficulty')?.value)  || CLIMB_PARAMS_DEFAULTS.minDifficulty;
-            
+            const pSmoothM       = readParamNum('param-smooth-m',      CLIMB_PARAMS_DEFAULTS.smoothM);
+            const pRefGrade      = readParamNum('param-ref-grade',     CLIMB_PARAMS_DEFAULTS.refGrade);
+            const pDropTol       = readParamNum('param-drop-tol',      CLIMB_PARAMS_DEFAULTS.dropTol);
+            const pMinAvgGrade   = readParamNum('param-min-avg-grade', CLIMB_PARAMS_DEFAULTS.minAvgGrade);
+            const pMergePause    = readParamNum('param-merge-pause',   CLIMB_PARAMS_DEFAULTS.mergePausePct);
+            const pMergeDrop     = readParamNum('param-merge-drop',    CLIMB_PARAMS_DEFAULTS.mergeDropPct);
+
             const SECTION_LENGTH = 50; // meters
             const MIN_SEGMENTS = pMinSegments;
-            const MIN_GRADE = pMinGrade;
-            const MAX_GRADE_END = pMaxGradeEnd;
-            const MAX_GAP_SEGMENTS = pMaxGap;
             const MIN_DIFFICULTY = pMinDifficulty;
-            
-            const sections = [];
-            let currentStartIndex = 0;
-            
-            for (let i = 1; i < routeData.points.length; i++) {
-                // dist is in METERS
-                const distDiffMeters = routeData.points[i].dist - routeData.points[currentStartIndex].dist;
-                
-                if (distDiffMeters >= SECTION_LENGTH || i === routeData.points.length - 1) {
-                    const altDiff = routeData.points[i].ele - routeData.points[currentStartIndex].ele;
-                    const sectionGrade = distDiffMeters > 0 ? (altDiff / distDiffMeters) * 100 : 0;
-                    
-                    sections.push({
-                        sectionIndex: sections.length,
-                        startIndex: currentStartIndex,
-                        endIndex: i,
-                        distance: distDiffMeters,
-                        elevation: altDiff,
-                        grade: sectionGrade
-                    });
-                    
-                    currentStartIndex = i;
-                }
-            }
-            
-            let climbs = [];
-            let currentClimb = { startSegment: null, endSegment: null };
-            
-            sections.forEach((section, index) => {
-                if (currentClimb.startSegment === null && section.grade >= MIN_GRADE) {
-                    currentClimb.startSegment = section.sectionIndex;
-                } else if (currentClimb.startSegment !== null && 
-                          (section.grade < MAX_GRADE_END || index === sections.length - 1)) {
-                    currentClimb.endSegment = section.sectionIndex - 1;
-                    
-                    if (currentClimb.endSegment >= currentClimb.startSegment &&
-                        currentClimb.endSegment - currentClimb.startSegment >= MIN_SEGMENTS) {
-                        climbs.push({ ...currentClimb });
-                    }
-                    
-                    currentClimb = { startSegment: null, endSegment: null };
-                }
+
+            const { sections, climbs } = detectClimbsByProminence({
+                smoothM: pSmoothM, refGrade: pRefGrade, dropTol: pDropTol,
+                mergePausePct: pMergePause, mergeDropPct: pMergeDrop
             });
-            
-            for (let i = 1; i < climbs.length; i++) {
-                const prevClimb = climbs[i - 1];
-                const currentClimb = climbs[i];
-                const gapSegments = currentClimb.startSegment - prevClimb.endSegment;
-                
-                if (gapSegments <= MAX_GAP_SEGMENTS) {
-                    prevClimb.endSegment = currentClimb.endSegment;
-                    climbs.splice(i, 1);
-                    i--;
-                }
-            }
             
             detectedClimbs = [];
             climbs.forEach((climb, idx) => {
@@ -2642,7 +2874,9 @@ ${trkpts}
                 const avgGrade = (elevationGain / distMeters) * 100;
                 const difficultyCoefficient = Math.pow(avgGrade, 2) * (distMeters / 1000);
                 
-                if (difficultyCoefficient < MIN_DIFFICULTY) return;
+                // Confronto sul valore mostrato nella card (Diff arrotondata a intero)
+                if (Math.round(difficultyCoefficient) < MIN_DIFFICULTY) return;
+                if (Math.round(avgGrade * 10) / 10 < pMinAvgGrade || distMeters < MIN_SEGMENTS * SECTION_LENGTH) return;
                 
                 // Get max gradient over 100m windows (2 × 50m sections) to avoid GPS noise
                 let maxGrade = 0;
@@ -2673,12 +2907,21 @@ ${trkpts}
                 });
             });
             
-            if (detectedClimbs.length > 0) {
+            // La sezione resta sempre visibile (anche con 0 salite): serve il pulsante Parametri per ricalcolare.
+            // Senza salite resta solo l'intestazione: niente lista vuota né legenda Diff.
+            const climbsSection = document.getElementById('climbs-section');
+            const hasClimbs = detectedClimbs.length > 0;
+            climbsSection.style.display = 'block';
+            climbsSection.classList.toggle('is-empty', !hasClimbs);
+            document.getElementById('climbs-list').style.display = hasClimbs ? '' : 'none';
+            const diffLegend = climbsSection.querySelector('.difficulty-legend');
+            if (diffLegend) diffLegend.style.display = hasClimbs ? 'block' : 'none';
+            if (hasClimbs) {
                 displayClimbsUI(sections);
                 drawClimbsOnMap();
-                document.getElementById('climbs-section').style.display = 'block';
             } else {
-                document.getElementById('climbs-section').style.display = 'none';
+                document.getElementById('climbs-count').textContent = '(0 salite)';
+                document.getElementById('climbs-list').innerHTML = '';
             }
         }
         
@@ -2740,11 +2983,19 @@ ${trkpts}
                     </div>
                 `;
                 
+                card.addEventListener('pointerenter', (ev) => {
+                    if (ev.pointerType && ev.pointerType !== 'mouse') return;
+                    showClimbHoverPreview(climb, index, card);
+                });
+                card.addEventListener('pointerleave', () => clearClimbHoverPreview());
+
                 card.addEventListener('click', () => {
                     // Check if this card is already highlighted - if so, deselect
                     const wasHighlighted = card.classList.contains('highlighted');
                     
                     // Remove previous highlights and markers
+                    clearClimbHoverPreview();
+                    _selectedClimbMarkers = null;
                     document.querySelectorAll('.climb-card').forEach(c => c.classList.remove('highlighted'));
                     climbPolylines.forEach(marker => map.removeLayer(marker));
                     climbPolylines = [];
@@ -2758,6 +3009,7 @@ ${trkpts}
                     
                     // If was already highlighted, just deselect and return
                     if (wasHighlighted) {
+                        if (card.matches(':hover')) showClimbHoverPreview(climb, index, card);
                         return;
                     }
                     
@@ -2839,6 +3091,7 @@ ${trkpts}
             _selectedClimbMarkers = null;
             const svg = d3.select('#elevation-chart svg');
             svg.selectAll('.climb-elevation-marker').remove();
+            clearClimbHoverPreview();
         }
 
         let currentClimbData = null; // Memorizza i dati della salita corrente
